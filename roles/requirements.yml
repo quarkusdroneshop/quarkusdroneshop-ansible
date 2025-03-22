@@ -1,3 +1,3 @@
 # Used for ansible tower deployments 
-- src: git+https://github.com/quarkuscoffeeshop/quarkuscoffeeshop-ansible
+- src: git+https://github.com/nmushino/quarkuscoffeeshop-ansible
   version: master
