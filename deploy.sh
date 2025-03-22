@@ -13,7 +13,7 @@ oc delete all -l app=counter
 oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source
 
 oc apply -f configmap/coffeeshop-configmap.yaml
-oc replace -f configmap/counter-buildconfig.yaml
+oc apply -f configmap/counter-buildconfig.yaml
 
 #oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source
 #oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source
