@@ -83,7 +83,7 @@
   kubernetes.core.k8s_info:
     api: v1
     kind: Secret
-    name: coffeeshopdb-pguser-coffeshopadmin
+    name: coffeeshopdb-pguser-coffeeshopadmin
     namespace: "{{ project_namespace }}"
   register: databasepassword
   when: not delete_deployment|bool

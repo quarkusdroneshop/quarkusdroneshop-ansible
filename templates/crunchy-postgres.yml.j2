@@ -7,7 +7,7 @@ spec:
   backups:
     pgbackrest:
       image: >-
-        registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.38-0
+        registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.45-2
       repos:
         - name: repo1
           volume:
@@ -17,7 +17,7 @@ spec:
               resources:
                 requests:
                   storage: 1Gi
-  image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-14.2-1
+  image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-17.4-0
   instances:
     - dataVolumeClaimSpec:
         accessModes:
@@ -32,5 +32,5 @@ spec:
   users:
     - databases:
         - coffeeshopdb
-      name: coffeshopadmin
+      name: coffeeshopadmin
 

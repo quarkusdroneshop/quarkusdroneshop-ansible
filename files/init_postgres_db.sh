@@ -12,13 +12,13 @@ then
   exit 1
 fi 
 
-psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "CREATE SCHEMA coffeeshop AUTHORIZATION coffeshopadmin;"
-psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "alter table if exists coffeeshop.LineItems
+psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "CREATE SCHEMA coffeeshop AUTHORIZATION coffeeshopadmin;"
+psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "alter table if exists coffeeshop.LineItems
     drop constraint if exists FK6fhxopytha3nnbpbfmpiv4xgn;"
-psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "drop table if exists coffeeshop.LineItems cascade;
+psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "drop table if exists coffeeshop.LineItems cascade;
 drop table if exists coffeeshop.Orders cascade;
 drop table if exists coffeeshop.OutboxEvent cascade;"
-psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "create table coffeeshop.LineItems (
+psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table coffeeshop.LineItems (
                            itemId varchar(255) not null,
                            item varchar(255),
                            lineItemStatus varchar(255),
@@ -28,7 +28,7 @@ psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "create table c
                            primary key (itemId)
 );"
 
-psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "create table coffeeshop.Orders (
+psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table coffeeshop.Orders (
                         order_id varchar(255) not null,
                         loyaltyMemberId varchar(255),
                         location     varchar(255),
@@ -38,7 +38,7 @@ psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "create table c
                         primary key (order_id)
 );"
 
-psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "create table coffeeshop.OutboxEvent (
+psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table coffeeshop.OutboxEvent (
                              id uuid not null,
                              aggregatetype varchar(255) not null,
                              aggregateid varchar(255) not null,
@@ -48,7 +48,7 @@ psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "create table c
                              primary key (id)
 );"
 
-psql -h ${PGHOSTNAME} -p 5432 -U coffeshopadmin coffeeshopdb  -c "alter table if exists coffeeshop.LineItems
+psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "alter table if exists coffeeshop.LineItems
     add constraint FK6fhxopytha3nnbpbfmpiv4xgn
         foreign key (order_id)
             references coffeeshop.Orders;"

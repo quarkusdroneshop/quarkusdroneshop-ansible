@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coffeeshop-config
+  namespace: quarkuscoffeeshop-demo
+data:
+  KAFKA_BOOTSTRAP_URLS: "cafe-cluster-kafka-bootstrap:9092,cafe-cluster-kafka-bootstrap:9092"
+  STREAM_URL: "cafe-cluster-kafka-brokers"
+  LOYALTY_STREAM_URL: "cafe-cluster-kafka-brokers"
+  CORS_ORIGINS: "http://localhost:8080"
+  STORE_ID: "STORE-TOKYO"
+  PGSQL_URL: "jdbc:postgresql://coffeeshopdb-ha:5432/coffeeshopdb?currentSchema=coffeeshopdb"
+  PGSQL_USER: "coffeeshopadmin"
+  PGSQL_PASS: "postgres"
+  QUARKUS_LOG_LEVEL: "info"
+  QUARKUSCOFFEESHOP_LOG_LEVEL: "info"
+
