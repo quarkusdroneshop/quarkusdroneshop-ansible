@@ -91,8 +91,8 @@ acm_reponame_local: quarkuscoffeeshop-gitops
 reponame: tekton-pipelines
 acm_reponame: quarkuscoffeeshop-gitops
 # tekton pipelines repo for applications
-repo_url: https://github.com/quarkuscoffeeshop/tekton-pipelines.git
-acm_repo_url: https://github.com/quarkuscoffeeshop/quarkuscoffeeshop-gitops.git
+repo_url: https://github.com/nmushino/tekton-pipelines.git
+acm_repo_url: https://github.com/nmushino/quarkuscoffeeshop-gitops.git
 
 # OpenShift Storage
 odf_version: "stable-4.12" 
