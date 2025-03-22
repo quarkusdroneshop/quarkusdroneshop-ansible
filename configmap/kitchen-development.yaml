@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kitchen
+  namespace: quarkuscoffeeshop-demo
+  labels:
+    app: kitchen
+    environment: production
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: kitchen
+          env:
+            - name: KAFKA_BOOTSTRAP_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: coffeeshop-config
+                  key: KAFKA_BOOTSTRAP_URLS

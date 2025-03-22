@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: counter
   namespace: quarkuscoffeeshop-demo
+  labels:
+    app: counter
+    environment: production
 spec:
   replicas: 1
   template:

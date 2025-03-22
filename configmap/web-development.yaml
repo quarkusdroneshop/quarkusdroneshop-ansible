@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: quarkuscoffeeshop-demo
+  labels:
+    app: web
+    environment: production
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: web
+          env:
+            - name: KAFKA_BOOTSTRAP_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: coffeeshop-config
+                  key: KAFKA_BOOTSTRAP_URLS
+            - name: STREAM_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: coffeeshop-config
+                  key: STREAM_URL
+            - name: LOYALTY_STREAM_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: coffeeshop-config
+                  key: LOYALTY_STREAM_URL
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: coffeeshop-config
+                  key: CORS_ORIGINS
+            - name: STORE_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: coffeeshop-config
+                  key: STORE_ID

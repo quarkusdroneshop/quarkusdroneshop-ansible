@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: barista
+  namespace: quarkuscoffeeshop-demo
+  labels:
+    app: barista
+    environment: production
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: barista
+          env:
+            - name: KAFKA_BOOTSTRAP_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: coffeeshop-config
+                  key: KAFKA_BOOTSTRAP_URLS

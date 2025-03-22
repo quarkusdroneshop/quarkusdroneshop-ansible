@@ -7,11 +7,8 @@ data:
   KAFKA_BOOTSTRAP_URLS: "cafe-cluster-kafka-bootstrap:9092,cafe-cluster-kafka-bootstrap:9092"
   STREAM_URL: "cafe-cluster-kafka-brokers"
   LOYALTY_STREAM_URL: "cafe-cluster-kafka-brokers"
-  CORS_ORIGINS: "http://localhost:8080"
+  CORS_ORIGINS: "https://quarkuscoffeeshop-web-quarkuscoffeeshop-demo.apps.cluster-ggm29.ggm29.sandbox3061.opentlc.com"
   STORE_ID: "STORE-TOKYO"
   PGSQL_URL: "jdbc:postgresql://coffeeshopdb-ha:5432/coffeeshopdb?currentSchema=coffeeshopdb"
-  PGSQL_USER: "coffeeshopadmin"
-  PGSQL_PASS: "postgres"
   QUARKUS_LOG_LEVEL: "info"
   QUARKUSCOFFEESHOP_LOG_LEVEL: "info"
-
