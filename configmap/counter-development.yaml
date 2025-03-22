@@ -1,8 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-app
-  namespace: my-namespace
+  name: counter
+  namespace: quarkuscoffeeshop-demo
 spec:
   replicas: 1
   template:
@@ -10,27 +10,27 @@ spec:
       containers:
         - name: counter
           env:
-            - name: quarkus.datasource.jdbc.url
+            - name: PGSQL_URL
               valueFrom:
                 configMapKeyRef:
-                  name: coffeeshopdb-pguser-coffeshopadmin
-                  key: jdbc-uri
-            - name: quarkus.datasource.username
+                  name: coffeeshop-config
+                  key: PGSQL_URL
+            - name: PGSQL_USER
               valueFrom:
-                configMapKeyRef:
-                  name: coffeeshopdb-pguser-coffeshopadmin
+                secretKeyRef:
+                  name: coffeeshopdb-pguser-coffeeshopadmin
                   key: user
-            - name: quarkus.datasource.password
+            - name: PGSQL_PASS
               valueFrom:
-                configMapKeyRef:
-                  name: coffeeshopdb-pguser-coffeshopadmin
+                secretKeyRef:
+                  name: coffeeshopdb-pguser-coffeeshopadmin
                   key: password
-            - name: quarkus.log.level
+            - name: QUARKUS_LOG_LEVEL
               valueFrom:
                 configMapKeyRef:
                   name: coffeeshop-config
                   key: QUARKUS_LOG_LEVEL
-            - name: kafka.bootstrap.servers
+            - name: KAFKA_BOOTSTRAP_URLS
               valueFrom:
                 configMapKeyRef:
                   name: coffeeshop-config
