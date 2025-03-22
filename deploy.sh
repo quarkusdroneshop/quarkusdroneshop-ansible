@@ -1,7 +1,7 @@
 oc delete project quarkuscoffeeshop-demo
 
-podman build --no-cache -t quarkuscoffeeshop-image . 
-podman run --platform linux/amd64 -it --env-file=./source.env quarkuscoffeeshop-image
+podman build -t quarkuscoffeeshop ../quarkuscoffeeshop-ansible
+podman run --platform linux/amd64 -it --env-file=./source.env quarkuscoffeeshop
 
 oc delete all -l app=web
 oc delete all -l app=kitchen

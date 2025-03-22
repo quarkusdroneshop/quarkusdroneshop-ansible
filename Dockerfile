@@ -11,7 +11,6 @@ RUN git clone https://github.com/ansible-collections/kubernetes.core.git && \
     mkdir -p /root/.ansible/plugins/modules && \
     cp kubernetes.core/plugins/action/k8s.py /root/.ansible/plugins/modules/ 
 
-
 RUN mkdir /opt/workspace  && git config --global user.email "demo@quarkus.io" && git config --global user.name "Quarkus"
 COPY . /opt/workspace
 COPY files/env.variables /root/
