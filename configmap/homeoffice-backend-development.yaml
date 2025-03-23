@@ -23,7 +23,7 @@ spec:
                 secretKeyRef:
                   name: coffeeshopdb-pguser-coffeeshopadmin
                   key: user
-            - name: POSTGRESQL_USER
+            - name: POSTGRESQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: coffeeshopdb-pguser-coffeeshopadmin
