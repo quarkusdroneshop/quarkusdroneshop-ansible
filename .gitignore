@@ -3,3 +3,4 @@ aider_setup.sh
 aider-env/bin/activate
 .aider*
 .DS_Store
+source.env

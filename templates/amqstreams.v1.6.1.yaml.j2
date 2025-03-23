@@ -39,12 +39,6 @@ metadata:
                   "type":"ephemeral"
                 }
             },
-            "zookeeper":{
-                "replicas":3,
-                "storage":{
-                  "type":"ephemeral"
-                }
-            },
             "entityOperator":{
                 "topicOperator":{
                   },
@@ -511,23 +505,6 @@ spec:
       - description: Limits describes the minimum/maximum amount of compute resources required/allowed
         displayName: Kafka Resource Requirements
         path: kafka.resources
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
-      - description: The desired number of Zookeeper nodes.
-        displayName: Zookeeper Nodes
-        path: zookeeper.replicas
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:podCount
-      - description: The type of storage used by Zookeeper nodes
-        displayName: Zookeeper storage
-        path: zookeeper.storage.type
-        x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:select:ephemeral
-        - urn:alm:descriptor:com.tectonic.ui:select:persistent-claim
-        - urn:alm:descriptor:com.tectonic.ui:select:jbod
-      - description: Limits describes the minimum/maximum amount of compute resources required/allowed
-        displayName: Zookeeper Resource Requirements
-        path: zookeeper.resources
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:resourceRequirements
       statusDescriptors:
