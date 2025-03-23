@@ -5,9 +5,9 @@ metadata:
   namespace: quarkuscoffeeshop-demo
 data:
   KAFKA_BOOTSTRAP_URLS: "cafe-cluster-kafka-bootstrap:9092"
-  STREAM_URL: oc get routes -A --no-headers | awk '{print $3}' | grep -m1 web"/dashboard/stream"
-  LOYALTY_STREAM_URL: "http://quarkuscoffeeshop-web-quarkuscoffeeshop-demo.apps.cluster-ggm29.ggm29.sandbox3061.opentlc.com/dashboard/loyaltystream"
-  CORS_ORIGINS: "http://quarkuscoffeeshop-web-quarkuscoffeeshop-demo.apps.cluster-ggm29.ggm29.sandbox3061.opentlc.com"
+  STREAM_URL: "http://localhost:8080/dashboard/stream"
+  LOYALTY_STREAM_URL: "http://localhost:8080/dashboard/loyaltystream"
+  CORS_ORIGINS: "http://localhost:8080"
   STORE_ID: "TOKYO"
   PGSQL_URL: "jdbc:postgresql://coffeeshopdb-ha:5432/coffeeshopdb?currentSchema=coffeeshop"
   QUARKUS_LOG_LEVEL: "INFO"

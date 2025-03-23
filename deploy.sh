@@ -35,3 +35,15 @@ oc expose deployment web --port=8080 --name=quarkuscoffeeshop-web
 
 oc expose svc/quarkuscoffeeshop-web
 #oc expose svc/quarkuscoffeeshop-customermocker
+
+###### update configmap
+CLUSTER_DOMAIN=$(oc get routes -A --no-headers | awk '{print $3}' | grep -m1 web)
+CORS_ORIGINS_URL="http://${CLUSTER_DOMAIN}"
+oc patch configmap coffeeshop-config --type merge -p "{\"data\":{\"CORS_ORIGINS\":\"$CORS_ORIGINS_URL\"}}"
+
+STREAM_URL="http://${CLUSTER_DOMAIN}/dashboard/stream"
+oc patch configmap coffeeshop-config --type merge -p "{\"data\":{\"STREAM_URL\":\"$STREAM_URL\"}}"
+
+LOYALTY_STREAM_URL="http://${CLUSTER_DOMAIN}/dashboard/loyaltystream"
+oc patch configmap coffeeshop-config --type merge -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"$LOYALTY_STREAM_URL\"}}"
+
