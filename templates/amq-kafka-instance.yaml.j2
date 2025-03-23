@@ -19,7 +19,8 @@ spec:
       topicOperator: {}
       userOperator: {}
     config:
-      kafka.kraftMode: "true"
+      kraft.enabled: true
+      kafka.kraftMode: 'true'
       offsets.topic.replication.factor: 3
       transaction.state.log.replication.factor: 3
       transaction.state.log.min.isr: 2
