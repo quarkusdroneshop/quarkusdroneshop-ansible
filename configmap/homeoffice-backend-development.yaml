@@ -1,17 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: counter
+  name: homeoffice-backend
   namespace: quarkuscoffeeshop-demo
   labels:
-    app: counter
+    app: homeoffice-backend
     environment: production
+    category: coffeeshop-backend
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: web
   template:
     spec:
       containers:
-        - name: counter
+        - name: homeoffice-backend
           env:
             - name: POSTGRESQL_JDBC_URL
               valueFrom:

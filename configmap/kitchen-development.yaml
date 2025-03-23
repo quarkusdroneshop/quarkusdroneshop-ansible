@@ -6,8 +6,12 @@ metadata:
   labels:
     app: kitchen
     environment: production
+    category: coffeeshop
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: kitchen
   template:
     spec:
       containers:

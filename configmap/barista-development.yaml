@@ -6,8 +6,12 @@ metadata:
   labels:
     app: barista
     environment: production
+    category: coffeeshop
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: web
   template:
     spec:
       containers:
