@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: counter
+  namespace: quarkuscoffeeshop-demo
+  labels:
+    app: counter
+    environment: production
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: counter
+          env:
+            - name: POSTGRESQL_JDBC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: coffeeshop-config
+                  key: PGSQL_URL
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: coffeeshopdb-pguser-coffeeshopadmin
+                  key: user
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: coffeeshopdb-pguser-coffeeshopadmin
+                  key: password
