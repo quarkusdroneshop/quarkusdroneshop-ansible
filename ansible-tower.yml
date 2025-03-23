@@ -4,7 +4,7 @@
     openshift_token: openshift-token
     domain: example.com
     postgres_password: 'changeme'
-    storeid: ATLANTA
+    storeid: TOKYO
     openshift_url: "https://api.{{ domain }}:6443"
     project_namespace: quarkuscoffeeshop-demo
     delete_deployment: false

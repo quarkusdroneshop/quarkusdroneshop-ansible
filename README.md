@@ -17,14 +17,14 @@ The source code for the  [quarkuscoffeeshop](https://github.com/quarkuscoffeesho
 Requirements
 ------------
 
-* OpenShift 4.12 an up Cluster installed
+* OpenShift 4.16 an up Cluster installed
 * Docker or podman
 
 Currently tested on 
 -------------------
-* OpenShift 4.12.2
+* OpenShift 4.16.2
 * OpenShift Pipelines: 1.9.0
-* AMQ Streams: 2.3.0-0odm
+* AMQ Streams: 3.9.0-0
 * Postgres Operator: v5.3.0
 * OpenShift Quay: v3.8.1
 * OpenShift GitOps: v1.7.1
@@ -237,5 +237,4 @@ Author Information
 ------------------
 
 This role was created in 2020 by [Tosin Akinosho](https://github.com/tosin2013)
-
-
+This role was updated in 2025 by [Noriaki Mushino](https://github.com/nmushino)
