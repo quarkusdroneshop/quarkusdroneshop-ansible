@@ -4,7 +4,7 @@ metadata:
   name: {{ kafka_cluster_name }}
 spec:
   kafka:
-    version:  3.9.0
+    version: 3.9.0
     replicas: 3
     listeners:
       - name: plain
@@ -28,8 +28,6 @@ spec:
       process.roles: "controller,broker"
     storage:
       type: ephemeral
+  # KafkaのKRaftモード設定
   kafkaKraft:
     mode: "KRaft"
-  entityOperator:
-    topicOperator: {}
-    userOperator: {}
