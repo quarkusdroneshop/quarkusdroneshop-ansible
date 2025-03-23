@@ -25,6 +25,7 @@ spec:
       default.replication.factor: 3
       min.insync.replicas: 2
       inter.broker.protocol.version: '3.3'
+      process.roles: "controller,broker"
     storage:
       type: ephemeral
     kraft:
