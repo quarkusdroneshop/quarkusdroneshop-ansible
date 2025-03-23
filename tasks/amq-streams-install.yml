@@ -100,7 +100,7 @@
     kind: Pod
     namespace:  "{{ project_namespace }}"
     label_selectors:
-      - "app.kubernetes.io/name=kafka"
+      - "strimzi.io/name=cafe-cluster-kafka"
     field_selectors:
       - status.phase=Running
   register: r_kafka_status
