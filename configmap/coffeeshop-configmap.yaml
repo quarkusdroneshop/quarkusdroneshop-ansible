@@ -5,10 +5,10 @@ metadata:
   namespace: quarkuscoffeeshop-demo
 data:
   KAFKA_BOOTSTRAP_URLS: "cafe-cluster-kafka-bootstrap:9092"
-  STREAM_URL: "cafe-cluster-kafka-brokers"
-  LOYALTY_STREAM_URL: "cafe-cluster-kafka-brokers"
-  CORS_ORIGINS: ""
+  STREAM_URL: "http://quarkuscoffeeshop-web-quarkuscoffeeshop-demo.apps.cluster-ggm29.ggm29.sandbox3061.opentlc.com/dashboard/stream"
+  LOYALTY_STREAM_URL: "http://quarkuscoffeeshop-web-quarkuscoffeeshop-demo.apps.cluster-ggm29.ggm29.sandbox3061.opentlc.com/dashboard/loyaltystream"
+  CORS_ORIGINS: "http://quarkuscoffeeshop-web-quarkuscoffeeshop-demo.apps.cluster-ggm29.ggm29.sandbox3061.opentlc.com"
   STORE_ID: "TOKYO"
-  PGSQL_URL: "jdbc:postgresql://coffeeshopdb-ha:5432/coffeeshopdb?currentSchema=coffeeshopdb"
+  PGSQL_URL: "jdbc:postgresql://coffeeshopdb-ha:5432/coffeeshopdb?currentSchema=coffeeshop"
   QUARKUS_LOG_LEVEL: "INFO"
   QUARKUSCOFFEESHOP_LOG_LEVEL: "INFO"

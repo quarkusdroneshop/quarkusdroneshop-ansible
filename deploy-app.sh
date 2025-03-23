@@ -1,15 +1,14 @@
-oc delete project quarkuscoffeeshop-demo
 
-#oc delete all -l app=web
+oc delete all -l app=web
 #oc delete all -l app=kitchen
 #oc delete all -l app=barista
-oc delete all -l app=counter
+#oc delete all -l app=counter
 
 oc apply -f configmap/coffeeshop-configmap.yaml -n quarkuscoffeeshop-demo
 
 # counter app install
-oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source -n quarkuscoffeeshop-demo
-oc apply -f configmap/counter-development.yaml -n quarkuscoffeeshop-demo
+#oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source -n quarkuscoffeeshop-demo
+#oc apply -f configmap/counter-development.yaml -n quarkuscoffeeshop-demo
 
 # barista app install
 #oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source -n quarkuscoffeeshop-demo
@@ -20,8 +19,8 @@ oc apply -f configmap/counter-development.yaml -n quarkuscoffeeshop-demo
 #oc apply -f configmap/kitchen-development.yaml -n quarkuscoffeeshop-demo
 
 # web app install
-#oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-web.git --name=web --allow-missing-images --strategy=source -n quarkuscoffeeshop-demo
-#oc apply -f configmap/web-development.yaml -n quarkuscoffeeshop-demo
+oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-web.git --name=web --allow-missing-images --strategy=source -n quarkuscoffeeshop-demo
+oc apply -f configmap/web-development.yaml -n quarkuscoffeeshop-demo
 
 
 
