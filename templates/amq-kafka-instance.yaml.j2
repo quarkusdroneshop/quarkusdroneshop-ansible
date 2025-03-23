@@ -21,12 +21,18 @@ spec:
     config:
       kraft.enabled: true
       kafka.kraftMode: 'true'
+      process.roles: "controller,broker"
       offsets.topic.replication.factor: 3
       transaction.state.log.replication.factor: 3
       transaction.state.log.min.isr: 2
       default.replication.factor: 3
       min.insync.replicas: 2
       inter.broker.protocol.version: '3.3'
+      node.id: 1
+      controller.quorum.voters: "1@cafe-cluster-kafka-0.cafe-cluster-kafka-brokers.quarkuscoffeeshop-demo.svc:9093"
+      listeners: |-
+        INTERNAL://:9092
+        CONTROLLER://:9093
     storage:
       type: ephemeral
   entityOperator:
