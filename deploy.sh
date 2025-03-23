@@ -34,4 +34,4 @@ oc expose deployment web --port=8080 --name=quarkuscoffeeshop-web
 #oc expose deployment counter --port=8080 --name=quarkuscoffeeshop-web
 
 oc expose svc/quarkuscoffeeshop-web
-oc expose svc/quarkuscoffeeshop-customermocker
+#oc expose svc/quarkuscoffeeshop-customermocker

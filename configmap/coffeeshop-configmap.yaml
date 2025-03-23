@@ -4,11 +4,11 @@ metadata:
   name: coffeeshop-config
   namespace: quarkuscoffeeshop-demo
 data:
-  KAFKA_BOOTSTRAP_URLS: "cafe-cluster-kafka-bootstrap:9092,cafe-cluster-kafka-bootstrap:9092"
+  KAFKA_BOOTSTRAP_URLS: "cafe-cluster-kafka-bootstrap:9092"
   STREAM_URL: "cafe-cluster-kafka-brokers"
   LOYALTY_STREAM_URL: "cafe-cluster-kafka-brokers"
-  CORS_ORIGINS: "https://quarkuscoffeeshop-web-quarkuscoffeeshop-demo.apps.cluster-ggm29.ggm29.sandbox3061.opentlc.com"
-  STORE_ID: "STORE-TOKYO"
+  CORS_ORIGINS: ""
+  STORE_ID: "TOKYO"
   PGSQL_URL: "jdbc:postgresql://coffeeshopdb-ha:5432/coffeeshopdb?currentSchema=coffeeshopdb"
-  QUARKUS_LOG_LEVEL: "info"
-  QUARKUSCOFFEESHOP_LOG_LEVEL: "info"
+  QUARKUS_LOG_LEVEL: "INFO"
+  QUARKUSCOFFEESHOP_LOG_LEVEL: "INFO"
