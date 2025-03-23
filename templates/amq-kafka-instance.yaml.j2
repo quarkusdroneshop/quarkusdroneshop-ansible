@@ -28,8 +28,8 @@ spec:
       process.roles: "controller,broker"
     storage:
       type: ephemeral
-    kraft:
-      quorumReplicas: 3
+  kafkaKraft:
+    mode: "KRaft"
   entityOperator:
     topicOperator: {}
     userOperator: {}
