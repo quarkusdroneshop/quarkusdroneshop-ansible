@@ -1,7 +1,7 @@
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: strimzi-cluster-operator.v0.30.0
+  name: strimzi-cluster-operator.v0.24.0
   annotations:
     alm-examples: |-
       [
@@ -13,7 +13,7 @@ metadata:
           },
           "spec":{
             "kafka":{
-                "version":"3.9.0",
+                "version":"2.6.0",
                 "replicas":3,
                 "listeners": [
                   {
