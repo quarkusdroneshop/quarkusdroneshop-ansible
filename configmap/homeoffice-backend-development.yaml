@@ -6,29 +6,26 @@ metadata:
   labels:
     app: homeoffice-backend
     environment: production
-    category: coffeeshop-backend
+    category: coffeeshop
 spec:
   replicas: 1
-  selector:
-    matchLabels:
-      app: web
   template:
     spec:
       containers:
-        - name: homeoffice-backend
-          env:
-            - name: POSTGRESQL_JDBC_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: coffeeshop-config
-                  key: PGSQL_URL
-            - name: POSTGRESQL_USER
-              valueFrom:
-                secretKeyRef:
-                  name: coffeeshopdb-pguser-coffeeshopadmin
-                  key: user
-            - name: POSTGRESQL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: coffeeshopdb-pguser-coffeeshopadmin
-                  key: password
+      - name: homeoffice-backend
+        env:
+           - name: POSTGRESQL_JDBC_URL
+             valueFrom:
+               configMapKeyRef:
+                 name: coffeeshop-config
+                 key: PGSQL_URL
+           - name: POSTGRESQL_USER
+             valueFrom:
+               secretKeyRef:
+                 name: coffeeshopdb-pguser-coffeeshopadmin
+                 key: user
+           - name: POSTGRESQL_PASSWORD
+             valueFrom:
+               secretKeyRef:
+                 name: coffeeshopdb-pguser-coffeeshopadmin
+                 key: password

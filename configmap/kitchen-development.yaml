@@ -9,16 +9,13 @@ metadata:
     category: coffeeshop
 spec:
   replicas: 1
-  selector:
-    matchLabels:
-      app: kitchen
   template:
     spec:
       containers:
-        - name: kitchen
-          env:
-            - name: KAFKA_BOOTSTRAP_URLS
-              valueFrom:
-                configMapKeyRef:
-                  name: coffeeshop-config
-                  key: KAFKA_BOOTSTRAP_URLS
+       - name: kitchen
+         env:
+           - name: KAFKA_BOOTSTRAP_URLS
+             valueFrom:
+               configMapKeyRef:
+                 name: coffeeshop-config
+                 key: KAFKA_BOOTSTRAP_URLS

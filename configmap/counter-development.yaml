@@ -9,19 +9,11 @@ metadata:
     category: coffeeshop
 spec:
   replicas: 1
-  selector:
-    matchLabels:
-      app: counter
-      deployment: counter  # selector と template の labels を一致させる
   template:
-    metadata:
-      labels:
-        app: counter
-        deployment: counter  # selector と一致させる
     spec:
       containers:
-        - name: counter
-          env:
+       - name: counter
+         env:
             - name: PGSQL_URL
               valueFrom:
                 configMapKeyRef:
