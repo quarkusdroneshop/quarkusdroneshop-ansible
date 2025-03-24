@@ -13,6 +13,10 @@ spec:
     matchLabels:
       app: counter
   template:
+    metadata:
+      labels:
+        app: counter
+        deployment: counter  # ここで selector と一致させる
     spec:
       containers:
         - name: counter
