@@ -5,4 +5,5 @@ aider-env/bin/activate
 .DS_Store
 source.env
 deploy.sh
-port-forward.sh
+postgresql.sh
+openmetadata.sh

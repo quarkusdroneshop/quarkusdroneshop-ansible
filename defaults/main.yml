@@ -44,6 +44,7 @@ mongodb_username: mongodb
 mongodb_password: 7lIHuw&#0KrE
 single_mongodb_install: true
 skip_mongodb_operator_install: true 
+
 # Postgres database information
 postgres_version: 17
 pgsql_username: coffeeshopadmin
