@@ -38,7 +38,7 @@ replica_web: 1
 replica_customerloyalty: 1
 
 # mongo DB user information 
-mongodbops_admin: jane.doe@example.com
+mongodbops_admin: nmushinoe@redhat.com
 mongodbops_password: Passw0rd.
 mongodb_username: mongodb
 mongodb_password: 7lIHuw&#0KrE
@@ -52,12 +52,12 @@ postgres_hostname: "coffeeshopdb-primary.{{ project_namespace }}.svc"
 pgsql_url: 'jdbc:postgresql://coffeeshopdb:5432/coffeeshopdb?currentSchema=coffeeshop'
 
 # pgAdmin Database values 
-pgadmin_setup_email: user@example.com
-pgadmin_default_password: changeme
-pgadmin_setup_password: changeme
+pgadmin_setup_email: nmushino@redhat.com
+pgadmin_default_password: postgres
+pgadmin_setup_password: postgres
 
 # Store ID
-storeid: ATLANTA
+storeid: TOKYO
 
 #Quarkus counter logging level
 quarkus_log_level: INFO
