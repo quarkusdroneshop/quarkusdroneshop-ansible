@@ -15,4 +15,4 @@
 
 NAMESPACE="quarkuscoffeeshop-demo"
 OPENMETADATA_POD_NAME=$(oc get pods -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep openmetadata | head -n 1)
-oc port-forward pod/$OPENMETADATA_POD_NAME 5432:5432 -n $NAMESPACE
+oc port-forward service/$OPENMETADATA_POD_NAME 5432:5432 -n $NAMESPACE

@@ -98,14 +98,33 @@ homedeploy() {
     oc expose svc homeoffice-ui --name=homeoffice-ui -n "$NAMESPACE"
 }
 
+openmetadata() {
+    echo "セットアップ開始..."
+    # プロジェクトの作成
+    oc new-project openmetadata
+    # シークレットの作成
+    oc create secret generic mysql-secrets --from-literal=openmetadata-mysql-password=openmetadata_password -n openmetadata
+    oc create secret generic airflow-secrets --from-literal=openmetadata-airflow-password=admin -n openmetadata
+    oc create secret generic airflow-mysql-secrets --from-literal=airflow-mysql-password=airflow_pass -n openmetadata
+    # プロジェクトの作成
+    helm install openmetadata-dependencies open-metadata/openmetadata-dependencies -n openmetadata
+    helm install openmetadata open-metadata/openmetadata -n openmetadata
+}
+
 cleanup() {
     echo "クリーンナップ開始..."
+
+    # quarkuscoffeeshop
     oc delete all --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete pvc --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete secrets --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete configmaps --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete routes --all -n "$NAMESPACE" --ignore-not-found=true
     #oc delete project "$NAMESPACE" --force --grace-period=0
+
+    # openmetadata
+    helm uninstall openmetadata -n openmetadata
+    helm uninstall openmetadata-dependencies -n openmetadata
 }
 
 
@@ -119,12 +138,15 @@ case "$1" in
     homedeploy)
         homedeploy
         ;;
+    openmetadata)
+        openmetadata
+        ;;
     cleanup)
         cleanup
         ;;
     *)
         echo "無効なコマンドです: $1"
-        echo "使用方法: $0 {setup|deploy|homedeploy|cleanup}"
+        echo "使用方法: $0 {setup|deploy|homedeploy|openmetadata|cleanup}"
         exit 1
         ;;
 esac
