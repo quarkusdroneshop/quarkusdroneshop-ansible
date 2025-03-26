@@ -41,6 +41,7 @@ sed -i '' "s/^TOKEN=.*$/TOKEN=$DOMAIN_TOKEN/" $ENV_FILE
 
 setup() {
     echo "セットアップ開始..."
+    # Podman イメージの作成とOperatorのインストール
     #oc delete project quarkuscoffeeshop-demo
     podman build --no-cache -t quarkuscoffeeshop . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE quarkuscoffeeshop
@@ -48,11 +49,14 @@ setup() {
 
 deploy() {
     echo "デプロイ開始..."
+
+    # 既存Appの削除
     oc delete all -l app=web -n "$NAMESPACE"
     oc delete all -l app=kitchen -n "$NAMESPACE"
     oc delete all -l app=barista -n "$NAMESPACE"
     oc delete all -l app=counter -n "$NAMESPACE"
     
+    # Configmap の追加
     oc apply -f configmap/coffeeshop-configmap.yaml
     
     # Counter App
@@ -73,6 +77,7 @@ deploy() {
     oc expose deployment web --port=8080 --name=quarkuscoffeeshop-web -n "$NAMESPACE"
     oc expose svc quarkuscoffeeshop-web --name=quarkuscoffeeshop-web -n "$NAMESPACE"
 
+    # ConfigMap の修正
     CORS_ORIGINS=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)
     LOYALTY_STREAM_URL=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)/dashboard/loyaltystream
     STREAM_URL=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)/dashboard/stream
@@ -101,14 +106,36 @@ homedeploy() {
 openmetadata() {
     echo "セットアップ開始..."
     # プロジェクトの作成
+    oc delete project openmetadata
     oc new-project openmetadata
     # シークレットの作成
     oc create secret generic mysql-secrets --from-literal=openmetadata-mysql-password=openmetadata_password -n openmetadata
     oc create secret generic airflow-secrets --from-literal=openmetadata-airflow-password=admin -n openmetadata
     oc create secret generic airflow-mysql-secrets --from-literal=airflow-mysql-password=airflow_pass -n openmetadata
-    # プロジェクトの作成
+    # SCCの作成
+    oc adm policy add-scc-to-user anyuid -z airflow -n openmetadata
+    oc adm policy add-scc-to-user anyuid -z builder -n openmetadata
+    oc adm policy add-scc-to-user anyuid -z default -n openmetadata
+    oc adm policy add-scc-to-user anyuid -z deployer -n openmetadata
+    oc adm policy add-scc-to-user anyuid -z mysql -n openmetadata
+    # OpenMetadataの依存Podの作成
     helm install openmetadata-dependencies open-metadata/openmetadata-dependencies -n openmetadata
+    # 既存PVCを一度削除
+    oc delete pvc openmetadata-dependencies-dags -n openmetadata
+    oc delete pvc openmetadata-dependencies-logs -n openmetadata
+    # PVCを再作成
+    oc apply -f configmap/openmetadata-dependencies-dags.yaml -n openmetadata
+    oc apply -f configmap/openmetadata-dependencies-logs.yaml -n openmetadata
+    # PVCにラベルとアノテーションを追加
+    oc label pvc openmetadata-dependencies-dags app.kubernetes.io/managed-by=Helm -n openmetadata
+    oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-name=openmetadata-dependencies -n openmetadata
+    oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-namespace=openmetadata -n openmetadata
+    oc label pvc openmetadata-dependencies-logs app.kubernetes.io/managed-by=Helm -n openmetadata
+    oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-name=openmetadata-dependencies -n openmetadata
+    oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-namespace=openmetadata -n openmetadata
+    # OpenMetadataの作成
     helm install openmetadata open-metadata/openmetadata -n openmetadata
+    oc expose svc openmetadata -n openmetadata
 }
 
 cleanup() {
@@ -126,7 +153,6 @@ cleanup() {
     helm uninstall openmetadata -n openmetadata
     helm uninstall openmetadata-dependencies -n openmetadata
 }
-
 
 case "$1" in
     setup)
