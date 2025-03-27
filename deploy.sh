@@ -214,6 +214,8 @@ cleanup() {
 
     read -p "本当にプロジェクトを削除してもよろしいですか？(yes/no): " DELETE_CONFREM
     if [ "$DELETE_CONFREM" == "yes" ]; then
+        # KafkaTopic リソースを強制削除
+        oc get kafkatopics.kafka.strimzi.io -n quarkuscoffeeshop-demo -o name | xargs -I {} oc patch {} -n quarkuscoffeeshop-demo --type='merge' -p '{"metadata":{"finalizers":null}}'
         #oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
         #oc get crds -o name | grep '.*\.postgresclusters' | xargs -r -n 1 oc delete
         oc delete project "$NAMESPACE" --force --grace-period=0
