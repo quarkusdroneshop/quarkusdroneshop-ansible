@@ -5,7 +5,7 @@
 # Author: Noriaki Mushino
 # Date Created: 2025-03-26
 # Last Modified: 2025-03-27
-# Version: 1.4
+# Version: 1.5
 #
 # Usage:
 #   ./deploy.sh setup       - To setup the environment.
@@ -194,16 +194,18 @@ cleanup() {
     echo "クリーンナップ開始..."
 
     # quarkuscoffeeshop
-    oc delete all --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete subscription amq-streams --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete subscription crunchy-postgres-operator --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete operator --all -n openshift-operators --ignore-not-found=true
     oc delete operator --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete all --all -n "$NAMESPACE" --ignore-not-found=true --force --grace-period=0
     #oc delete pvc --all -n "$NAMESPACE" --ignore-not-found=true
     #oc delete pv --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete configmap --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete secrets --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete routes --all -n "$NAMESPACE" --ignore-not-found=true
-    oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
-    oc get crds -o name | grep '.*\.postgresclusters' | xargs -r -n 1 oc delete
+    #oc delete pod --all -n "$NAMESPACE" --ignore-not-found=true
+    #oc delete configmap --all -n "$NAMESPACE" --ignore-not-found=true
+    #oc delete secrets --all -n "$NAMESPACE" --ignore-not-found=true
+    #oc delete svc --all -n "$NAMESPACE" --ignore-not-found=true
+    #oc delete routes --all -n "$NAMESPACE" --ignore-not-found=true
 
     # openmetadata
     helm uninstall openmetadata -n "$OPENMETADATASPACE"
@@ -211,6 +213,8 @@ cleanup() {
 
     read -p "本当にプロジェクトを削除してもよろしいですか？(yes/no): " DELETE_CONFREM
     if [ "$DELETE_CONFREM" == "yes" ]; then
+        #oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
+        #oc get crds -o name | grep '.*\.postgresclusters' | xargs -r -n 1 oc delete
         oc delete project "$NAMESPACE" --force --grace-period=0
         oc delete project "$OPENMETADATASPACE" --force --grace-period=0
     fi
