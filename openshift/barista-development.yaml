@@ -17,5 +17,5 @@ spec:
            - name: KAFKA_BOOTSTRAP_URLS
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: coffeeshop-sub-config
                  key: KAFKA_BOOTSTRAP_URLS

@@ -67,7 +67,6 @@
     set -o pipefail && {{ oc_location }} patch InstallPlan {{ install_plan_name }} --type='json'  -p='[{"op": "replace", "path": "/spec/approved", "value":true}]'
   when: not delete_deployment|bool
 
-
 - name: Waiting for  MongoDB Subscription to complete
   shell: |
     set -o pipefail && {{ oc_location }}  get csv | grep {{ mongodbstartingCSV }} | grep Succeeded
@@ -119,7 +118,6 @@
     mongodb_url: "{{ mongodburl.stdout }}"
   when: not delete_deployment|bool
 
-
 - name: Get API Key for MongoDB Ops Dashboard
   shell: "{{ oc_location }} get secrets -n openshift-operators ops-manager-admin-key -o jsonpath='{.data.publicApiKey}' | base64 -d"
   ignore_errors: no 
@@ -158,7 +156,6 @@
 - name: Saving orgid for database
   set_fact:
     org_id: "{{ get_org_id.stdout | default(0123456789) }}"
-
 
 - name: Create mongodb config file
   template:

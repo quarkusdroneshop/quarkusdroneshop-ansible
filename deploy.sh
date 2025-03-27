@@ -43,11 +43,6 @@ BLUE="\033[34m"
 YELLOW="\033[33m"
 RESET="\033[0m"
 
-# 変数を使って色を変えたメッセージを表示
-#echo -e "${BLUE}注意: 処理中です...${RESET}"
-#echo -e "${RED}警告: エラーが発生しました！${RESET}"
-#echo -e "${GREEN}成功: 操作が完了しました！${RESET}"
-
 # OpenShift にログインしているか確認
 if ! oc whoami &>/dev/null; then
     echo -e "${RED}OpenShift にログインしていません。まず 'oc login' を実行してください。${RESET}" >&2
@@ -112,6 +107,9 @@ subdeploy1() {
     # 既存Appの削除
     oc delete all -l app=kitchen -n "$NAMESPACE"
 
+    # Configmap の追加
+    oc apply -f openshift/coffeeshop-sub-configmap.yaml
+
     # Kitchen App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/kitchen-development.yaml -n "$NAMESPACE"
@@ -123,6 +121,9 @@ subdeploy2() {
     # 既存Appの削除
     oc delete all -l app=barista -n "$NAMESPACE"
     
+    # Configmap の追加
+    oc apply -f openshift/coffeeshop-sub-configmap.yaml
+
     # Barista App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
