@@ -118,7 +118,6 @@ function checkpipmodules(){
       echo 'jmespath pip module is not installed '
       exit $?
   fi
-
 }
 
 function run_tags(){
@@ -209,8 +208,6 @@ function install_ansible() {
   echo "Ansible installed successfully."
   whereis ansible
 }
-
-
 
 function modulecheck(){
   local value=$(eval echo \$${1})
@@ -313,7 +310,6 @@ then
 else 
   install_ansible
 fi 
-
 
 
 if [ "${machine}" == 'Linux' ]; then
