@@ -206,8 +206,8 @@ podman build -t  quarkuscoffeeshop-ansible:v0.0.2 -f Dockerfile
 
 **Test Container**
 ```
-podman run  -it   --env-file=./source.env  quarkuscoffeeshop-ansible:v0.0.2 bash or
-podman run  -it --env-file=./source.env   localhost/quarkuscoffeeshop-ansible:v0.0.2
+podman run -it --env-file=./source.env quarkuscoffeeshop-ansible:v0.0.2 bash or
+podman run -it --env-file=./source.env localhost/quarkuscoffeeshop-ansible:v0.0.2
 ```
 
 **Delete old containers**
@@ -225,7 +225,13 @@ oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
 
 To-Do
 -------
-* Ansible k8s – Manage Kubernetes (K8s) objects deployment example
+* MongoDBを入れる
+* Kraftモードに対応する
+* CICDのセットアップする
+* 異なるクラスタにサブアプリをいれる
+* 異なるクラスタにサブアプリをいれ、MirrorMakerでつなぐ
+* OpenMetadataの設定インポートを試す
+* 自動テストする
 
 
 License
@@ -236,5 +242,5 @@ GPLv3
 Author Information
 ------------------
 
-This role was created in 2020 by [Tosin Akinosho](https://github.com/tosin2013)
-This role was updated in 2025 by [Noriaki Mushino](https://github.com/nmushino)
+* This role was created in 2020 by [Tosin Akinosho](https://github.com/tosin2013)
+* This role was updated in 2025 by [Noriaki Mushino](https://github.com/nmushino)

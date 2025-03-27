@@ -29,18 +29,43 @@ DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.d
 DOMAIN_TOKEN=$(oc whoami -t)
 ENV_FILE="source.env"
 
+# ロゴの表示
 figlet "coffeeshop"
+
+# 前処理
+oc status
+oc version
+
+# 色を変数に格納
+RED="\033[31m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+YELLOW="\033[33m"
+RESET="\033[0m"
+
+# 変数を使って色を変えたメッセージを表示
+#echo -e "${BLUE}注意: 処理中です...${RESET}"
+#echo -e "${RED}警告: エラーが発生しました！${RESET}"
+#echo -e "${GREEN}成功: 操作が完了しました！${RESET}"
 
 # OpenShift にログインしているか確認
 if ! oc whoami &>/dev/null; then
-    echo "OpenShift にログインしていません。まず 'oc login' を実行してください。" >&2
+    echo -e "${RED}OpenShift にログインしていません。まず 'oc login' を実行してください。${RESET}" >&2
     exit 1
 fi
 echo "OpenShift にログイン済み: $(oc whoami)"
-echo "Domain Name: $DOMAIN_NAME"
-echo "Domain Token: $DOMAIN_TOKEN"
 
-# CLUSTER_DOMAIN_NAMEとTOKEN を更新
+# OpenShift にログインしているか確認
+echo -e "${YELLOW}Domain Name: $DOMAIN_NAME${RESET}"
+echo -e "${YELLOW}Domain Token: $DOMAIN_TOKEN${RESET}"
+echo -e "-------------------------------------------"
+read -p "指定されたドメインで間違いないですか？(yes/no): " DOMAIN_CONFREM
+if [ "$DOMAIN_CONFREM" != "yes" ]; then
+    echo -e "${RED}処理を中断します。${RESET}"
+    exit 1
+fi
+
+# source.env ファイルのCLUSTER_DOMAIN_NAMEとTOKEN を更新する
 sed -i '' "s/^CLUSTER_DOMAIN_NAME=.*$/CLUSTER_DOMAIN_NAME=$DOMAIN_NAME/" $ENV_FILE
 sed -i '' "s/^TOKEN=.*$/TOKEN=$DOMAIN_TOKEN/" $ENV_FILE
 
@@ -49,7 +74,7 @@ setup() {
     # Podman イメージの作成とOperatorのインストール
     podman build --no-cache -t quarkuscoffeeshop . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE quarkuscoffeeshop
-    #oc expose svc coffeeshopdb --name=coffeeshopdb-ha -n "$NAMESPACE"
+    oc expose svc coffeeshopdb --name=coffeeshopdb-ha --port=5432 -n "$NAMESPACE"
 }
 
 deploy() {
@@ -159,16 +184,22 @@ cleanup() {
     # quarkuscoffeeshop
     oc delete all --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete pvc --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete pv --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete secrets --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete openshift --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete routes --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete operator --all -n "$NAMESPACE" --ignore-not-found=true
-    #oc delete project "$NAMESPACE" --force --grace-period=0
+    oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
 
     # openmetadata
     helm uninstall openmetadata -n "$OPENMETADATASPACE"
     helm uninstall openmetadata-dependencies -n "$OPENMETADATASPACE"
-    oc delete project "$OPENMETADATASPACE" --force --grace-period=0
+
+    read -p "本当にプロジェクトを削除してもよろしいですか？(yes/no): " DELETE_CONFREM
+    if [ "$DELETE_CONFREM" == "yes" ]; then
+        oc delete project "$NAMESPACE" --force --grace-period=0
+        oc delete project "$OPENMETADATASPACE" --force --grace-period=0
+    fi
 }
 
 case "$1" in
@@ -176,7 +207,14 @@ case "$1" in
         setup
         ;;
     deploy)
-        deploy
+        read -p "すべてのアプリケーションをデプロイしますか(yes/no): " DEPLOY_CONFREM
+        if [ "$DEPLOY_CONFREM" == "yes" ]; then
+            deploy
+            subdeploy1
+            subdeploy2
+        else
+            deploy
+        fi
         ;;
     subdeploy1)
         subdeploy1
@@ -194,8 +232,8 @@ case "$1" in
         cleanup
         ;;
     *)
-        echo "無効なコマンドです: $1"
-        echo "使用方法: $0 {setup|deploy|subdeploy1|subdeploy2|homedeploy|openmetadata|cleanup}"
+        echo -e "${RED}無効なコマンドです: $1${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|subdeploy1|subdeploy2|homedeploy|openmetadata|cleanup}${RESET}"
         exit 1
         ;;
 esac
