@@ -12,11 +12,8 @@ The QuarkusCoffeeshop Ansbile Role performs a basic installation that includes t
 The QuarkusCoffeeshop Role will deploy an event-driven demo application built with Quarkus, AMQ Streams (Kafka), and MongoDB. The application deploys to OpenShift (Kubernetes.)
 The source code for the  [quarkuscoffeeshop](https://github.com/quarkuscoffeeshop) application support doc can be found  [here](https://github.com/quarkuscoffeeshop/quarkuscoffeeshop-support).
 
-
-
 Requirements
 ------------
-
 * OpenShift 4.16 an up Cluster installed
 * Docker or podman
 
@@ -24,19 +21,17 @@ Currently tested on
 -------------------
 * OpenShift 4.16.2
 * OpenShift Pipelines: 1.9.0
-* AMQ Streams: 3.9.0-0
-* Postgres Operator: v5.3.0
+* AMQ Streams: 2.9.0-0
+* Postgres Operator: v5.7.4
 * OpenShift Quay: v3.8.1
 * OpenShift GitOps: v1.7.1
-
 
 Quick Start 
 -----------
 **Set Environment variables for standard deployment**
 > This command will deploy the application on a Single cluster with the following services below. 
 * AMQ Streams
-* Postgres Operator configuration 
-* quarkus coffeeshop helm deployment
+* Postgres Operator configuration
 ```
 $ cat >source.env<<EOF
 CLUSTER_DOMAIN_NAME=clustername.example.com
@@ -53,8 +48,6 @@ EOF
 $ podman run  -it --env-file=./source.env  quay.io/quarkuscoffeeshop/quarkuscoffeeshop-ansible:v4.12.1
 
 ```
-
-
 
 **Set Environment variables for ACM WORKLOADS**
 * Gogs server
@@ -98,8 +91,6 @@ EOF
 $ podman run  -it --env-file=./source.env  quay.io/quarkuscoffeeshop/quarkuscoffeeshop-ansible:v4.12.1
 ```
 
-
-
 ScreenShots
 ------------------------------------------------
 ![quarkuscoffeeshop topology](images/quarkus-cafe-applications.png "quarkuscoffeeshop topology")
@@ -108,7 +99,6 @@ ScreenShots
 
 http://quarkuscoffeeshop-web-quarkus-cafe-demo.apps.example.com example
 ![qquarkuscoffeeshop application](images/webpage-example.png "quarkuscoffeeshop application")
-
 
 Usage
 ----------------
@@ -151,14 +141,13 @@ curl  --request POST http://${ENDPOINT}/order \
 
 ## Developer Notes
 > To develop and modifiy code 
-* OpenShift 4.10 an up Cluster installed
+* OpenShift 4.16 an up Cluster installed
 * Ansible should be installed on machine
 * oc cli must be installed
 * Ansible community.kubernetes module must be installed `ansible-galaxy collection install community.kubernetes`
 * Install [Helm](https://helm.sh/docs/intro/install/) Binary
 * [Postges Operator](https://github.com/tosin2013/postgres-operator) for Quarkus CoffeeShop 5.0.1-SNAPSHOT Deployments
 * pip3 
-
 
 Role Variables
 --------------
@@ -176,7 +165,7 @@ insecure_skip_tls_verify  |  Skip insecure tls verify  |  true
 default_owner | Default owner of template files. | root
 default_group | Default group of template files. |  root
 delete_deployment  | delete the deployment and project for quarkus-cafe-demo  | false
-amqstartingCSV  | Red Hat AMQ csv version  |  amqstreams.v1.6.1
+amqstartingCSV  | Red Hat AMQ csv version  |  amqstreams.v2.9.0
 mongodbstartingCSV  | MongoDB Ops Manager version  |  mongodb-enterprise.v1.8.0
 config_location  | default location for application templates  | "/tmp/"
 version_barista | Default container barista tag | 5.0.0-SNAPSHOT
@@ -223,6 +212,22 @@ Force delete kafka crds after bad install
 oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
 ```
 
+OpenShiftへのデプロイ手順
+---------------
+CLUSTER_DOMAIN_NAME=cluster-pxhhz.pxhhz.sandbox3005.opentlc.com
+TOKEN=sha256~0BymbhZIW1nU91RfcxyjPXR2YvCD0cWThgcGzxd_LnU
+ACM_WORKLOADS=n
+AMQ_STREAMS=y
+CONFIGURE_POSTGRES=y
+MONGODB_OPERATOR=y
+MONGODB=y
+HELM_DEPLOYMENT=n
+DELETE_DEPLOYMENT=false
+DEBUG=-v
+
+./deploy.sh setup
+./deploy.sh deploy
+
 To-Do
 -------
 * MongoDBを入れる
@@ -233,14 +238,11 @@ To-Do
 * OpenMetadataの設定インポートを試す
 * 自動テストする
 
-
 License
 -------
-
 GPLv3
 
 Author Information
 ------------------
-
 * This role was created in 2020 by [Tosin Akinosho](https://github.com/tosin2013)
 * This role was updated in 2025 by [Noriaki Mushino](https://github.com/nmushino)

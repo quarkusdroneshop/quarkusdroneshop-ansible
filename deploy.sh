@@ -74,7 +74,7 @@ setup() {
     # Podman イメージの作成とOperatorのインストール
     podman build --no-cache -t quarkuscoffeeshop . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE quarkuscoffeeshop
-    oc expose svc coffeeshopdb --name=coffeeshopdb-ha --port=5432 -n "$NAMESPACE"
+    oc expose svc coffeeshopdb-ha --name=coffeeshopdb-ha --port=5432 -n "$NAMESPACE"
 }
 
 deploy() {
@@ -82,8 +82,6 @@ deploy() {
 
     # 既存Appの削除
     oc delete all -l app=web -n "$NAMESPACE"
-    oc delete all -l app=kitchen -n "$NAMESPACE"
-    oc delete all -l app=barista -n "$NAMESPACE"
     oc delete all -l app=counter -n "$NAMESPACE"
     
     # Configmap の追加
@@ -92,14 +90,6 @@ deploy() {
     # Counter App
     oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/counter-development.yaml -n "$NAMESPACE"
-
-    # Barista App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
-
-    # Kitchen App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f openshift/kitchen-development.yaml -n "$NAMESPACE"
 
     # Web App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-web.git --name=web --allow-missing-images --strategy=source -n "$NAMESPACE"
@@ -114,6 +104,28 @@ deploy() {
     oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"CORS_ORIGINS\":\"http://$CORS_ORIGINS\"}}"
     oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
     oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
+}
+
+subdeploy1() {
+    echo "デプロイ開始..."
+
+    # 既存Appの削除
+    oc delete all -l app=kitchen -n "$NAMESPACE"
+
+    # Kitchen App
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc apply -f openshift/kitchen-development.yaml -n "$NAMESPACE"
+}
+
+subdeploy2() {
+    echo "デプロイ開始..."
+
+    # 既存Appの削除
+    oc delete all -l app=barista -n "$NAMESPACE"
+    
+    # Barista App
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
 }
 
 homedeploy() {
@@ -183,13 +195,15 @@ cleanup() {
 
     # quarkuscoffeeshop
     oc delete all --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete pvc --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete pv --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete secrets --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete openshift --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete routes --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete operator --all -n openshift-operators --ignore-not-found=true
     oc delete operator --all -n "$NAMESPACE" --ignore-not-found=true
+    #oc delete pvc --all -n "$NAMESPACE" --ignore-not-found=true
+    #oc delete pv --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete configmap --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete secrets --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete routes --all -n "$NAMESPACE" --ignore-not-found=true
     oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
+    oc get crds -o name | grep '.*\.postgresclusters' | xargs -r -n 1 oc delete
 
     # openmetadata
     helm uninstall openmetadata -n "$OPENMETADATASPACE"
@@ -207,7 +221,7 @@ case "$1" in
         setup
         ;;
     deploy)
-        read -p "すべてのアプリケーションをデプロイしますか(yes/no): " DEPLOY_CONFREM
+        read -p "すべてのアプリケーションを同クラスタにデプロイしますか(yes/no): " DEPLOY_CONFREM
         if [ "$DEPLOY_CONFREM" == "yes" ]; then
             deploy
             subdeploy1

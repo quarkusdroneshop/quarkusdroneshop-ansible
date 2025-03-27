@@ -13,8 +13,8 @@
     default_group: root
     skip_amq_install: false
     skip_configure_postgres: false
-    skip_mongodb_operator_install: true
-    single_mongodb_install: false 
+    skip_mongodb_operator_install: false
+    single_mongodb_install: true 
     skip_quarkuscoffeeshop_helm_install: true
   roles:
   - quarkuscoffeeshop-ansible

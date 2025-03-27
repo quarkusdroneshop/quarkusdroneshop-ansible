@@ -20,8 +20,8 @@ echo "AMQ_STREAMS=$(echo $AMQ_STREAMS)" >> $HOME/env.variables
 echo "CONFIGURE_POSTGRES=$(echo $CONFIGURE_POSTGRES)" >> $HOME/env.variables
 echo "HELM_DEPLOYMENT=$(echo $HELM_DEPLOYMENT)" >> $HOME/env.variables
 echo "DELETE_DEPLOYMENT=$(echo $DELETE_DEPLOYMENT)" >> $HOME/env.variables
-echo "MONGODB_OPERATOR=n" >> $HOME/env.variables
-echo "MONGODB=n" >> $HOME/env.variables
+echo "MONGODB_OPERATOR=y" >> $HOME/env.variables
+echo "MONGODB=y" >> $HOME/env.variables
 cat $HOME/env.variables
 echo "********************************************************************************"
 sleep 5s
