@@ -57,23 +57,23 @@ deploy() {
     oc delete all -l app=counter -n "$NAMESPACE"
     
     # Configmap の追加
-    oc apply -f configmap/coffeeshop-configmap.yaml
+    oc apply -f openshift/coffeeshop-configmap.yaml
     
     # Counter App
     oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f configmap/counter-development.yaml -n "$NAMESPACE"
+    oc apply -f openshift/counter-development.yaml -n "$NAMESPACE"
 
     # Barista App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f configmap/barista-development.yaml -n "$NAMESPACE"
+    oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
 
     # Kitchen App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f configmap/kitchen-development.yaml -n "$NAMESPACE"
+    oc apply -f openshift/kitchen-development.yaml -n "$NAMESPACE"
 
     # Web App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-web.git --name=web --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f configmap/web-development.yaml -n "$NAMESPACE"
+    oc apply -f openshift/web-development.yaml -n "$NAMESPACE"
     oc expose deployment web --port=8080 --name=quarkuscoffeeshop-web -n "$NAMESPACE"
     oc expose svc quarkuscoffeeshop-web --name=quarkuscoffeeshop-web -n "$NAMESPACE"
 
@@ -81,9 +81,9 @@ deploy() {
     CORS_ORIGINS=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)
     LOYALTY_STREAM_URL=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)/dashboard/loyaltystream
     STREAM_URL=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)/dashboard/stream
-    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"CORS_ORIGINS\":\"http://$CORS_ORIGINS\"}}"
-    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
-    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
+    oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"CORS_ORIGINS\":\"http://$CORS_ORIGINS\"}}"
+    oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
+    oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
 }
 
 homedeploy() {
@@ -93,7 +93,7 @@ homedeploy() {
     
     # Homeoffice Backend App
     oc new-app ubi8/openjdk-17~https://github.com/nmushino/homeoffice-backend.git --name=homeoffice-backend --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f configmap/homeoffice-backend-development.yaml -n "$NAMESPACE"
+    oc apply -f openshift/homeoffice-backend-development.yaml -n "$NAMESPACE"
     oc expose deployment homeoffice-backend --port=8080 --name=homeoffice-backend -n "$NAMESPACE"
     oc expose svc homeoffice-backend --name=homeoffice-backend -n "$NAMESPACE"
 
@@ -124,8 +124,8 @@ openmetadata() {
     oc delete pvc openmetadata-dependencies-dags -n openmetadata
     oc delete pvc openmetadata-dependencies-logs -n openmetadata
     # PVCを再作成
-    oc apply -f configmap/openmetadata-dependencies-dags.yaml -n openmetadata
-    oc apply -f configmap/openmetadata-dependencies-logs.yaml -n openmetadata
+    oc apply -f openshift/openmetadata-dependencies-dags.yaml -n openmetadata
+    oc apply -f openshift/openmetadata-dependencies-logs.yaml -n openmetadata
     # PVCにラベルとアノテーションを追加
     oc label pvc openmetadata-dependencies-dags app.kubernetes.io/managed-by=Helm -n openmetadata
     oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-name=openmetadata-dependencies -n openmetadata
@@ -145,13 +145,15 @@ cleanup() {
     oc delete all --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete pvc --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete secrets --all -n "$NAMESPACE" --ignore-not-found=true
-    oc delete configmaps --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete openshift --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete routes --all -n "$NAMESPACE" --ignore-not-found=true
+    oc delete operator --all -n "$NAMESPACE" --ignore-not-found=true
     #oc delete project "$NAMESPACE" --force --grace-period=0
 
     # openmetadata
     helm uninstall openmetadata -n openmetadata
     helm uninstall openmetadata-dependencies -n openmetadata
+    oc delete project openmetadata --force --grace-period=0
 }
 
 case "$1" in
