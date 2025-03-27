@@ -4,22 +4,27 @@
 # Description: This script deploys the application to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-26
-# Last Modified: 2025-03-26
-# Version: 1.1
+# Last Modified: 2025-03-27
+# Version: 1.4
 #
 # Usage:
 #   ./deploy.sh setup       - To setup the environment.
 #   ./deploy.sh deploy      - To deploy the application.
-#   ./deploy.sh homedeploy  - To deploy the homeapplication.
+#   ./deploy.sh subdeploy1  - To deploy the application1.
+#   ./deploy.sh subdeploy2  - To deploy the application2.
+#   ./deploy.sh homedeploy  - To deploy the homeoffice application.
 #   ./deploy.sh cleanup     - To delete the application.
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
+#   - figlet is installed and configured
 #   - User is logged into OpenShift
+#   - The Test was conducted on MacOS
 #
 # =============================================================================
 
 NAMESPACE="quarkuscoffeeshop-demo"
+OPENMETADATASPACE="openmetadata"
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 DOMAIN_TOKEN=$(oc whoami -t)
 ENV_FILE="source.env"
@@ -42,9 +47,9 @@ sed -i '' "s/^TOKEN=.*$/TOKEN=$DOMAIN_TOKEN/" $ENV_FILE
 setup() {
     echo "セットアップ開始..."
     # Podman イメージの作成とOperatorのインストール
-    #oc delete project quarkuscoffeeshop-demo
     podman build --no-cache -t quarkuscoffeeshop . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE quarkuscoffeeshop
+    #oc expose svc coffeeshopdb --name=coffeeshopdb-ha -n "$NAMESPACE"
 }
 
 deploy() {
@@ -88,6 +93,8 @@ deploy() {
 
 homedeploy() {
     echo "デプロイ開始..."
+
+    # 既存Appの削除
     oc delete all -l app=homeoffice-backend -n "$NAMESPACE"
     oc delete all -l app=homeoffice-ui -n "$NAMESPACE"
     
@@ -105,37 +112,45 @@ homedeploy() {
 
 openmetadata() {
     echo "セットアップ開始..."
+
     # プロジェクトの作成
-    oc delete project openmetadata
-    oc new-project openmetadata
+    oc delete project "$OPENMETADATASPACE"
+    oc new-project "$OPENMETADATASPACE"
+
     # シークレットの作成
-    oc create secret generic mysql-secrets --from-literal=openmetadata-mysql-password=openmetadata_password -n openmetadata
-    oc create secret generic airflow-secrets --from-literal=openmetadata-airflow-password=admin -n openmetadata
-    oc create secret generic airflow-mysql-secrets --from-literal=airflow-mysql-password=airflow_pass -n openmetadata
+    oc create secret generic mysql-secrets --from-literal=openmetadata-mysql-password=openmetadata_password -n "$OPENMETADATASPACE"
+    oc create secret generic airflow-secrets --from-literal=openmetadata-airflow-password=admin -n "$OPENMETADATASPACE"
+    oc create secret generic airflow-mysql-secrets --from-literal=airflow-mysql-password=airflow_pass -n "$OPENMETADATASPACE"
+
     # SCCの作成
-    oc adm policy add-scc-to-user anyuid -z airflow -n openmetadata
-    oc adm policy add-scc-to-user anyuid -z builder -n openmetadata
-    oc adm policy add-scc-to-user anyuid -z default -n openmetadata
-    oc adm policy add-scc-to-user anyuid -z deployer -n openmetadata
-    oc adm policy add-scc-to-user anyuid -z mysql -n openmetadata
+    oc adm policy add-scc-to-user anyuid -z airflow -n "$OPENMETADATASPACE"
+    oc adm policy add-scc-to-user anyuid -z builder -n "$OPENMETADATASPACE"
+    oc adm policy add-scc-to-user anyuid -z default -n "$OPENMETADATASPACE"
+    oc adm policy add-scc-to-user anyuid -z deployer -n "$OPENMETADATASPACE"
+    oc adm policy add-scc-to-user anyuid -z mysql -n "$OPENMETADATASPACE"
+
     # OpenMetadataの依存Podの作成
-    helm install openmetadata-dependencies open-metadata/openmetadata-dependencies -n openmetadata
+    helm install openmetadata-dependencies open-metadata/openmetadata-dependencies -n "$OPENMETADATASPACE"
+
     # 既存PVCを一度削除
-    oc delete pvc openmetadata-dependencies-dags -n openmetadata
-    oc delete pvc openmetadata-dependencies-logs -n openmetadata
+    oc delete pvc openmetadata-dependencies-dags -n "$OPENMETADATASPACE"
+    oc delete pvc openmetadata-dependencies-logs -n "$OPENMETADATASPACE"
+
     # PVCを再作成
-    oc apply -f openshift/openmetadata-dependencies-dags.yaml -n openmetadata
-    oc apply -f openshift/openmetadata-dependencies-logs.yaml -n openmetadata
+    oc apply -f openshift/openmetadata-dependencies-dags.yaml -n "$OPENMETADATASPACE"
+    oc apply -f openshift/openmetadata-dependencies-logs.yaml -n "$OPENMETADATASPACE"
+
     # PVCにラベルとアノテーションを追加
-    oc label pvc openmetadata-dependencies-dags app.kubernetes.io/managed-by=Helm -n openmetadata
-    oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-name=openmetadata-dependencies -n openmetadata
-    oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-namespace=openmetadata -n openmetadata
-    oc label pvc openmetadata-dependencies-logs app.kubernetes.io/managed-by=Helm -n openmetadata
-    oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-name=openmetadata-dependencies -n openmetadata
-    oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-namespace=openmetadata -n openmetadata
+    oc label pvc openmetadata-dependencies-dags app.kubernetes.io/managed-by=Helm -n "$OPENMETADATASPACE"
+    oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-name=openmetadata-dependencies -n "$OPENMETADATASPACE"
+    oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-namespace=openmetadata -n "$OPENMETADATASPACE"
+    oc label pvc openmetadata-dependencies-logs app.kubernetes.io/managed-by=Helm -n "$OPENMETADATASPACE"
+    oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-name=openmetadata-dependencies -n "$OPENMETADATASPACE"
+    oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-namespace=openmetadata -n "$OPENMETADATASPACE"
+    
     # OpenMetadataの作成
-    helm install openmetadata open-metadata/openmetadata -n openmetadata
-    oc expose svc openmetadata -n openmetadata
+    helm install openmetadata open-metadata/openmetadata -n "$OPENMETADATASPACE"
+    oc expose svc openmetadata -n "$OPENMETADATASPACE"
 }
 
 cleanup() {
@@ -151,9 +166,9 @@ cleanup() {
     #oc delete project "$NAMESPACE" --force --grace-period=0
 
     # openmetadata
-    helm uninstall openmetadata -n openmetadata
-    helm uninstall openmetadata-dependencies -n openmetadata
-    oc delete project openmetadata --force --grace-period=0
+    helm uninstall openmetadata -n "$OPENMETADATASPACE"
+    helm uninstall openmetadata-dependencies -n "$OPENMETADATASPACE"
+    oc delete project "$OPENMETADATASPACE" --force --grace-period=0
 }
 
 case "$1" in
@@ -162,6 +177,12 @@ case "$1" in
         ;;
     deploy)
         deploy
+        ;;
+    subdeploy1)
+        subdeploy1
+        ;;
+    subdeploy2)
+        subdeploy2
         ;;
     homedeploy)
         homedeploy
@@ -174,7 +195,7 @@ case "$1" in
         ;;
     *)
         echo "無効なコマンドです: $1"
-        echo "使用方法: $0 {setup|deploy|homedeploy|openmetadata|cleanup}"
+        echo "使用方法: $0 {setup|deploy|subdeploy1|subdeploy2|homedeploy|openmetadata|cleanup}"
         exit 1
         ;;
 esac
