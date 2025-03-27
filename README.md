@@ -160,11 +160,11 @@ single_mongodb_install | Skip single instance mongodb | false
 skip_quarkuscoffeeshop_helm_install |  Skip quarkuscoffeeshop helm chart install  |  false
 openshift_token | OpenShift login token  | 123456789
 openshift_url | OpenShift target url  | https://master.example.com
-project_namespace | OpenShift Project name for the quarkus-cafe | quarkus-cafe-demo
+project_namespace | OpenShift Project name for the quarkus-cafe | quarkuscoffeeshop-demo
 insecure_skip_tls_verify  |  Skip insecure tls verify  |  true
 default_owner | Default owner of template files. | root
 default_group | Default group of template files. |  root
-delete_deployment  | delete the deployment and project for quarkus-cafe-demo  | false
+delete_deployment  | delete the deployment and project for quarkuscoffeeshop-demo  | false
 amqstartingCSV  | Red Hat AMQ csv version  |  amqstreams.v2.9.0
 mongodbstartingCSV  | MongoDB Ops Manager version  |  mongodb-enterprise.v1.8.0
 config_location  | default location for application templates  | "/tmp/"
