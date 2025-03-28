@@ -52,6 +52,11 @@
 #        - postgres
 #        - helm
 #
+    - name: 変数が定義されている場合のみデバッグ
+      debug:
+        var: delete_deployment
+      when: delete_deployment is defined
+
     - name: MongoDB Operator installation
       include_tasks: mongodb-operator-install.yml
       tags:
