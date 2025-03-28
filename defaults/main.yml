@@ -42,8 +42,8 @@ mongodbops_admin: nmushinoe@redhat.com
 mongodbops_password: Passw0rd.
 mongodb_username: mongodb
 mongodb_password: 7lIHuw&#0KrE
-single_mongodb_install: ture
-skip_mongodb_operator_install: ture
+single_mongodb_install: false
+skip_mongodb_operator_install: false
 
 # Postgres database information
 postgres_version: 17

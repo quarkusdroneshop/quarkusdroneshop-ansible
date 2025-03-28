@@ -1,6 +1,7 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
+  name: cafe-cluster
   name: {{ kafka_cluster_name }}
 spec:
   kafka:
@@ -32,8 +33,12 @@ spec:
       default.replication.factor: 3
       min.insync.replicas: 2
       inter.broker.protocol.version: "3.9"
-  kraft:
-    controllerQuorum: 3
+    storage:
+      type: ephemeral
+#  zookeeper:
+#    replicas: 3
+    storage:
+      type: ephemeral
   entityOperator:
     topicOperator: {}
     userOperator: {}
