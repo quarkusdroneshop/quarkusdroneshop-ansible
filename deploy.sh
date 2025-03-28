@@ -200,13 +200,6 @@ cleanup() {
     oc delete operator --all -n openshift-operators --ignore-not-found=true
     oc delete operator --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete all --all -n "$NAMESPACE" --ignore-not-found=true --force --grace-period=0
-    #oc delete pvc --all -n "$NAMESPACE" --ignore-not-found=true
-    #oc delete pv --all -n "$NAMESPACE" --ignore-not-found=true
-    #oc delete pod --all -n "$NAMESPACE" --ignore-not-found=true
-    #oc delete configmap --all -n "$NAMESPACE" --ignore-not-found=true
-    #oc delete secrets --all -n "$NAMESPACE" --ignore-not-found=true
-    #oc delete svc --all -n "$NAMESPACE" --ignore-not-found=true
-    #oc delete routes --all -n "$NAMESPACE" --ignore-not-found=true
 
     # openmetadata
     helm uninstall openmetadata -n "$OPENMETADATASPACE"
@@ -215,8 +208,8 @@ cleanup() {
     read -p "本当にプロジェクトを削除してもよろしいですか？(yes/no): " DELETE_CONFREM
     if [ "$DELETE_CONFREM" == "yes" ]; then
         # KafkaTopic リソースを強制削除
-        for topic in $(oc get kafkatopics.kafka.strimzi.io -n quarkuscoffeeshop-demo -o name); do
-            oc patch $topic -n quarkuscoffeeshop-demo --type=merge -p '{"metadata":{"finalizers":[]}}'
+        for topic in $(oc get kafkatopics.kafka.strimzi.io -n "$NAMESPACE" -o name); do
+            oc patch $topic -n "$NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}'
         done
         #oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
         #oc get crds -o name | grep '.*\.postgresclusters' | xargs -r -n 1 oc delete
