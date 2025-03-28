@@ -214,24 +214,26 @@ oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
 
 OpenShiftへのデプロイ手順
 ---------------
+```
 CLUSTER_DOMAIN_NAME=cluster-pxhhz.pxhhz.sandbox3005.opentlc.com
 TOKEN=sha256~0BymbhZIW1nU91RfcxyjPXR2YvCD0cWThgcGzxd_LnU
 ACM_WORKLOADS=n
 AMQ_STREAMS=y
 CONFIGURE_POSTGRES=y
-MONGODB_OPERATOR=y
-MONGODB=y
+MONGODB_OPERATOR=n
+MONGODB=n
 HELM_DEPLOYMENT=n
 DELETE_DEPLOYMENT=false
 DEBUG=-v
+```
 
 ./deploy.sh setup
 ./deploy.sh deploy
 
 To-Do
 -------
-* MongoDBを入れる
 * Kraftモードに対応する
+* 他のアプリもいれる。モックと在庫。
 * CICDのセットアップする
 * 異なるクラスタにサブアプリをいれる
 * 異なるクラスタにサブアプリをいれ、MirrorMakerでつなぐ
