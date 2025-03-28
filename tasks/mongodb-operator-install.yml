@@ -1,7 +1,6 @@
-- name: 変数が定義されている場合のみデバッグ
+- name: 実行されてるの？
   debug:
-    var: delete_deployment
-  when: delete_deployment is defined
+    msg: "MongoDB Operator installation is running"
 
 - name: Copying over MongoDB Subscription
   template:
