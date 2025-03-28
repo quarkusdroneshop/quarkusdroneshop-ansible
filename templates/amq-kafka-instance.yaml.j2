@@ -3,6 +3,8 @@ kind: Kafka
 metadata:
   name: cafe-cluster
   name: {{ kafka_cluster_name }}
+  annotations:
+    strimzi.io/kraft: enabled
 spec:
   kafka:
     version: "3.9.0"
@@ -19,12 +21,7 @@ spec:
         tls: true
     storage:
       type: ephemeral
-    entityOperator:
-      topicOperator: {}
-      userOperator: {}
     config:
-      # ZooKeeper依存を排除
-      node.id: 1
       process.roles: "controller,broker"
       controller.listener.names: CONTROLLER
       log.dirs: "/var/lib/kafka/data"
@@ -34,3 +31,6 @@ spec:
       default.replication.factor: 3
       min.insync.replicas: 2
       inter.broker.protocol.version: "3.9"
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
