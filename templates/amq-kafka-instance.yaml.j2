@@ -7,10 +7,12 @@ metadata:
   namespace: {{ project_namespace }}
 spec:
   kafka:
+    kraftMode: true
     version: "3.9.0"
     replicas: 3
     controllerReplicas: 3
     config:
+      node.id: 1
       process.roles: "controller,broker"
       controller.listener.names: CONTROLLER
       inter.broker.protocol.version: "3.9"
@@ -34,7 +36,9 @@ spec:
         type: internal
         tls: false
     storage:
-      type: ephemeral
+      type: persistent-claim
+      size: 10Gi
+      deleteClaim: false
   entityOperator:
     topicOperator: {}
     userOperator: {}
