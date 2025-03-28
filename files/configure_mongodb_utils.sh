@@ -2,12 +2,12 @@
 set -xe
 
 cat > /etc/yum.repos.d/mongodb.repo<<EOF
-[mongodb-org-4.4]
+[mongodb-org-8.0]
 name=MongoDB Repository
-baseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/4.4/x86_64/
+baseurl=https://repo.mongodb.org/yum/redhat/8Server/mongodb-org/8.0/x86_64/
 gpgcheck=1
 enabled=1
-gpgkey=https://www.mongodb.org/static/pgp/server-4.4.asc
+gpgkey=https://www.mongodb.org/static/pgp/server-8.0.asc
 EOF
 
 dnf update -y

@@ -1,3 +1,8 @@
+- name: 変数が定義されている場合のみデバッグ
+  debug:
+    var: delete_deployment
+  when: delete_deployment is defined
+
 - name: Copying over MongoDB Subscription
   template:
     src: templates/mongodb-sub.yaml.j2

@@ -2,65 +2,65 @@
 # tasks file for quarkus-cafe-demo-role
 - name: Configure settings environment using OpenShift token
   block:
-    - name: Login Cluster
-      include_tasks: login-to-cluster.yml
-      tags: always 
-
-    - name: Configure ACM 
-      include_tasks: acm-deployment.yml
-      when: not delete_deployment | bool
-      tags: 
-        - quay
-        - gogs
-        - pipelines
-        - gitops
-
-    - name: ACM Workload 
-      include_tasks: acm-project-workloads.yml
-      when: not delete_deployment | bool
-      tags: 
-        - acm-workload
-
-    - name: remove  ACM deployment
-      include_tasks: remove-acm-deployment.yml
-      when: delete_deployment | bool
-      tags: 
-        - quay
-        - gogs
-        - pipelines
-        - gitops
-        - acm-workload
-
-    - name: Create Quarkus project 
-      include_tasks: create-project.yml
-      tags: always
-
-    - name: AMQ Streams installation
-      include_tasks: amq-streams-install.yml
-      tags: 
-        - amq
-
-    - name: Deploy Cloud Native Postgres for Kubernetes
-      include_tasks: crunchy-operator-install.yml
-      tags: 
-        - postgres
-        - helm
-
-    - name: Configure Postgres Database
-      include_tasks: configure-postgres.yml
-      tags: 
-        - postgres
-        - helm
+#    - name: Login Cluster
+#      include_tasks: login-to-cluster.yml
+#      tags: always 
+#
+#    - name: Configure ACM 
+#      include_tasks: acm-deployment.yml
+#      when: not delete_deployment | bool
+#      tags: 
+#        - quay
+#        - gogs
+#        - pipelines
+#        - gitops
+#
+#    - name: ACM Workload 
+#      include_tasks: acm-project-workloads.yml
+#      when: not delete_deployment | bool
+#      tags: 
+#        - acm-workload
+#
+#    - name: remove  ACM deployment
+#      include_tasks: remove-acm-deployment.yml
+#      when: delete_deployment | bool
+#      tags: 
+#        - quay
+#        - gogs
+#        - pipelines
+#        - gitops
+#        - acm-workload
+#
+#    - name: Create Quarkus project 
+#      include_tasks: create-project.yml
+#      tags: always
+#
+#    - name: AMQ Streams installation
+#      include_tasks: amq-streams-install.yml
+#      tags: 
+#        - amq
+#
+#    - name: Deploy Cloud Native Postgres for Kubernetes
+#      include_tasks: crunchy-operator-install.yml
+#      tags: 
+#        - postgres
+#        - helm
+#
+#    - name: Configure Postgres Database
+#      include_tasks: configure-postgres.yml
+#      tags: 
+#        - postgres
+#        - helm
+#
+    - name: MongoDB Operator installation
+      include_tasks: mongodb-operator-install.yml
+      tags:
+       - mongodb-operator
 
     - name: Installing Single mongodb database
       include_tasks: mongodb.yml
       tags:
        - mongodb
-
-    - name: MongoDB Operator installation
-      include_tasks: mongodb-operator-install.yml
-      tags:
-       - mongodb-operator
 
     - name: Deploy Quarkus Cafe Helm Chart
       include_tasks: helm-chart.yml
