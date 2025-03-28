@@ -1,7 +1,3 @@
-- name: 実行されてるの？
-  debug:
-    msg: "MongoDB Operator installation is running"
-
 - name: Copying over MongoDB Subscription
   template:
     src: templates/mongodb-sub.yaml.j2

@@ -2,63 +2,59 @@
 # tasks file for quarkus-cafe-demo-role
 - name: Configure settings environment using OpenShift token
   block:
-#    - name: Login Cluster
-#      include_tasks: login-to-cluster.yml
-#      tags: always 
-#
-#    - name: Configure ACM 
-#      include_tasks: acm-deployment.yml
-#      when: not delete_deployment | bool
-#      tags: 
-#        - quay
-#        - gogs
-#        - pipelines
-#        - gitops
-#
-#    - name: ACM Workload 
-#      include_tasks: acm-project-workloads.yml
-#      when: not delete_deployment | bool
-#      tags: 
-#        - acm-workload
-#
-#    - name: remove  ACM deployment
-#      include_tasks: remove-acm-deployment.yml
-#      when: delete_deployment | bool
-#      tags: 
-#        - quay
-#        - gogs
-#        - pipelines
-#        - gitops
-#        - acm-workload
-#
-#    - name: Create Quarkus project 
-#      include_tasks: create-project.yml
-#      when: not delete_deployment | bool
-#      tags: always
-#
-#    - name: AMQ Streams installation
-#      include_tasks: amq-streams-install.yml
-#      when: not delete_deployment | bool
-#      tags: 
-#        - amq
-#
-#    - name: Deploy Cloud Native Postgres for Kubernetes
-#      include_tasks: crunchy-operator-install.yml
-#      when: not delete_deployment | bool
-#      tags: 
-#        - postgres
-#        - helm
-#
-#    - name: Configure Postgres Database
-#      include_tasks: configure-postgres.yml
-#      when: not delete_deployment | bool
-#      tags: 
-#        - postgres
-#        - helm
-#
-    - name: 実行されてるの？
-      debug:
-        msg: "MongoDB Operator installation is running"
+    - name: Login Cluster
+      include_tasks: login-to-cluster.yml
+      tags: always 
+
+    - name: Configure ACM 
+      include_tasks: acm-deployment.yml
+      when: not delete_deployment | bool
+      tags: 
+        - quay
+        - gogs
+        - pipelines
+        - gitops
+
+    - name: ACM Workload 
+      include_tasks: acm-project-workloads.yml
+      when: not delete_deployment | bool
+      tags: 
+        - acm-workload
+
+    - name: remove  ACM deployment
+      include_tasks: remove-acm-deployment.yml
+      when: delete_deployment | bool
+      tags: 
+        - quay
+        - gogs
+        - pipelines
+        - gitops
+        - acm-workload
+
+    - name: Create Quarkus project 
+      include_tasks: create-project.yml
+      when: not delete_deployment | bool
+      tags: always
+
+    - name: AMQ Streams installation
+      include_tasks: amq-streams-install.yml
+      when: not delete_deployment | bool
+      tags: 
+        - amq
+
+    - name: Deploy Cloud Native Postgres for Kubernetes
+      include_tasks: crunchy-operator-install.yml
+      when: not delete_deployment | bool
+      tags: 
+        - postgres
+        - helm
+
+    - name: Configure Postgres Database
+      include_tasks: configure-postgres.yml
+      when: not delete_deployment | bool
+      tags: 
+        - postgres
+        - helm
 
     - name: MongoDB Operator installation
       include_tasks: mongodb-operator-install.yml
