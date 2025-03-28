@@ -33,21 +33,25 @@
 #
 #    - name: Create Quarkus project 
 #      include_tasks: create-project.yml
+#      when: delete_deployment | bool
 #      tags: always
 #
 #    - name: AMQ Streams installation
 #      include_tasks: amq-streams-install.yml
+#      when: delete_deployment | bool
 #      tags: 
 #        - amq
 #
 #    - name: Deploy Cloud Native Postgres for Kubernetes
 #      include_tasks: crunchy-operator-install.yml
+#      when: delete_deployment | bool
 #      tags: 
 #        - postgres
 #        - helm
 #
 #    - name: Configure Postgres Database
 #      include_tasks: configure-postgres.yml
+#      when: delete_deployment | bool
 #      tags: 
 #        - postgres
 #        - helm
@@ -59,15 +63,18 @@
 
     - name: MongoDB Operator installation
       include_tasks: mongodb-operator-install.yml
+      when: delete_deployment | bool
       tags:
        - mongodb-operator
 
     - name: Installing Single mongodb database
       include_tasks: mongodb.yml
+      when: delete_deployment | bool
       tags:
        - mongodb
 
     - name: Deploy Quarkus Cafe Helm Chart
       include_tasks: helm-chart.yml
+      when: delete_deployment | bool
       tags:
        - helm
