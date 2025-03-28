@@ -4,12 +4,12 @@ metadata:
   annotations:
     strimzi.io/kraft: enabled
   name: cafe-cluster
-  namespace: {{ kafka_cluster_name }}
+  namespace: {{ project_namespace }}
 spec:
   kafka:
     version: "3.9.0"
     replicas: 3
-    controllerReplicas: 3  # KRaft のコントローラーを3つに設定
+    controllerReplicas: 3
     config:
       process.roles: "controller,broker"
       controller.listener.names: CONTROLLER
