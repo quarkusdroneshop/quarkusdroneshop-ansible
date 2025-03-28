@@ -95,10 +95,10 @@
 #    - amq
 #    - acm-workload
 
-- name: Search for all Pods labeled  cafe-cluster-kafka
+- name: Search for all Pods labeled cafe-cluster-kafka
   kubernetes.core.k8s_info:
     kind: Pod
-    namespace:  "{{ project_namespace }}"
+    namespace: "{{ project_namespace }}"
     label_selectors:
       - "strimzi.io/name=cafe-cluster-kafka"
     field_selectors:
@@ -106,8 +106,8 @@
   register: r_kafka_status
   retries: 200
   delay: 10
-  until: r_kafka_status.resources  | list | length == 3
-  when: not delete_deployment|bool
+  until: r_kafka_status.resources | length == 3
+  when: not delete_deployment | bool
   tags:
     - amq
     - acm-workload
