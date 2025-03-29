@@ -12,3 +12,4 @@ data:
   PGSQL_URL: "jdbc:postgresql://coffeeshopdb-ha:5432/coffeeshopdb?currentSchema=coffeeshop"
   QUARKUS_LOG_LEVEL: "INFO"
   QUARKUSCOFFEESHOP_LOG_LEVEL: "INFO"
+  REST_URL: "http://localhost:8080/order"

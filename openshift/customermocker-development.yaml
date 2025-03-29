@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customermocker
+  namespace: quarkuscoffeeshop-demo
+  labels:
+    app: customermocker
+    environment: production
+    category: coffeeshop
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+       - name: customermocker
+         env:
+           - name: REST_URL
+             valueFrom:
+               configMapKeyRef:
+                 name: coffeeshop-sub-config
+                 key: REST_URL

@@ -78,6 +78,7 @@ deploy() {
     # 既存Appの削除
     oc delete all -l app=web -n "$NAMESPACE"
     oc delete all -l app=counter -n "$NAMESPACE"
+    oc delete all -l app=inventory -n "$NAMESPACE"
     
     # Configmap の追加
     oc apply -f openshift/coffeeshop-configmap.yaml
@@ -85,6 +86,10 @@ deploy() {
     # Counter App
     oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/counter-development.yaml -n "$NAMESPACE"
+
+    # Inventory App
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-inventory.git --name=inventory --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc apply -f openshift/inventory-development.yaml -n "$NAMESPACE"
 
     # Web App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-web.git --name=web --allow-missing-images --strategy=source -n "$NAMESPACE"
@@ -127,6 +132,22 @@ subdeploy2() {
     # Barista App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
+}
+
+subdeploy3() {
+    echo "デプロイ開始..."
+
+    # 既存Appの削除
+    oc delete all -l app=customermocker -n "$NAMESPACE"
+    
+    # Configmap の追加
+    oc apply -f openshift/coffeeshop-sub-configmap.yaml
+
+    # Customermocker App
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-customermocker.git --name=customermocker --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc apply -f openshift/customermocker-development.yaml -n "$NAMESPACE"
+    oc expose deployment customermocker --port=8080 --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
+    oc expose svc quarkuscoffeeshop-customermocker --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
 }
 
 homedeploy() {
@@ -228,6 +249,7 @@ case "$1" in
             deploy
             subdeploy1
             subdeploy2
+            subdeploy3
         else
             deploy
         fi
@@ -237,6 +259,9 @@ case "$1" in
         ;;
     subdeploy2)
         subdeploy2
+        ;;
+    subdeploy3)
+        subdeploy3
         ;;
     homedeploy)
         homedeploy
