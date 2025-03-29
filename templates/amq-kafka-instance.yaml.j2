@@ -22,6 +22,7 @@ spec:
       transaction.state.log.min.isr: 2
       default.replication.factor: 3
       min.insync.replicas: 2
+      controller.quorum.voters: "1@cafe-cluster-kafka-0.quarkuscoffeeshop-demo.svc.cluster.local:9093,2@cafe-cluster-kafka-1.quarkuscoffeeshop-demo.svc.cluster.local:9093,3@cafe-cluster-kafka-2.quarkuscoffeeshop-demo.svc.cluster.local:9093"
     listeners:
       - name: plain
         port: 9092
