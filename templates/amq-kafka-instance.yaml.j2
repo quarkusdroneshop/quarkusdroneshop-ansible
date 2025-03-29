@@ -7,7 +7,7 @@ metadata:
   namespace: {{ project_namespace }}
 spec:
   kafka:
-    kraftMode: true
+    clusterMode: "kraft"
     version: "3.9.0"
     replicas: 3
     controllerReplicas: 3
