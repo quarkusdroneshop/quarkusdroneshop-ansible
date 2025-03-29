@@ -39,3 +39,33 @@ spec:
   entityOperator:
     topicOperator: {}
     userOperator: {}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: cafe-cluster-brokers
+  namespace: quarkuscoffeeshop-demo
+spec:
+  clusterName: cafe-cluster
+  roles:
+    - broker
+  replicas: 3
+  storage:
+    type: persistent-claim
+    size: 10Gi
+    deleteClaim: false
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: cafe-cluster-controllers
+  namespace: quarkuscoffeeshop-demo
+spec:
+  clusterName: cafe-cluster
+  roles:
+    - controller
+  replicas: 3
+  storage:
+    type: persistent-claim
+    size: 10Gi
+    deleteClaim: false
