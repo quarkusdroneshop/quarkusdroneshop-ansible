@@ -3,11 +3,11 @@ kind: Kafka
 metadata:
   annotations:
     strimzi.io/kraft: enabled
+    strimzi.io/node-pools: enabled
   name: cafe-cluster
   namespace: {{ project_namespace }}
 spec:
   kafka:
-    clusterMode: "kraft"
     version: "3.9.0"
     replicas: 3
     controllerReplicas: 3
@@ -22,7 +22,6 @@ spec:
       transaction.state.log.min.isr: 2
       default.replication.factor: 3
       min.insync.replicas: 2
-      controller.quorum.voters: "1@cafe-cluster-kafka-0.quarkuscoffeeshop-demo.svc.cluster.local:9093,2@cafe-cluster-kafka-1.quarkuscoffeeshop-demo.svc.cluster.local:9093,3@cafe-cluster-kafka-2.quarkuscoffeeshop-demo.svc.cluster.local:9093"
     listeners:
       - name: plain
         port: 9092
@@ -43,28 +42,28 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaNodePool
 metadata:
-  name: cafe-cluster-brokers
-  namespace: quarkuscoffeeshop-demo
+  name: cafe-cluster-controllers
+  namespace: {{ project_namespace }}
+  labels:
+    strimzi.io/cluster: cafe-cluster
 spec:
-  clusterName: cafe-cluster
-  roles:
-    - broker
   replicas: 3
+  roles:
+    - controller
   storage:
-    type: persistent-claim
-    size: 10Gi
-    deleteClaim: false
+    type: ephemeral
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaNodePool
 metadata:
-  name: cafe-cluster-controllers
-  namespace: quarkuscoffeeshop-demo
+  name: cafe-cluster-brokers
+  namespace: {{ project_namespace }}
+  labels:
+    strimzi.io/cluster: cafe-cluster
 spec:
-  clusterName: cafe-cluster
-  roles:
-    - controller
   replicas: 3
+  roles:
+    - broker
   storage:
     type: persistent-claim
     size: 10Gi
