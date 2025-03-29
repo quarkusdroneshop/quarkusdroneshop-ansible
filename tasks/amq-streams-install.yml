@@ -100,7 +100,7 @@
     kind: Pod
     namespace: "{{ project_namespace }}"
     label_selectors:
-      - "strimzi.io/name=cafe-cluster-kafka"
+      - "strimzi.io/name=cafe-cluster-kafka,strimzi.io/broker-role=true"
     field_selectors:
       - status.phase=Running
   register: r_kafka_status
