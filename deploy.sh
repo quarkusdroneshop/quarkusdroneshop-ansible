@@ -12,6 +12,7 @@
 #   ./deploy.sh deploy      - To deploy the application.
 #   ./deploy.sh subdeploy1  - To deploy the application1.
 #   ./deploy.sh subdeploy2  - To deploy the application2.
+#   ./deploy.sh subdeploy3  - To deploy the application3.
 #   ./deploy.sh homedeploy  - To deploy the homeoffice application.
 #   ./deploy.sh cleanup     - To delete the application.
 #

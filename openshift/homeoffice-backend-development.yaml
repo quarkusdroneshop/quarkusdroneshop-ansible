@@ -8,7 +8,6 @@ metadata:
     environment: production
     category: coffeeshop
 spec:
-  replicas: 1
   template:
     spec:
       containers:
