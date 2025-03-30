@@ -14,28 +14,23 @@ spec:
       containers:
        - name: inventory
          env:
-            - name: PGSQL_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: coffeeshop-config
-                  key: PGSQL_URL
-            - name: PGSQL_USER
-              valueFrom:
-                secretKeyRef:
-                  name: coffeeshopdb-pguser-coffeeshopadmin
-                  key: user
-            - name: PGSQL_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: coffeeshopdb-pguser-coffeeshopadmin
-                  key: password
-            - name: QUARKUS_LOG_LEVEL
-              valueFrom:
-                configMapKeyRef:
-                  name: coffeeshop-config
-                  key: QUARKUS_LOG_LEVEL
-            - name: KAFKA_BOOTSTRAP_URLS
-              valueFrom:
-                configMapKeyRef:
-                  name: coffeeshop-config
-                  key: KAFKA_BOOTSTRAP_URLS
+           - name: PGSQL_URL
+             valueFrom:
+               configMapKeyRef:
+                 name: coffeeshop-config
+                 key: PGSQL_URL
+           - name: PGSQL_USER
+             valueFrom:
+               secretKeyRef:
+                 name: coffeeshopdb-pguser-coffeeshopadmin
+                 key: user
+           - name: PGSQL_PASS
+             valueFrom:
+               secretKeyRef:
+                 name: coffeeshopdb-pguser-coffeeshopadmin
+                 key: password
+           - name: KAFKA_BOOTSTRAP_URLS
+             valueFrom:
+               configMapKeyRef:
+                 name: coffeeshop-config
+                 key: KAFKA_BOOTSTRAP_URLS

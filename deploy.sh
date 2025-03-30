@@ -101,9 +101,9 @@ deploy() {
     CORS_ORIGINS=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)
     LOYALTY_STREAM_URL=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)/dashboard/loyaltystream
     STREAM_URL=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)/dashboard/stream
-    oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"CORS_ORIGINS\":\"http://$CORS_ORIGINS\"}}"
-    oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
-    oc patch openshift coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
+    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"CORS_ORIGINS\":\"http://$CORS_ORIGINS\"}}"
+    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
+    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
 }
 
 subdeploy1() {
@@ -148,6 +148,10 @@ subdeploy3() {
     oc apply -f openshift/customermocker-development.yaml -n "$NAMESPACE"
     oc expose deployment customermocker --port=8080 --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
     oc expose svc quarkuscoffeeshop-customermocker --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
+
+    # ConfigMap の修正
+    REST_URL=$(oc get route quarkuscoffeeshop-customermocker -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-customermocker)
+    oc patch configmap coffeeshop-sub-config -n "$NAMESPACE" -p "{\"data\":{\"REST_URL\":\"http://$REST_URL\"}}"
 }
 
 homedeploy() {
