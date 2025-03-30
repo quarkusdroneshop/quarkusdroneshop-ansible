@@ -4,17 +4,17 @@
 # Description: This script deploys the application to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-26
-# Last Modified: 2025-03-27
-# Version: 1.5
+# Last Modified: 2025-03-29
+# Version: 1.7
 #
 # Usage:
-#   ./deploy.sh setup       - To setup the environment.
-#   ./deploy.sh deploy      - To deploy the application.
-#   ./deploy.sh subdeploy1  - To deploy the application1.
-#   ./deploy.sh subdeploy2  - To deploy the application2.
-#   ./deploy.sh subdeploy3  - To deploy the application3.
-#   ./deploy.sh homedeploy  - To deploy the homeoffice application.
-#   ./deploy.sh cleanup     - To delete the application.
+#   ./deploy.sh setup           - To setup the environment.
+#   ./deploy.sh deploy          - To deploy the application.
+#   ./deploy.sh subdeploy1      - To deploy the application1.
+#   ./deploy.sh subdeploy2      - To deploy the application2.
+#   ./deploy.sh homedeploy      - To deploy the homeoffice application.
+#   ./deploy.sh customermocker  - To deploy the customermocker.
+#   ./deploy.sh cleanup         - To delete the application.
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -70,7 +70,6 @@ setup() {
     # Podman イメージの作成とOperatorのインストール
     podman build --no-cache -t quarkuscoffeeshop . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE quarkuscoffeeshop
-    oc expose svc coffeeshopdb-ha --name=coffeeshopdb-ha --port=5432 -n "$NAMESPACE"
 }
 
 deploy() {
@@ -135,26 +134,6 @@ subdeploy2() {
     oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
 }
 
-subdeploy3() {
-    echo "デプロイ開始..."
-
-    # 既存Appの削除
-    oc delete all -l app=customermocker -n "$NAMESPACE"
-    
-    # Configmap の追加
-    oc apply -f openshift/coffeeshop-sub-configmap.yaml
-
-    # Customermocker App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-customermocker.git --name=customermocker --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f openshift/customermocker-development.yaml -n "$NAMESPACE"
-    oc expose deployment customermocker --port=8080 --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
-    oc expose svc quarkuscoffeeshop-customermocker --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
-
-    # ConfigMap の修正
-    REST_URL=$(oc get route quarkuscoffeeshop-customermocker -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-customermocker)
-    oc patch configmap coffeeshop-sub-config -n "$NAMESPACE" -p "{\"data\":{\"REST_URL\":\"http://$REST_URL\"}}"
-}
-
 homedeploy() {
     echo "デプロイ開始..."
 
@@ -172,6 +151,26 @@ homedeploy() {
     oc new-app ubi8/nodejs-20~https://github.com/nmushino/quarkuscoffeeshop-homeoffice-ui.git --name=homeoffice-ui --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc expose deployment homeoffice-ui --port=8080 --name=homeoffice-ui -n "$NAMESPACE"
     oc expose svc homeoffice-ui --name=homeoffice-ui -n "$NAMESPACE"
+}
+
+customermocker() {
+    echo "デプロイ開始..."
+
+    # 既存Appの削除
+    oc delete all -l app=customermocker -n "$NAMESPACE"
+    
+    # Configmap の追加
+    oc apply -f openshift/coffeeshop-sub-configmap.yaml
+
+    # Customermocker App
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-customermocker.git --name=customermocker --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc apply -f openshift/customermocker-development.yaml -n "$NAMESPACE"
+    oc expose deployment customermocker --port=8080 --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
+    oc expose svc quarkuscoffeeshop-customermocker --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
+
+    # ConfigMap の修正
+    REST_URL=$(oc get route quarkuscoffeeshop-customermocker -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)
+    oc patch configmap coffeeshop-sub-config -n "$NAMESPACE" -p "{\"data\":{\"REST_URL\":\"http://$REST_URL/orders\"}}"
 }
 
 openmetadata() {
@@ -254,7 +253,6 @@ case "$1" in
             deploy
             subdeploy1
             subdeploy2
-            subdeploy3
         else
             deploy
         fi
@@ -265,8 +263,8 @@ case "$1" in
     subdeploy2)
         subdeploy2
         ;;
-    subdeploy3)
-        subdeploy3
+    customermocker)
+        customermocker
         ;;
     homedeploy)
         homedeploy
