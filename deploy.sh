@@ -4,8 +4,8 @@
 # Description: This script deploys the application to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-26
-# Last Modified: 2025-03-29
-# Version: 1.7
+# Last Modified: 2025-03-30
+# Version: 1.8
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.

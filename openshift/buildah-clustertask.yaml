@@ -1,0 +1,42 @@
+apiVersion: tekton.dev/v1beta1
+kind: ClusterTask
+metadata:
+  name: buildah
+spec:
+  steps:
+  - name: build
+    securityContext:
+      privileged: true
+      runAsUser: 0
+      runAsGroup: 0
+    image: quay.io/buildah/stable
+    script: |
+      #!/bin/sh
+      buildah bud --format docker -t $(params.IMAGE) -f $(params.DOCKERFILE) $(params.CONTEXT)
+  params:
+    - name: IMAGE
+      type: string
+    - name: DOCKERFILE
+      type: string
+    - name: CONTEXT
+      type: string
+  workspaces:
+    - name: source
+#---
+#apiVersion: security.openshift.io/v1
+#kind: SecurityContextConstraints
+#metadata:
+#  name: privileged
+#allowPrivilegedContainer: true
+#allowHostDirVolumePlugin: true
+#allowHostIPC: true
+#allowHostNetwork: true
+#allowHostPID: true
+#allowHostPorts: true
+#allowPrivilegedEscalation: true
+#runAsUser:
+#  type: RunAsAny
+#volumes:
+#  - '*'
+#seLinuxContext:
+#  type: RunAsAny

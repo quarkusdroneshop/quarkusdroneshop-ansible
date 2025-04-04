@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: push-image-task
+spec:
+  params:
+    - name: SCRIPT
+      type: string
+  workspaces:
+    - name: source
+  steps:
+    - name: run-script
+      image: quay.io/openshift/origin-cli:latest
+      script: |
+        #!/bin/bash
+        $(params.SCRIPT)
+      workingDir: $(workspaces.source.path)
