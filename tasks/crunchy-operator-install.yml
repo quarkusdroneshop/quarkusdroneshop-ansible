@@ -9,15 +9,6 @@
     - acm-workload
     - helm
 
-- name: Set crunchystartingCSV if not provided
-  set_fact:
-    crunchystartingCSV: "postgresoperator.v5.8.0"
-  when: crunchystartingCSV is not defined or crunchystartingCSV == ""
-
-- name: Debug current CSV name
-  debug:
-    msg: "Checking for CSV: {{ crunchystartingCSV }}"
-
 # wait for Postgres to be ready
 - name: Wait for Postgres CRD to be ready
   kubernetes.core.k8s_info:
