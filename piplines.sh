@@ -78,9 +78,15 @@ setup() {
     oc apply -f openshift/openshift-client-clustertask.yaml
     oc adm policy add-scc-to-user privileged -z pipeline -n  $CICD_NAMESPACE
     
-    # quarkuscoffeeshop-barista Pipline の設定
     cd ../tekton-pipelines
+    # quarkuscoffeeshop-barista Pipline の設定
     kustomize build quarkuscoffeeshop-barista | oc create -f - 
+    # quarkuscoffeeshop-kitchen Pipline の設定
+    kustomize build quarkuscoffeeshop-kitchen | oc create -f - 
+    # quarkuscoffeeshop-counter Pipline の設定
+    kustomize build quarkuscoffeeshop-counter | oc create -f - 
+    # quarkuscoffeeshop-web Pipline の設定
+    kustomize build quarkuscoffeeshop-web | oc create -f - 
 
     # プロジェクトが存在するか確認
     oc get project "$DEMO_NAMESPACE" > /dev/null 2>&1
