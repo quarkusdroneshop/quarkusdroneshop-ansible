@@ -21,12 +21,13 @@
 #
 # =============================================================================
 
-NAMESPACE="quarkuscoffeeshop-cicd"
+CICD_NAMESPACE="quarkuscoffeeshop-cicd"
+DEMO_NAMESPACE="quarkuscoffeeshop-demo"
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 DOMAIN_TOKEN=$(oc whoami -t)
 
 # ロゴの表示
-figlet "piplines"
+figlet "coffeeshop"
 
 # 前処理
 oc status
@@ -58,12 +59,35 @@ fi
 
 setup() {
     echo "セットアップ開始..."
-    # Podman イメージの作成とOperatorのインストール
+    # オペレータのインストール
+    # プロジェクトが存在するか確認
+    if oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then
+      read -p "Operatorのインストールを実行しますか？ (y/N): " answer
+      if [[ "$answer" =~ ^[Yy]$ ]]; then
+          oc apply -f openshift/openshift-pipline.yaml
+          sleep 30        
+      fi
+    else
+      oc new-project $CICD_NAMESPACE
+      oc apply -f openshift/openshift-pipline.yaml
+      sleep 30
+    fi
+
+    # 共通設定
+    oc apply -f openshift/buildah-clustertask.yaml
+    oc apply -f openshift/openshift-client-clustertask.yaml
+    oc adm policy add-scc-to-user privileged -z pipeline -n  $CICD_NAMESPACE
+    
+    # quarkuscoffeeshop-barista Pipline の設定
     cd ../tekton-pipelines
-    oc new-project quarkuscoffeeshop-cicd
-    oc adm policy add-scc-to-user privileged -z pipeline -n  quarkuscoffeeshop-cicd
     kustomize build quarkuscoffeeshop-barista | oc create -f - 
-    oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n quarkuscoffeeshop-demo  
+
+    # プロジェクトが存在するか確認
+    oc get project "$DEMO_NAMESPACE" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      oc new-project "$DEMO_NAMESPACE"
+      oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
+    fi
 }
 
 cleanup() {
@@ -76,12 +100,12 @@ cleanup() {
     # quarkuscoffeeshop-barista-build
     oc delete pvc quarkuscoffeeshop-barista-maven-settings-pvc --force --grace-period=0
     oc delete pvc quarkuscoffeeshop-barista-shared-workspace-pvc --force --grace-period=0
-    oc patch pvc quarkuscoffeeshop-barista-maven-settings-pvc -n quarkuscoffeeshop-cicd -p '{"metadata":{"finalizers":[]}}' --type=merge
-    oc patch pvc quarkuscoffeeshop-barista-shared-workspace-pvc -n quarkuscoffeeshop-cicd -p '{"metadata":{"finalizers":[]}}' --type=merge
+    oc patch pvc quarkuscoffeeshop-barista-maven-settings-pvc -n $CICD_NAMESPACE -p '{"metadata":{"finalizers":[]}}' --type=merge
+    oc patch pvc quarkuscoffeeshop-barista-shared-workspace-pvc -n $CICD_NAMESPACE -p '{"metadata":{"finalizers":[]}}' --type=merge
     oc delete task git-clone
     oc delete task maven
 
-    oc delete project quarkuscoffeeshop-cicd
+    oc delete project $CICD_NAMESPACE
 }
 
 case "$1" in
