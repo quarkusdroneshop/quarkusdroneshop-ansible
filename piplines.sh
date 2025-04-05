@@ -86,8 +86,8 @@ setup() {
     oc get project "$DEMO_NAMESPACE" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
       oc new-project "$DEMO_NAMESPACE"
-      oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
     fi
+    oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
 }
 
 cleanup() {
