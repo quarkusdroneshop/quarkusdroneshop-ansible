@@ -80,22 +80,59 @@ setup() {
     
     cd ../tekton-pipelines
     # quarkuscoffeeshop-barista Pipline の設定
-    kustomize build quarkuscoffeeshop-barista | oc create -f - 
+    #kustomize build quarkuscoffeeshop-barista | oc create -f - 
     # quarkuscoffeeshop-kitchen Pipline の設定
-    kustomize build quarkuscoffeeshop-kitchen | oc create -f - 
+    #kustomize build quarkuscoffeeshop-kitchen | oc create -f - 
     # quarkuscoffeeshop-counter Pipline の設定
-    kustomize build quarkuscoffeeshop-counter | oc create -f - 
+    #kustomize build quarkuscoffeeshop-counter | oc create -f - 
     # quarkuscoffeeshop-web Pipline の設定
-    kustomize build quarkuscoffeeshop-web | oc create -f - 
+    #kustomize build quarkuscoffeeshop-web | oc create -f - 
     # quarkuscoffeeshop-inventory Pipline の設定
-    kustomize build quarkuscoffeeshop-inventory | oc create -f - 
+    #kustomize build quarkuscoffeeshop-inventory | oc create -f - 
     # quarkuscoffeeshop-homeofficebackend Pipline の設定
-    kustomize build quarkuscoffeeshop-homeofficebackend | oc create -f - 
+    #kustomize build quarkuscoffeeshop-homeofficebackend | oc create -f - 
     # quarkuscoffeeshop-homeoffice-ui Pipline の設定
-    kustomize build quarkuscoffeeshop-homeoffice-ui | oc create -f - 
+    #kustomize build quarkuscoffeeshop-homeoffice-ui | oc create -f - 
     # quarkuscoffeeshop-customermocker Pipline の設定
-    kustomize build quarkuscoffeeshop-customermocker | oc create -f - 
+    #kustomize build quarkuscoffeeshop-customermocker | oc create -f - 
     
+    OPTIONS=(
+    "barista"
+    "kitchen"
+    "counter"
+    "web"
+    "inventory"
+    "homeofficebackend"
+    "homeoffice-ui"
+    "customermocker"
+    "all"
+    "cancel"
+    )
+
+    PS3="実行したい Pipeline を選択してください（番号）: "
+
+    select opt in "${OPTIONS[@]}"; do
+        case $opt in
+            "barista"|"kitchen"|"counter"|"web"|"inventory"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
+                echo "🔧 実行中: $opt"
+                kustomize build "quarkuscoffeeshop-$opt" | oc create -f -
+                ;;
+            "all")
+                for d in barista kitchen counter web inventory homeofficebackend homeoffice-ui customermocker; do
+                    echo "🔁 実行中: $d"
+                    kustomize build "quarkuscoffeeshop-$d" | oc create -f -
+                done
+                ;;
+            "cancel")
+                echo "終了します"
+                break
+                ;;
+            *)
+                echo "無効な選択です。コマンドを確認してください。"
+                ;;
+        esac
+    done
+
     # プロジェクトが存在するか確認
     oc get project "$DEMO_NAMESPACE" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
@@ -107,19 +144,17 @@ setup() {
 cleanup() {
     echo "クリーンナップ開始..."
 
-    # quarkuscoffeeshop-barista-build
-    oc delete pipeline quarkuscoffeeshop-barista-build
-    oc delete pipelinerun quarkuscoffeeshop-barista-build-run
+    for pvc in $(oc get pvc -n "$CICD_NAMESPACE" -o name); do
+        oc patch "$pvc" -n "$CICD_NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}'
+    done
 
-    # quarkuscoffeeshop-barista-build
-    oc delete pvc quarkuscoffeeshop-barista-maven-settings-pvc --force --grace-period=0
-    oc delete pvc quarkuscoffeeshop-barista-shared-workspace-pvc --force --grace-period=0
-    oc patch pvc quarkuscoffeeshop-barista-maven-settings-pvc -n $CICD_NAMESPACE -p '{"metadata":{"finalizers":[]}}' --type=merge
-    oc patch pvc quarkuscoffeeshop-barista-shared-workspace-pvc -n $CICD_NAMESPACE -p '{"metadata":{"finalizers":[]}}' --type=merge
+    oc delete task push-app    
     oc delete task git-clone
     oc delete task maven
 
     oc delete project $CICD_NAMESPACE
+
+
 }
 
 case "$1" in
