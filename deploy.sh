@@ -73,16 +73,26 @@ setup() {
 }
 
 deploy() {
+    #############################################################
+    # 本パラメータは、tekton-pipline に移行したため、現在利用なし。
+    # Tektonで問題でた時のバックアップ用とする。
+    #############################################################
     echo "デプロイ開始..."
 
     # 既存Appの削除
     oc delete all -l app=web -n "$NAMESPACE"
     oc delete all -l app=counter -n "$NAMESPACE"
     oc delete all -l app=inventory -n "$NAMESPACE"
+    oc delete all -l app=kitchen -n "$NAMESPACE"
+    oc delete all -l app=barista -n "$NAMESPACE"
+    oc delete all -l app=homeoffice-backend -n "$NAMESPACE"
+    oc delete all -l app=homeoffice-ui -n "$NAMESPACE"
+    oc delete all -l app=customermocker -n "$NAMESPACE"
     
     # Configmap の追加
     oc apply -f openshift/coffeeshop-configmap.yaml
-    
+    oc apply -f openshift/coffeeshop-sub-configmap.yaml
+
     # Counter App
     oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/counter-development.yaml -n "$NAMESPACE"
@@ -104,27 +114,10 @@ deploy() {
     oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"CORS_ORIGINS\":\"http://$CORS_ORIGINS\"}}"
     oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
     oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
-}
-
-subdeploy1() {
-    echo "デプロイ開始..."
-
-    # 既存Appの削除
-    oc delete all -l app=kitchen -n "$NAMESPACE"
-
-    # Configmap の追加
-    oc apply -f openshift/coffeeshop-sub-configmap.yaml
 
     # Kitchen App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/kitchen-development.yaml -n "$NAMESPACE"
-}
-
-subdeploy2() {
-    echo "デプロイ開始..."
-
-    # 既存Appの削除
-    oc delete all -l app=barista -n "$NAMESPACE"
     
     # Configmap の追加
     oc apply -f openshift/coffeeshop-sub-configmap.yaml
@@ -132,14 +125,6 @@ subdeploy2() {
     # Barista App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
-}
-
-homedeploy() {
-    echo "デプロイ開始..."
-
-    # 既存Appの削除
-    oc delete all -l app=homeoffice-backend -n "$NAMESPACE"
-    oc delete all -l app=homeoffice-ui -n "$NAMESPACE"
     
     # Homeoffice Backend App
     oc new-app ubi8/openjdk-17~https://github.com/nmushino/homeoffice-backend.git --name=homeoffice-backend --allow-missing-images --strategy=source -n "$NAMESPACE"
@@ -151,16 +136,6 @@ homedeploy() {
     oc new-app ubi8/nodejs-20~https://github.com/nmushino/quarkuscoffeeshop-homeoffice-ui.git --name=homeoffice-ui --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc expose deployment homeoffice-ui --port=8080 --name=homeoffice-ui -n "$NAMESPACE"
     oc expose svc homeoffice-ui --name=homeoffice-ui -n "$NAMESPACE"
-}
-
-customermocker() {
-    echo "デプロイ開始..."
-
-    # 既存Appの削除
-    oc delete all -l app=customermocker -n "$NAMESPACE"
-    
-    # Configmap の追加
-    oc apply -f openshift/coffeeshop-sub-configmap.yaml
 
     # Customermocker App
     oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-customermocker.git --name=customermocker --allow-missing-images --strategy=source -n "$NAMESPACE"
@@ -248,26 +223,7 @@ case "$1" in
         setup
         ;;
     deploy)
-        read -p "すべてのアプリケーションを同クラスタにデプロイしますか(yes/no): " DEPLOY_CONFREM
-        if [ "$DEPLOY_CONFREM" == "yes" ]; then
-            deploy
-            subdeploy1
-            subdeploy2
-        else
-            deploy
-        fi
-        ;;
-    subdeploy1)
-        subdeploy1
-        ;;
-    subdeploy2)
-        subdeploy2
-        ;;
-    customermocker)
-        customermocker
-        ;;
-    homedeploy)
-        homedeploy
+        deploy
         ;;
     openmetadata)
         openmetadata
@@ -277,7 +233,7 @@ case "$1" in
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|subdeploy1|subdeploy2|homedeploy|openmetadata|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|openmetadata|cleanup}${RESET}"
         exit 1
         ;;
 esac
