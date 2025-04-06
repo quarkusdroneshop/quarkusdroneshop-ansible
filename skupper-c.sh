@@ -58,8 +58,8 @@ fi
 deploy() {
         
     # Namespace（例: "skupper-a"）に切り替え or 作成
-    oc create namespace skupper-b --dry-run=client -o yaml | oc apply -f -
-    oc project skupper-b
+    oc create namespace skupper-c --dry-run=client -o yaml | oc apply -f -
+    oc project skupper-c
     # Skupper 初期化（内部 TLS・ルーティング対応）
     skupper init --router-mode interior --enable-console --enable-flow-collector --console-auth internal --console-user admin --console-password skupper
 
@@ -73,14 +73,15 @@ deploy() {
         exit 1
     fi
     # Linkの作成
-    skupper token create skupper-token-b.yaml
+    skupper token create skupper-token-c.yaml
     skupper link create skupper-token-a.yaml --name quarkuscoffeeshop-webfrontend
-    skupper link create skupper-token-c.yaml --name quarkuscoffeeshop-homeoffice
+    skupper link create skupper-token-b.yaml --name quarkuscoffeeshop-homeoffice
     skupper link status
     # KAFKA,PostgreSQLの公開
-    skupper expose service kafka-bootstrap --port 9092 --protocol tcp --address kafka-cafe-b-bootstrap
-    skupper expose service postgres --port 5432 --protocol tcp --address postgres-b-skupper
+    skupper expose service kafka-bootstrap --port 9092 --protocol tcp --address kafka-cafe-c-bootstrap
+    skupper expose service postgres --port 5432 --protocol tcp --address postgres-c-skupper
     oc apply -f openshift/kafka-mm2-b-site.yaml
+    oc apply -f openshift/kafka-mm2-c-site.yaml
 }
 
 cleanup() {

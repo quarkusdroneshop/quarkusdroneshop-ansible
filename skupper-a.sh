@@ -73,12 +73,13 @@ deploy() {
         exit 1
     fi
     # Linkの作成
-    skupper token create skupper-token-b.yaml
-    skupper link create skupper-token-a.yaml --name quarkuscoffeeshop-webfrontend
+    skupper token create skupper-token-a.yaml
+    skupper link create skupper-token-b.yaml --name quarkuscoffeeshop-webbackend
+    skupper link create skupper-token-c.yaml --name quarkuscoffeeshop-homeoffice
     skupper link status
     # KAFKA,PostgreSQLの公開
     skupper expose service kafka-bootstrap --port 9092 --protocol tcp --address kafka-cafe-a-bootstrap
-    skupper expose service postgres --port 5432 --protocol tcp --address postgres-b-skupper
+    skupper expose service postgres --port 5432 --protocol tcp --address postgres-a-skupper
     oc apply -f openshift/kafka-mm2-a-site.yaml
 }
 
