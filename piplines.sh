@@ -87,7 +87,15 @@ setup() {
     kustomize build quarkuscoffeeshop-counter | oc create -f - 
     # quarkuscoffeeshop-web Pipline の設定
     kustomize build quarkuscoffeeshop-web | oc create -f - 
-
+    # quarkuscoffeeshop-inventory Pipline の設定
+    kustomize build quarkuscoffeeshop-inventory | oc create -f - 
+    # quarkuscoffeeshop-homeofficebackend Pipline の設定
+    kustomize build quarkuscoffeeshop-homeofficebackend | oc create -f - 
+    # quarkuscoffeeshop-homeoffice-ui Pipline の設定
+    kustomize build quarkuscoffeeshop-homeoffice-ui | oc create -f - 
+    # quarkuscoffeeshop-customermocker Pipline の設定
+    kustomize build quarkuscoffeeshop-customermocker | oc create -f - 
+    
     # プロジェクトが存在するか確認
     oc get project "$DEMO_NAMESPACE" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
