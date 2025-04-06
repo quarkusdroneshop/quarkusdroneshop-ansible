@@ -4,8 +4,8 @@
 # Description: This script sets up the application pipeline.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2025-03-30
-# Version: 0.9
+# Last Modified: 2025-04-06
+# Version: 1.1
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
