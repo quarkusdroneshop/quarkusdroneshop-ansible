@@ -1,25 +1,24 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaMirrorMaker2
 metadata:
-  name: my-mirrormaker2
-  namespace: kafka-b
+  name: cafe-mm2
+  namespace: quarkuscoffeeshop-demo
 spec:
-  version: 3.6.0
+  version: 3.9.0
   replicas: 1
-  connectCluster: "target"
+  connectCluster: "b-cluster"
   clusters:
-  - alias: source
-    bootstrapServers: kafka-cafe-a-bootstrap:9092
-  - alias: target
-    bootstrapServers: kafka-cafe-b-bootstrap:9092
+    - alias: "a-cluster"
+      bootstrapServers: "kafka-cafe-a-bootstrap:9092"
+    - alias: "b-cluster"
+      bootstrapServers: "external-kafka-cafe-b-bootstrap:9092"
   mirrors:
-  - sourceCluster: source
-    targetCluster: target
-    topicsPattern: ".*"
-    groupsPattern: ".*"
-    sourceConnector:
+    - sourceCluster: "a-cluster"
+      targetCluster: "b-cluster"
+      topicsPattern: ".*"
+      groupsPattern: ".*"
       config:
-        replication.factor: 1
-        offset.syncs.topic.replication.factor: 1
-        config.storage.replication.factor: 1
-        status.storage.replication.factor: 1
+        replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
+        mirror.topic.name.separator: "-"
+        
+      

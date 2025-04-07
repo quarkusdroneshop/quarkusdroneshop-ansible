@@ -141,25 +141,29 @@ setup() {
     oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
 }
 
+setupdemo() {
+    oc apply -f openshift/coffeeshop-configmap.yaml
+    oc apply -f openshift/coffeeshop-sub-configmap.yaml
+    oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline
+}
+
 cleanup() {
     echo "クリーンナップ開始..."
-
     for pvc in $(oc get pvc -n "$CICD_NAMESPACE" -o name); do
         oc patch "$pvc" -n "$CICD_NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}'
     done
-
     oc delete task push-app    
     oc delete task git-clone
     oc delete task maven
-
     oc delete project $CICD_NAMESPACE
-
-
 }
 
 case "$1" in
     setup)
         setup
+        ;;
+    setupdemo)
+        setupdemo
         ;;
     cleanup)
         cleanup

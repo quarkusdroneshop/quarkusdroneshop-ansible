@@ -58,8 +58,8 @@ fi
 deploy() {
         
     # Namespace（例: "skupper-a"）に切り替え or 作成
-    oc create namespace skupper-c --dry-run=client -o yaml | oc apply -f -
-    oc project skupper-c
+    #oc create namespace skupper-a --dry-run=client -o yaml | oc apply -f -
+    oc project quarkuscoffeeshop-demo
     # Skupper 初期化（内部 TLS・ルーティング対応）
     skupper init --router-mode interior --enable-console --enable-flow-collector --console-auth internal --console-user admin --console-password skupper
 
@@ -67,25 +67,36 @@ deploy() {
     skupper status
 
     # TOKEN/LINKの作成
-    read -p "TOKENとLINKを作成しますか？(yes/no): " LINK_CONFREM
+    skupper token create skupper-token-a.yaml
+    read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
     if [ "$LINK_CONFREM" != "yes" ]; then
         echo -e "${YELLOW}処理を終了します。${RESET}"
         exit 1
     fi
     # Linkの作成
-    skupper token create skupper-token-c.yaml
-    skupper link create skupper-token-a.yaml --name quarkuscoffeeshop-webfrontend
-    skupper link create skupper-token-b.yaml --name quarkuscoffeeshop-homeoffice
+    skupper link create skupper-token-b.yaml --name quarkuscoffeeshop-webbackend
+    #skupper link create skupper-token-c.yaml --name quarkuscoffeeshop-homeoffice
     skupper link status
     # KAFKA,PostgreSQLの公開
-    skupper expose service kafka-bootstrap --port 9092 --protocol tcp --address kafka-cafe-c-bootstrap
-    skupper expose service postgres --port 5432 --protocol tcp --address postgres-c-skupper
-    oc apply -f openshift/kafka-mm2-b-site.yaml
-    oc apply -f openshift/kafka-mm2-c-site.yaml
+    skupper expose service cafe-cluster-kafka-bootstrap --port 9092 --protocol tcp --address external-kafka-cafe-a-bootstrap
+    skupper expose service postgres --port 5432 --protocol tcp --address postgres-a-skupper
+    oc apply -f openshift/kafka-mm2-a-site.yaml
+    oc apply -f openshift/kafka-mm2-a-setting.yaml
 }
 
 cleanup() {
-    oc delete project skupper-b
+    oc delete kafkamirrormaker2 --all -n quarkuscoffeeshop-demo
+    oc delete all -l skupper.io/component
+    oc delete configmap -l skupper.io/component
+    oc delete secret -l skupper.io/component
+    oc delete svc skupper
+    oc delete svc skupper-prometheus
+    oc delete svc skupper-router
+    oc delete svc skupper-router-local
+    oc delete route skupper
+    oc delete route skupper-edge
+    oc delete route skupper-inter-router
+    oc delete route claims
 }
 
 case "$1" in

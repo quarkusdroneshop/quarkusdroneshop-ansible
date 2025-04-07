@@ -1,0 +1,22 @@
+# skupper-operatorgroup.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: skupper-operator-group
+  namespace: quarkuscoffeeshop-demo
+spec:
+  targetNamespaces:
+    - skupper-operator
+---
+# skupper-subscription.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: red-hat-service-interconnect
+  namespace: quarkuscoffeeshop-demo
+spec:
+  name: skupper-operator   # ← oc get packagemanifest で確認した "metadata.name"
+  channel: stable-2                      # ← または stable-2 など
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
