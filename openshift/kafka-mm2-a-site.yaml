@@ -6,19 +6,24 @@ metadata:
 spec:
   version: 3.9.0
   replicas: 1
-  connectCluster: "b-cluster"
+  connectCluster: "cafe-bsite-cluster"
   clusters:
-    - alias: "a-cluster"
-      bootstrapServers: "kafka-cafe-a-bootstrap:9092"
-    - alias: "b-cluster"
+    - alias: "cafe-asite-cluster"
+      bootstrapServers: "cafe-cluster-kafka-bootstrap:9092"
+    - alias: "cafe-bsite-cluster"
       bootstrapServers: "external-kafka-cafe-b-bootstrap:9092"
   mirrors:
-    - sourceCluster: "a-cluster"
-      targetCluster: "b-cluster"
+    - sourceCluster: "cafe-asite-cluster"
+      targetCluster: "cafe-bsite-cluster"
       topicsPattern: ".*"
       groupsPattern: ".*"
       config:
         replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
-        mirror.topic.name.separator: "-"
-        
-      
+        replication.policy.separator: "."
+        refresh.topics.enabled: true
+        refresh.groups.enabled: true
+        sync.topic.acls.enabled: false
+        emit.heartbeats.enabled: true
+        # タイムアウトの設定を追加
+        request.timeout.ms: 60000  # 60秒に設定
+        metadata.fetch.timeout.ms: 60000  # 60秒に設定

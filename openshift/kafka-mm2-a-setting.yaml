@@ -10,3 +10,16 @@ spec:
   replicas: 3
   config:
     cleanup.policy: compact
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: mirrormaker2-cluster-status
+  labels:
+    strimzi.io/cluster: cafe-cluster
+spec:
+  topicName: mirrormaker2-cluster-status
+  partitions: 1
+  replicas: 3
+  config:
+    cleanup.policy: compact

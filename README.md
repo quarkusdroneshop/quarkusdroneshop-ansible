@@ -228,14 +228,24 @@ DEBUG=-v
 ```
 
 ./deploy.sh setup
-./deploy.sh deploy
+
+その後、piplines.sh にてアプリのデプロイを行う。
+
+./pipline.sh deploy
+
+そして、SiteA、SiteB、SiteCに適切にSkupperにてVCPをはり、通信確立してからKafkaでSyncする。
+
+./skupper-asite.sh deploy
+./skupper-bsite.sh deploy
+./skupper-csite.sh deploy
+
+
 
 To-Do
 -------
-* 異なるクラスタにサブアプリをいれる
-* 異なるクラスタにサブアプリをいれ、MirrorMakerでつなぐ
+* 異なるクラスタにサブアプリをいれるて正常テスト確認
 * OpenMetadataの設定インポートを試す
-* 自動テストする
+* F2Fの自動テストする
 * QuarkusバージョンとJavaのバージョンアップをする
 
 License

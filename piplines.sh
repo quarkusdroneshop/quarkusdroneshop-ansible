@@ -74,8 +74,8 @@ setup() {
     fi
 
     # 共通設定
-    oc apply -f openshift/buildah-clustertask.yaml
-    oc apply -f openshift/openshift-client-clustertask.yaml
+    oc apply -f openshift/buildah-clustertask.yaml -n  $CICD_NAMESPACE
+    oc apply -f openshift/openshift-client-clustertask.yaml -n  $CICD_NAMESPACE
     oc adm policy add-scc-to-user privileged -z pipeline -n  $CICD_NAMESPACE
     
     cd ../tekton-pipelines
@@ -141,7 +141,7 @@ setup() {
     oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
 }
 
-setupdemo() {
+democonfig() {
     oc apply -f openshift/coffeeshop-configmap.yaml
     oc apply -f openshift/coffeeshop-sub-configmap.yaml
     oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline
@@ -162,15 +162,15 @@ case "$1" in
     setup)
         setup
         ;;
-    setupdemo)
-        setupdemo
+    democonfig)
+        democonfig
         ;;
     cleanup)
         cleanup
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|democonfig|cleanup}${RESET}"
         exit 1
         ;;
 esac

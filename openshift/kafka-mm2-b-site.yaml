@@ -6,17 +6,29 @@ metadata:
 spec:
   version: 3.9.0
   replicas: 1
-  connectCluster: "a-cluster"
+  connectCluster: "cafe-asite-cluster"
   clusters:
-    - alias: "b-cluster"
-      bootstrapServers: "kafka-cafe-b-bootstrap:9092"
-    - alias: "a-cluster"
+    - alias: "cafe-bsite-cluster"
+      bootstrapServers: "cafe-cluster-kafka-bootstrap:9092"
+    - alias: "cafe-asite-cluster"
       bootstrapServers: "external-kafka-cafe-a-bootstrap:9092"
   mirrors:
-    - sourceCluster: "b-cluster"
-      targetCluster: "a-cluster"
+    - sourceCluster: "cafe-bsite-cluster"
+      targetCluster: "cafe-asite-cluster"
       topicsPattern: ".*"
       groupsPattern: ".*"
       config:
         replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
-        mirror.topic.name.separator: "-"
+        replication.policy.separator: "."
+        refresh.topics.enabled: true
+        refresh.groups.enabled: true
+        sync.topic.acls.enabled: false
+        emit.heartbeats.enabled: true
+        # タイムアウトの設定を追加（Skupper）
+        request.timeout.ms: 120000  # 120秒
+        metadata.fetch.timeout.ms: 120000
+        retry.backoff.ms: 10000
+        consumer.request.timeout.ms: 90000
+        consumer.metadata.fetch.timeout.ms: 90000
+        producer.request.timeout.ms: 90000
+        reconnect.backoff.max.ms: 60000

@@ -74,7 +74,7 @@ deploy() {
         exit 1
     fi
     # Linkの作成
-    skupper link create skupper-token-a.yaml --name quarkuscoffeeshop-webfrontend
+    skupper link create skupper-token-a.yaml --name quarkuscoffeeshop-bsite
     #skupper link create skupper-token-c.yaml --name quarkuscoffeeshop-homeoffice
     skupper link status
     # KAFKA,PostgreSQLの公開
@@ -82,6 +82,14 @@ deploy() {
     skupper expose service postgres --port 5432 --protocol tcp --address postgres-a-skupper
     oc apply -f openshift/kafka-mm2-b-site.yaml
     oc apply -f openshift/kafka-mm2-b-setting.yaml
+}
+
+topic() {
+    oc get kafkatopics.kafka.strimzi.io -n quarkuscoffeeshop-demo
+
+    for topic in $(oc get kafkatopics.kafka.strimzi.io -n quarkuscoffeeshop-demo -o name); do
+     oc delete kafkatopic.kafka.strimzi.io/$topic -n quarkuscoffeeshop-demo
+    done
 }
 
 cleanup() {
@@ -103,12 +111,15 @@ case "$1" in
     deploy)
         deploy
         ;;
+    topic)
+        topic
+        ;;
     cleanup)
         cleanup
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {deploy|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {deploy|resettopic|cleanup}${RESET}"
         exit 1
         ;;
 esac
