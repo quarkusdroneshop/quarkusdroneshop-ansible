@@ -74,8 +74,7 @@ deploy() {
         exit 1
     fi
     # Linkの作成
-    skupper link create skupper-token-b.yaml --name quarkuscoffeeshop-asite
-    #skupper link create skupper-token-c.yaml --name quarkuscoffeeshop-homeoffice
+    skupper link create skupper-token-b.yaml --name quarkuscoffeeshop-asite --platform kubernetes --cost 10
     skupper link status
     # KAFKA,PostgreSQLの公開
     skupper expose service cafe-cluster-kafka-bootstrap --port 9092 --protocol tcp --address external-kafka-cafe-a-bootstrap
@@ -87,7 +86,7 @@ deploy() {
 topic() {
     oc get kafkatopics.kafka.strimzi.io -n quarkuscoffeeshop-demo
     for topic in $(oc get kafkatopics.kafka.strimzi.io -n quarkuscoffeeshop-demo -o name); do
-     oc delete kafkatopic.kafka.strimzi.io/$topic -n quarkuscoffeeshop-demo
+     oc delete $topic -n quarkuscoffeeshop-demo
     done
 }
 
@@ -110,8 +109,8 @@ case "$1" in
     deploy)
         deploy
         ;;
-    resettopic)
-        resettopic
+    topic)
+        topic
         ;;
     cleanup)
         cleanup

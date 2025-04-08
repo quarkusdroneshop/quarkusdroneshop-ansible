@@ -6,24 +6,80 @@ metadata:
 spec:
   version: 3.9.0
   replicas: 1
-  connectCluster: "cafe-bsite-cluster"
+  connectCluster: "cafe-asite-cluster"
   clusters:
-    - alias: "cafe-asite-cluster"
-      bootstrapServers: "cafe-cluster-kafka-bootstrap:9092"
     - alias: "cafe-bsite-cluster"
       bootstrapServers: "external-kafka-cafe-b-bootstrap:9092"
+    - alias: "cafe-asite-cluster"
+      bootstrapServers: "cafe-cluster-kafka-bootstrap:9092"
+  logging:
+    type: inline
+    loggers:
+      connect.root.logger.level: "DEBUG"
   mirrors:
-    - sourceCluster: "cafe-asite-cluster"
-      targetCluster: "cafe-bsite-cluster"
-      topicsPattern: ".*"
+    - sourceCluster: "cafe-bsite-cluster"
+      targetCluster: "cafe-asite-cluster"
+      topics:
+        - "barista-in"
+        - "kitchen-in"
+        - "orders"
+        - "orders-in"
+        - "orders-out"
+        - "web-in"
+        - "web-updates"
+        - "webui"
+        - "web-updates-order-up"
+        - "inventory-in"
+        - "inventory-out"
       groupsPattern: ".*"
-      config:
-        replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
-        replication.policy.separator: "."
-        refresh.topics.enabled: true
-        refresh.groups.enabled: true
-        sync.topic.acls.enabled: false
-        emit.heartbeats.enabled: true
-        # タイムアウトの設定を追加
-        request.timeout.ms: 60000  # 60秒に設定
-        metadata.fetch.timeout.ms: 60000  # 60秒に設定
+      sourceConnector:
+        enabled: true
+      heartbeatConnector:
+        enabled: true
+        autoRestart:
+          enabled: true
+        config:
+          heartbeats.topic.replication.factor: 1
+      checkpointConnector:
+        enabled: true
+        autoRestart:
+          enabled: true
+        config:
+          checkpoints.topic.replication.factor: 1
+          refresh.groups.interval.seconds: 600
+          sync.group.offsets.enabled: true
+          sync.group.offsets.interval.seconds: 60
+          emit.checkpoints.interval.seconds: 60
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: cafe-cluster-connect
+  namespace: quarkuscoffeeshop-demo
+  labels:
+    strimzi.io/cluster: cafe-cluster
+spec:
+  version: 3.9.0
+  replicas: 1
+  image: strimzi/kafka-connect:latest
+  bootstrapServers: "cafe-cluster-kafka-bootstrap:9092"
+  class: org.apache.kafka.connect.file.FileStreamSourceConnector
+  tasksMax: 2
+  config:
+    consumer.fetch.min.bytes: "1"
+    consumer.fetch.max.wait.ms: "10"
+    producer.linger.ms: "0"
+    producer.batch.size: "16384"
+    replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
+    replication.policy.separator: "."
+    refresh.topics.enabled: true
+    refresh.groups.enabled: true
+    sync.topic.acls.enabled: false
+    emit.heartbeats.enabled: true
+    auto.create.topics.enable: true
+    producer.request.timeout.ms: 60000
+    consumer.request.timeout.ms: 60000
+    consumer.metadata.fetch.timeout.ms: 60000
+    replication.factor: 1
+    offset-syncs.topic.replication.factor: 1
+    refresh.topics.interval.seconds: 30
