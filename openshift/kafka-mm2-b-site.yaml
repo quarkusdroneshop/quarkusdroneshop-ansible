@@ -6,19 +6,19 @@ metadata:
 spec:
   version: 3.9.0
   replicas: 1
-  connectCluster: "cafe-bsite-cluster"
+  connectCluster: "cafe-bsite"
   clusters:
-    - alias: "cafe-asite-cluster"
+    - alias: "cafe-asite"
       bootstrapServers: "external-kafka-cafe-a-bootstrap:9092"
-    - alias: "cafe-bsite-cluster"
+    - alias: "cafe-bsite"
       bootstrapServers: "cafe-cluster-kafka-bootstrap:9092"
   logging:
     type: inline
     loggers:
-      connect.root.logger.level: "DEBUG"
+      connect.root.logger.level: "INFO"
   mirrors:
-    - sourceCluster: "cafe-asite-cluster"
-      targetCluster: "cafe-bsite-cluster"
+    - sourceCluster: "cafe-asite"
+      targetCluster: "cafe-bsite"
       topics:
         - "barista-in"
         - "kitchen-in"
@@ -34,12 +34,15 @@ spec:
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
+        config:
+          replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
       heartbeatConnector:
         enabled: true
         autoRestart:
           enabled: true
         config:
           heartbeats.topic.replication.factor: 1
+          replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
       checkpointConnector:
         enabled: true
         autoRestart:
@@ -50,6 +53,7 @@ spec:
           sync.group.offsets.enabled: true
           sync.group.offsets.interval.seconds: 60
           emit.checkpoints.interval.seconds: 60
+          replication.policy.class: "org.apache.kafka.connect.mirror.IdentityReplicationPolicy"
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaConnect
@@ -70,8 +74,6 @@ spec:
     consumer.fetch.max.wait.ms: "10"
     producer.linger.ms: "0"
     producer.batch.size: "16384"
-    replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
-    replication.policy.separator: "."
     refresh.topics.enabled: true
     refresh.groups.enabled: true
     sync.topic.acls.enabled: false
@@ -83,3 +85,6 @@ spec:
     replication.factor: 1
     offset-syncs.topic.replication.factor: 1
     refresh.topics.interval.seconds: 30
+    config.storage.topic: mirrormaker2-cluster-configs
+    offset.storage.topic: mirrormaker2-cluster-offsets
+    status.storage.topic: mirrormaker2-cluster-status

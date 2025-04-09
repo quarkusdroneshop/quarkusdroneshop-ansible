@@ -74,7 +74,7 @@ deploy() {
         exit 1
     fi
     # Linkの作成
-    skupper link create skupper-token-a.yaml --name quarkuscoffeeshop-asite --platform kubernetes --cost 10
+    skupper link create skupper-token-a.yaml --name quarkuscoffeeshop-bsite --platform kubernetes --cost 10
     skupper link status
     # KAFKA,PostgreSQLの公開
     skupper expose service cafe-cluster-kafka-bootstrap --port 9092 --protocol tcp --address external-kafka-cafe-b-bootstrap

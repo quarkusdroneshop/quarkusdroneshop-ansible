@@ -239,12 +239,11 @@ DEBUG=-v
 ./skupper-bsite.sh deploy
 ./skupper-csite.sh deploy
 
-
-
 To-Do
 -------
 * 異なるクラスタにサブアプリをいれるて正常テスト確認
 * OpenMetadataの設定インポートを試す
+* Kafkaコンソールを試す
 * F2Fの自動テストする
 * QuarkusバージョンとJavaのバージョンアップをする
 
