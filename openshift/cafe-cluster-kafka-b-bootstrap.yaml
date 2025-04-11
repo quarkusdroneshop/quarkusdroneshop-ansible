@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cafe-cluster-kafka-b-bootstrap
+  namespace: quarkuscoffeeshop-demo
+  labels:
+    app.kubernetes.io/part-of: kafka-custom-routing
+    app.kubernetes.io/name: kafka-b-bootstrap
+  annotations:
+    strimzi.io/discovery: |-
+      [ {
+        "port" : 9092,
+        "tls" : false,
+        "protocol" : "kafka",
+        "auth" : "none"
+      }, {
+        "port" : 9093,
+        "tls" : true,
+        "protocol" : "kafka",
+        "auth" : "none"
+      }, {
+        "port" : 9094,
+        "tls" : false,
+        "protocol" : "kafka",
+        "auth" : "none"
+      } ]
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-replication
+      protocol: TCP
+      port: 9091
+      targetPort: 9091
+    - name: tcp-clients
+      protocol: TCP
+      port: 9092
+      targetPort: 9092
+    - name: tcp-clientstls
+      protocol: TCP
+      port: 9093
+      targetPort: 9093
+    - name: tcp-external
+      protocol: TCP
+      port: 9094
+      targetPort: 9094
+  selector:
+    strimzi.io/broker-role: 'true'
+    strimzi.io/cluster: cafe-cluster
+    strimzi.io/kind: Kafka
+    strimzi.io/name: cafe-cluster-kafka
