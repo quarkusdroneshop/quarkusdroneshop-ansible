@@ -27,25 +27,24 @@
 #    - amq
 #    - acm-workload
 
+# wait for AMQ to be ready
 #### バグ対応
-## wait for AMQ to be ready
-- name: Wait for AMQ CRD to be ready
-  kubernetes.core.k8s_info:
-    api_version: operators.coreos.com/v1alpha1
-    kind: ClusterServiceVersion
-    namespace: "{{ project_namespace }}"
-    field_selectors:
-      - metadata.name={{ amqstartingCSV }}
-  register: r_amq_crd
-  retries: 20
-  delay: 60
-  until: r_amq_crd.resources | list | length == 1
-  when: not delete_deployment|bool
-  tags: 
-    - amq
-    - acm-workload
+#- name: Wait for AMQ CRD to be ready
+#  kubernetes.core.k8s_info:
+#    api_version: operators.coreos.com/v1alpha1
+#    kind: ClusterServiceVersion
+#    namespace: "{{ project_namespace }}"
+#    field_selectors:
+#      - metadata.name={{ amqstartingCSV }}
+#  register: r_amq_crd
+#  retries: 20
+#  delay: 60
+#  until: r_amq_crd.resources | list | length == 1
+#  when: not delete_deployment|bool
+#  tags: 
+#    - amq
+#    - acm-workload
 
-#### バグ対応
 - name: Display AMQ install status
   debug:
     var: r_amq_crd.resources[0].status
