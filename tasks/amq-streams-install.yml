@@ -45,22 +45,22 @@
 #    - amq
 #    - acm-workload
 
-- name: Display AMQ install status
-  debug:
-    var: r_amq_crd.resources[0].status
-  when: not delete_deployment|bool
-  tags: 
-    - amq
-    - acm-workload
+#- name: Display AMQ install status
+#  debug:
+#    var: r_amq_crd.resources[0].status
+#  when: not delete_deployment|bool
+#  tags: 
+#    - amq
+#    - acm-workload
 
-- name: Setting amq installed fact
-  set_fact:
-    amq_installed: "{{ r_amq_crd.resources[0].status }}"
-  ignore_errors: false
-  when: not delete_deployment|bool
-  tags:
-    - amq
-    - acm-workload
+#- name: Setting amq installed fact
+#  set_fact:
+#    amq_installed: "{{ r_amq_crd.resources[0].status }}"
+#  ignore_errors: false
+#  when: not delete_deployment|bool
+#  tags:
+#    - amq
+#    - acm-workload
 
 - name: fail when AMQ subscription if not ready
   fail:
