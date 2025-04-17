@@ -246,6 +246,7 @@ To-Do
 * Kafkaコンソールを試す
 * F2Fの自動テストする
 * QuarkusバージョンとJavaのバージョンアップをする
+* Piplineメニューを2回実行しないといけない問題の回避検討
 
 Bug対応
 -------
@@ -253,6 +254,14 @@ Bug対応
   将来KRaftモードに再度移行予定。
     https://github.com/strimzi/strimzi-kafka-operator/issues/10353
   問題は、KRaft,Strimzi,Skupperを使ったときに問題になる。
+  また、Kafkaオペレータにも同問題があり、Strimizオペレータを暫定的に利用。（0.45.0を採用）
+
+  - advertised.listeners設定エラー（Strimzi 0.30.0）
+  - Kafkaステータスとadvertised.listenersの不一致（Strimzi 0.43.0）
+  
+  →なんだか行けそうなので次の手順で回避検討
+  　Strimizオペレータはそのままで、KRaftモードに移行して、共有できるか確認
+  　オペレータをRHBuildに変更して、共有できるか確認
 
 License
 -------

@@ -1,7 +1,7 @@
 apiVersion: skupper.io/v2alpha1
 kind: AccessToken
 metadata:
-  name: skupper-bsite-74d6de03-5cb9-4d5d-9b86-86d63b1bac49
+  name: skupper-bsite-71e95627-1fd3-4f89-90c2-4a783169111a
 spec:
   ca: |
     -----BEGIN CERTIFICATE-----
@@ -24,6 +24,6 @@ spec:
     kelJO7zM16zpRXVVX26nVdJ/iCfLzzcTbW2gT9RZoLCmRkh4HkRmSbby2gC/6jKV
     3ZjGechNyCPrSA==
     -----END CERTIFICATE-----
-  code: NqfrCohwflbzccSEovrsO3W9
+  code: eTe0J4Au0U4qrH6lJaYtNxES
   linkCost: 1
-  url: https://aa66803c58e70480ab4fa1d2bfb8c2ff-1595680732.us-east-2.elb.amazonaws.com:9090/c5c6e50d-64d4-495f-957f-e713218a0ac7
+  url: https://aa66803c58e70480ab4fa1d2bfb8c2ff-1595680732.us-east-2.elb.amazonaws.com:9090/8c7d1d3b-9231-4304-bbeb-1da1d92c4f68

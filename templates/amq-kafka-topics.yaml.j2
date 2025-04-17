@@ -27,7 +27,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: orders
+  name: orders-in
   labels:
     strimzi.io/cluster: cafe-cluster
 spec:
@@ -36,6 +36,32 @@ spec:
   config:
     retention.ms: 604800000
     segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: orders-up
+  labels:
+    strimzi.io/cluster: cafe-cluster
+spec:
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
+---
+#apiVersion: kafka.strimzi.io/v1beta2
+#kind: KafkaTopic
+#metadata:
+#  name: orders
+#  labels:
+#    strimzi.io/cluster: cafe-cluster
+#spec:
+#  partitions: 10
+#  replicas: 3
+#  config:
+#    retention.ms: 604800000
+#    segment.bytes: 1073741824
 ---
 #apiVersion: kafka.strimzi.io/v1beta2
 #kind: KafkaTopic
@@ -50,18 +76,18 @@ spec:
 #    retention.ms: 604800000
 #    segment.bytes: 1073741824
 ---
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaTopic
-metadata:
-  name: web-in
-  labels:
-    strimzi.io/cluster: cafe-cluster
-spec:
-  partitions: 10
-  replicas: 3
-  config:
-    retention.ms: 604800000
-    segment.bytes: 1073741824
+#apiVersion: kafka.strimzi.io/v1beta2
+#kind: KafkaTopic
+#metadata:
+#  name: web-in
+#  labels:
+#    strimzi.io/cluster: cafe-cluster
+#spec:
+#  partitions: 10
+#  replicas: 3
+#  config:
+#    retention.ms: 604800000
+#    segment.bytes: 1073741824
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
@@ -79,7 +105,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: webui
+  name: loyalty-updates
   labels:
     strimzi.io/cluster: cafe-cluster
 spec:
@@ -89,10 +115,36 @@ spec:
     retention.ms: 604800000
     segment.bytes: 1073741824
 ---
+#apiVersion: kafka.strimzi.io/v1beta2
+#kind: KafkaTopic
+#metadata:
+#  name: webui
+#  labels:
+#    strimzi.io/cluster: cafe-cluster
+#spec:
+#  partitions: 10
+#  replicas: 3
+#  config:
+#    retention.ms: 604800000
+#    segment.bytes: 1073741824
+---
+#apiVersion: kafka.strimzi.io/v1beta2
+#kind: KafkaTopic
+#metadata:
+#  name: web-updates-order-up
+#  labels:
+#    strimzi.io/cluster:  cafe-cluster
+#spec:
+#  partitions: 10
+#  replicas: 3
+#  config:
+#    retention.ms: 604800000
+#    segment.bytes: 1073741824
+---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: web-updates-order-up
+  name: eighty-six
   labels:
     strimzi.io/cluster:  cafe-cluster
 spec:

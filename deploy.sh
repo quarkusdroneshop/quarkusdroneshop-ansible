@@ -9,10 +9,7 @@
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
-#   ./deploy.sh deploy          - To deploy the application.
-#   ./deploy.sh subdeploy1      - To deploy the application1.
-#   ./deploy.sh subdeploy2      - To deploy the application2.
-#   ./deploy.sh homedeploy      - To deploy the homeoffice application.
+#   ./deploy.sh deploy          - To deploy the all application.
 #   ./deploy.sh customermocker  - To deploy the customermocker.
 #   ./deploy.sh cleanup         - To delete the application.
 #

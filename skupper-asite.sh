@@ -98,35 +98,12 @@ deploy() {
     skupper connector create external-cafe-cluster-kafka-asite 9094 --selector site.quarkuscoffeeshop/kafka-cluster=asite -n quarkuscoffeeshop-demo
     skupper listener create external-cafe-cluster-kafka-bsite 9094 -n quarkuscoffeeshop-demo
 
-    skupper listener create cafe-cluster-cafe-cluster-brokers-0 9094 -n quarkuscoffeeshop-demo
-    skupper listener create cafe-cluster-cafe-cluster-brokers-1 9094 -n quarkuscoffeeshop-demo
-    skupper listener create cafe-cluster-cafe-cluster-brokers-2 9094 -n quarkuscoffeeshop-demo
-
-    skupper connector create cafe-cluster-cafe-cluster-brokers-0 9094 --selector site.quarkuscoffeeshop/kafka-cluster=asite -n quarkuscoffeeshop-demo
-    skupper connector create cafe-cluster-cafe-cluster-brokers-1 9094 --selector site.quarkuscoffeeshop/kafka-cluster=asite -n quarkuscoffeeshop-demo
-    skupper connector create cafe-cluster-cafe-cluster-brokers-2 9094 --selector site.quarkuscoffeeshop/kafka-cluster=asite -n quarkuscoffeeshop-demo
-
-    skupper connector create cafe-cluster-cafe-cluster-brokers-0 9094 --selector site.quarkuscoffeeshop/kafka-cluster=bsite -n quarkuscoffeeshop-demo
-    skupper connector create cafe-cluster-cafe-cluster-brokers-1 9094 --selector site.quarkuscoffeeshop/kafka-cluster=bsite -n quarkuscoffeeshop-demo
-    skupper connector create cafe-cluster-cafe-cluster-brokers-2 9094 --selector site.quarkuscoffeeshop/kafka-cluster=bsite -n quarkuscoffeeshop-demo
-
-    skupper listener delete cafe-cluster-cafe-cluster-brokers-0 -n quarkuscoffeeshop-demo
-    skupper listener delete cafe-cluster-cafe-cluster-brokers-1 -n quarkuscoffeeshop-demo
-    skupper listener delete cafe-cluster-cafe-cluster-brokers-2 -n quarkuscoffeeshop-demo
-    skupper connector delete cafe-cluster-cafe-cluster-brokers-0 -n quarkuscoffeeshop-demo
-    skupper connector delete cafe-cluster-cafe-cluster-brokers-1 -n quarkuscoffeeshop-demo
-    skupper connector delete cafe-cluster-cafe-cluster-brokers-2 -n quarkuscoffeeshop-demo
-
-    skupper listener create external-cafe-cluster-kafka-asite-new --host cafe-cluster-kafka-external-plain 9094 -n quarkuscoffeeshop-demo
-    skupper connector create cafe-cluster-kafka-external-plain 9094 --selector site.quarkuscoffeeshop/kafka-cluster=asite -n quarkuscoffeeshop-demo
-    skupper listener delete external-cafe-cluster-kafka-asite-new -n quarkuscoffeeshop-demo
-    skupper connector delete cafe-cluster-kafka-external-plain -n quarkuscoffeeshop-demo
-
     sleep 10
     skupper link status
     skupper listener status
     skupper connector status
 
+    oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n quarkuscoffeeshop-demo
     #oc apply -f openshift/kafka-mm2-a-site.yaml
     #oc apply -f openshift/kafka-mm2-a-setting.yaml
 }
@@ -149,20 +126,6 @@ cleanup() {
     oc delete all -l skupper.io/component
     oc delete configmap -l skupper.io/component
     oc delete secret -l skupper.io/component
-    oc delete svc skupper
-    oc delete svc skupper-prometheus
-    oc delete svc skupper-router
-    oc delete svc skupper-router-local
-    oc delete route skupper
-    oc delete route skupper-edge
-    oc delete route skupper-inter-router
-    oc delete route claims
-    oc delete configmap skupper-internal -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-network-status -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-router -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-sasl-config -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-services -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-site -n quarkuscoffeeshop-demo
 }
 
 retoken() {

@@ -6,7 +6,7 @@ metadata:
 spec:
   version: 4.0.0
   replicas: 1
-  connectCluster: "cafe-asite"
+  connectCluster: "cafe-bsite"
   clusters:
     - alias: "cafe-bsite"
       bootstrapServers: "external-cafe-cluster-kafka-bsite:9092"
@@ -24,12 +24,12 @@ spec:
   mirrors:
     - sourceCluster: "cafe-bsite"
       targetCluster: "cafe-asite"
-      topicsPattern: "^(?!cafe-asite\\.).*(barista-in|kitchen-in|orders.*|web.*|inventory.*)$"
+      topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
         config:
-          bootstrap.servers: "external-cafe-cluster-kafka-asite:9092"
+          bootstrap.servers: "external-cafe-cluster-kafka-bsite:9092"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"

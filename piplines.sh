@@ -158,6 +158,14 @@ cleanup() {
     oc delete project $CICD_NAMESPACE
 }
 
+#######
+# オペレータをインストするようなタスクを別途作成、
+# これが先に作らないと、パイプラインタスクを2度実行しないといけないらしい
+## 
+
+
+
+
 case "$1" in
     setup)
         setup

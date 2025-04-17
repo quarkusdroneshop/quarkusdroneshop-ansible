@@ -83,8 +83,7 @@ deploy() {
     oc label pod -n quarkuscoffeeshop-demo cafe-cluster-cafe-cluster-controllers-4 site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
     oc label pod -n quarkuscoffeeshop-demo cafe-cluster-cafe-cluster-controllers-5 site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
     oc label svc -n quarkuscoffeeshop-demo cafe-cluster-kafka-external-plain site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
-
-
+    
     read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
     if [ "$LINK_CONFREM" != "yes" ]; then
         echo -e "${YELLOW}処理を終了します。${RESET}"
@@ -102,6 +101,7 @@ deploy() {
     skupper listener status
     skupper connector status
 
+    oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n quarkuscoffeeshop-demo
     #oc apply -f openshift/kafka-mm2-a-site.yaml
     #oc apply -f openshift/kafka-mm2-a-setting.yaml
 }
@@ -118,20 +118,6 @@ cleanup() {
     oc delete all -l skupper.io/component
     oc delete configmap -l skupper.io/component
     oc delete secret -l skupper.io/component
-    oc delete svc skupper
-    oc delete svc skupper-prometheus
-    oc delete svc skupper-router
-    oc delete svc skupper-router-local
-    oc delete route skupper
-    oc delete route skupper-edge
-    oc delete route skupper-inter-router
-    oc delete route claims
-    oc delete configmap skupper-internal -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-network-status -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-router -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-sasl-config -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-services -n quarkuscoffeeshop-demo
-    oc delete configmap skupper-site -n quarkuscoffeeshop-demo
 }
 
 retoken() {
