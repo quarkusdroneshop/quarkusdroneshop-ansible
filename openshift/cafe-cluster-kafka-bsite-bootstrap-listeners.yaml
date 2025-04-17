@@ -4,7 +4,7 @@ metadata:
   name: cafe-cluster
   namespace: quarkuscoffeeshop-demo
   annotations:
-    strimzi.io/kraft: enabled
+   strimzi.io/kraft: enabled
 spec:
   kafka:
     version: "3.9.0"
@@ -19,6 +19,7 @@ spec:
       transaction.state.log.min.isr: 2
       default.replication.factor: 3
       min.insync.replicas: 2
+      listener.security.protocol.map: "PLAINTEXT:PLAINTEXT"
     listeners:
       - name: plain
         port: 9092
@@ -27,11 +28,30 @@ spec:
       - name: tls
         port: 9093
         type: internal
-        tls: false
+        tls: true
       - name: external
         port: 9094
         type: route
         tls: false
+        overrides:
+          bootstrap:
+            address: external-cafe-cluster-kafka-bsite
+          brokers:
+          - broker: 0
+            advertisedHost: external-cafe-cluster-kafka-bsite
+            advertisedPort: 9094
+          - broker: 1
+            advertisedHost: external-cafe-cluster-kafka-bsite
+            advertisedPort: 9094
+          - broker: 2
+            advertisedHost: external-cafe-cluster-kafka-bsite
+            advertisedPort: 9094
+  template:
+    pod:
+      env:
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "EXTERNAL://external-cafe-cluster-kafka-bsite:9094"
+  entityOperator:
     topicOperator: {}
     userOperator: {}
 ---
