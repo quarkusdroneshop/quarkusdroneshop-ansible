@@ -247,6 +247,13 @@ To-Do
 * F2Fの自動テストする
 * QuarkusバージョンとJavaのバージョンアップをする
 
+Bug対応
+-------
+* KRaftモードで、advertised.listenersがあり、ZooKeeperに戻している。
+  将来KRaftモードに再度移行予定。
+    https://github.com/strimzi/strimzi-kafka-operator/issues/10353
+  問題は、KRaft,Strimzi,Skupperを使ったときに問題になる。
+
 License
 -------
 GPLv3

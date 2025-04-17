@@ -4,9 +4,7 @@ kind: OperatorGroup
 metadata:
   name: skupper-operator-group
   namespace: quarkuscoffeeshop-demo
-spec:
-  targetNamespaces:
-    - quarkuscoffeeshop-demo
+spec: {}
 ---
 # skupper-subscription.yaml
 apiVersion: operators.coreos.com/v1alpha1

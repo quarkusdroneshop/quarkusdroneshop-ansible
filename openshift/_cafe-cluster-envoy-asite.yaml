@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-config
+  namespace: quarkuscoffeeshop-demo
+data:
+  envoy.yaml: |
+    static_resources:
+      listeners:
+        - name: kafka_listener
+          address:
+            socket_address:
+              address: 0.0.0.0
+              port_value: 19092
+          filter_chains:
+            - filters:
+                - name: envoy.filters.network.tcp_proxy
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                    stat_prefix: kafka
+                    cluster: kafka_service
+      clusters:
+        - name: kafka_service
+          connect_timeout: 1s
+          type: strict_dns
+          lb_policy: round_robin
+          load_assignment:
+            cluster_name: kafka_service
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: external-cafe-cluster-kafka-bsite.quarkuscoffeeshop-demo.svc.cluster.local
+                          port_value: 9092
+        admin:
+      access_log_path: /tmp/admin_access.log
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: 9901
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy
+  namespace: quarkuscoffeeshop-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: envoy
+  template:
+    metadata:
+      labels:
+        app: envoy
+    spec:
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:v1.28-latest
+          args: ["-c", "/etc/envoy/envoy.yaml"]
+          ports:
+            - containerPort: 19092
+          volumeMounts:
+            - name: envoy-config
+              mountPath: /etc/envoy
+              readOnly: true
+      volumes:
+        - name: envoy-config
+          configMap:
+            name: envoy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy
+  namespace: quarkuscoffeeshop-demo
+spec:
+  ports:
+    - name: kafka
+      port: 19092
+      targetPort: 19092
+      protocol: TCP
+    - name: admin
+      port: 9901
+      targetPort: 9901
+      protocol: TCP
+  selector:
+    app: envoy

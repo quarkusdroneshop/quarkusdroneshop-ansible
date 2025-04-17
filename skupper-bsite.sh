@@ -61,35 +61,60 @@ deploy() {
     #oc create namespace skupper-b --dry-run=client -o yaml | oc apply -f -
     oc project quarkuscoffeeshop-demo
     # Skupper 初期化（内部 TLS・ルーティング対応）
-    skupper init --router-mode interior --enable-console --enable-flow-collector --console-auth internal --console-user admin --console-password skupper
+    
+    oc apply -f openshift/skupper-operator.yaml -n quarkuscoffeeshop-demo
+    #oc apply -f https://raw.githubusercontent.com/skupperproject/skupper/refs/heads/1.8/api/types/crds/skupper_cluster_policy_crd.yaml
+    #oc apply -f openshift/skupper-policy.yaml
+    
+    skupper site create skupper-bsite
+    skupper site update --enable-link-access -n quarkuscoffeeshop-demo
 
     # 確認
-    skupper status
-    skupper service status -v
+    skupper site status
 
     # TOKEN/LINKの作成
-    skupper token create skupper-token-b.yaml
+    skupper token issue skupper-token-b.yaml
+
+    # ラベル付与バグ回避
+    oc label pod -n quarkuscoffeeshop-demo cafe-cluster-cafe-cluster-brokers-0 site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
+    oc label pod -n quarkuscoffeeshop-demo cafe-cluster-cafe-cluster-brokers-1 site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
+    oc label pod -n quarkuscoffeeshop-demo cafe-cluster-cafe-cluster-brokers-2 site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
+    oc label pod -n quarkuscoffeeshop-demo cafe-cluster-cafe-cluster-controllers-3 site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
+    oc label pod -n quarkuscoffeeshop-demo cafe-cluster-cafe-cluster-controllers-4 site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
+    oc label pod -n quarkuscoffeeshop-demo cafe-cluster-cafe-cluster-controllers-5 site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
+    oc label svc -n quarkuscoffeeshop-demo cafe-cluster-kafka-external-plain site.quarkuscoffeeshop/kafka-cluster=bsite --overwrite
+
+
     read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
     if [ "$LINK_CONFREM" != "yes" ]; then
         echo -e "${YELLOW}処理を終了します。${RESET}"
         exit 1
     fi
     # Linkの作成
-    skupper link create skupper-token-a.yaml --name quarkuscoffeeshop-bsite --platform kubernetes --cost 10
-    skupper link status
-    # KAFKA,PostgreSQLの公開
-    #oc delete service cafe-cluster-kafka-bootstrap -n quarkuscoffeeshop-demo
-    oc apply -f openshift/cafe-cluster-kafka-b-bootstrap.yaml
+    oc delete accesstokens.skupper.io --all -n quarkuscoffeeshop-demo
+    skupper token redeem skupper-token-a.yaml -n quarkuscoffeeshop-demo
+    skupper listener create external-cafe-cluster-kafka-bsite --host external-cafe-cluster-kafka-bsite 9094 -n quarkuscoffeeshop-demo
+    skupper connector create external-cafe-cluster-kafka-bsite 9094 --selector site.quarkuscoffeeshop/kafka-cluster=bsite -n quarkuscoffeeshop-demo
+    skupper listener create external-cafe-cluster-kafka-asite 9094 -n quarkuscoffeeshop-demo
 
-    skupper expose --port 9094 --name external-kafka-cafe-b-bootstrap -n quarkuscoffeeshop-demo
-    #skupper expose service cafe-cluster-b-kafka-bootstrap --port 9092 --protocol tcp --address external-kafka-cafe-b-bootstrap -n quarkuscoffeeshop-demo
-    #skupper expose service postgres --port 5432 --protocol tcp --address postgres-a-skupper -n quarkuscoffeeshop-demo
-    oc apply -f openshift/kafka-mm2-b-site.yaml
-    oc apply -f openshift/kafka-mm2-b-setting.yaml
+    sleep 10
+    skupper link status
+    skupper listener status
+    skupper connector status
+
+    #oc apply -f openshift/kafka-mm2-a-site.yaml
+    #oc apply -f openshift/kafka-mm2-a-setting.yaml
 }
 
 cleanup() {
     oc delete kafkamirrormaker2 --all -n quarkuscoffeeshop-demo
+    oc delete accesstokens.skupper.io --all -n quarkuscoffeeshop-demo
+    skupper listener delete external-cafe-cluster-kafka-bsite -n quarkuscoffeeshop-demo
+    skupper listener delete external-cafe-cluster-kafka-asite -n quarkuscoffeeshop-demo
+    skupper connector delete external-cafe-cluster-kafka-bsite -n quarkuscoffeeshop-demo
+    skupper site delete skupper-bsite
+    
+    #あとで整理
     oc delete all -l skupper.io/component
     oc delete configmap -l skupper.io/component
     oc delete secret -l skupper.io/component
@@ -101,10 +126,38 @@ cleanup() {
     oc delete route skupper-edge
     oc delete route skupper-inter-router
     oc delete route claims
-    skupper unexpose service cafe-cluster-b-kafka-bootstrap --address external-kafka-cafe-b-bootstrap -n quarkuscoffeeshop-demo
+    oc delete configmap skupper-internal -n quarkuscoffeeshop-demo
+    oc delete configmap skupper-network-status -n quarkuscoffeeshop-demo
+    oc delete configmap skupper-router -n quarkuscoffeeshop-demo
+    oc delete configmap skupper-sasl-config -n quarkuscoffeeshop-demo
+    oc delete configmap skupper-services -n quarkuscoffeeshop-demo
+    oc delete configmap skupper-site -n quarkuscoffeeshop-demo
+}
+
+retoken() {
+    skupper token issue skupper-token-b.yaml
+    oc delete accesstokens.skupper.io --all -n quarkuscoffeeshop-demo
+    skupper token redeem skupper-token-a.yaml -n quarkuscoffeeshop-demo
+    skupper site status
+    skupper link status
+    skupper listener status
+    skupper connector status
+}
+
+status() {
+    skupper site status
+    skupper link status
+    skupper listener status
+    skupper connector status
 }
 
 case "$1" in
+    retoken)
+        retoken
+        ;;
+    status)
+        status
+        ;;
     deploy)
         deploy
         ;;
@@ -113,7 +166,7 @@ case "$1" in
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {deploy|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {deploy|retoken|status|cleanup}${RESET}"
         exit 1
         ;;
 esac
