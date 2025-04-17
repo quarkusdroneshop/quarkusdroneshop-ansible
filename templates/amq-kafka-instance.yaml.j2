@@ -2,7 +2,7 @@ apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
   annotations:
-    #strimzi.io/kraft: enabled ##KRaftのバグ
+    strimzi.io/kraft: enabled
     strimzi.io/node-pools: enabled
   name: cafe-cluster
   namespace: {{ project_namespace }}
@@ -10,12 +10,10 @@ spec:
   kafka:
     version: "3.9.0"
     replicas: 3
-    #controllerReplicas: 3 ##KRaftのバグ
-    zookeeper:
-      replicas: 3
+    controllerReplicas: 3
     config:
-      #node.id: 1 ##KRaftのバグ
-      #process.roles: "controller,broker"　##KRaftのバグ
+      node.id: 1
+      process.roles: "controller,broker"
       controller.listener.names: CONTROLLER
       inter.broker.protocol.version: "3.9"
       log.dirs: "/var/lib/kafka/data"
@@ -41,7 +39,6 @@ spec:
     topicOperator: {}
     userOperator: {}
 ---
-##KRaftのバグ対応で一旦残すが、無視される
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaNodePool
 metadata:
@@ -56,7 +53,6 @@ spec:
   storage:
     type: ephemeral
 ---
-##KRaftのバグ対応で一旦残すが、無視される
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaNodePool
 metadata:
