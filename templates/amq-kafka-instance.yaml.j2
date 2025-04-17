@@ -8,6 +8,7 @@ metadata:
   namespace: {{ project_namespace }}
 spec:
   kafka:
+    image: quay.io/strimzi/kafka:0.41.0-kafka-3.9.0 ## Bug 対応
     version: "3.9.0"
     replicas: 3
     controllerReplicas: 3
