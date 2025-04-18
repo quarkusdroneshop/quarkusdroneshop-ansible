@@ -4,8 +4,8 @@
 # Description: This script deploys the skupper to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-04-06
-# Last Modified: 2025-04-18
-# Version: 0.9
+# Last Modified: 2025-04-19
+# Version: 1.0
 #
 # Usage:
 #   ./skupper-<<site>>.sh setup           - To setup the skupper and kafkacluster.

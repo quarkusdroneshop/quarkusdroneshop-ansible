@@ -32,7 +32,7 @@ spec:
   mirrors:
     - sourceCluster: "cafe-asite"
       targetCluster: "cafe-bsite"
-      topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*)$"
+      topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
@@ -68,7 +68,3 @@ spec:
           value: "mm2-extended-mirrormaker2"
         - name: KAFKA_CONNECT_REST_PORT
           value: "8083"
-    pod:
-      metadata:
-        labels:
-          kafka-cluster-name: cafe-cluster-kafka
