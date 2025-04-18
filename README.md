@@ -254,7 +254,7 @@ Bug対応
   将来KRaftモードに再度移行予定。
     https://github.com/strimzi/strimzi-kafka-operator/issues/10353
   問題は、KRaft,Strimzi,Skupperを使ったときに問題になる。
-  また、Kafkaオペレータにも同問題があり、Strimizオペレータを暫定的に利用。（0.45.0を採用）
+  また、Kafkaオペレータにも同問題があり、Strimizオペレータを暫定的に利用。（0.46.0を採用）
 
   - advertised.listeners設定エラー（Strimzi 0.30.0）
   - Kafkaステータスとadvertised.listenersの不一致（Strimzi 0.43.0）

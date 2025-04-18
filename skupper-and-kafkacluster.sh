@@ -135,9 +135,7 @@ deploy() {
         skupper listener create external-cafe-cluster-kafka-bsite --host external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
         skupper connector create external-cafe-cluster-kafka-bsite 9094 --selector site.quarkuscoffeeshop/kafka-cluster=asite -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
-
-    elif [ "$SITE_CONFREM" = "C" ]; then
-    ##処理待ち
+    
     fi
 
     sleep 10

@@ -2,7 +2,7 @@ apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
   annotations:
-    #strimzi.io/kraft: enabled                        ## Bug 対応
+    strimzi.io/kraft: enabled                        ## Bug 対応
     strimzi.io/node-pools: enabled
   name: cafe-cluster
   namespace: {{ project_namespace }}
@@ -11,12 +11,10 @@ spec:
     image: quay.io/strimzi/kafka:0.45.0-kafka-3.9.0   ## Bug 対応
     version: "3.9.0"
     replicas: 3
-    # controllerReplicas: 3                           ## Bug 対応
-    zookeeper:                                        ## Bug 対応
-      replicas: 3                                     ## Bug 対応
+    controllerReplicas: 3                           ## Bug 対応
     config:
-      #node.id: 1                                     ## Bug 対応
-      #process.roles: "controller,broker"             ## Bug 対応
+      node.id: 1                                     ## Bug 対応
+      process.roles: "controller,broker"             ## Bug 対応
       controller.listener.names: CONTROLLER
       inter.broker.protocol.version: "3.9"
       log.dirs: "/var/lib/kafka/data"

@@ -205,8 +205,6 @@ cleanup() {
         for topic in $(oc get kafkatopics.kafka.strimzi.io -n "$NAMESPACE" -o name); do
             oc patch $topic -n "$NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}'
         done
-        #oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
-        #oc get crds -o name | grep '.*\.postgresclusters' | xargs -r -n 1 oc delete
         oc delete project "$NAMESPACE" --force --grace-period=0
         oc delete project "$OPENMETADATASPACE" --force --grace-period=0
     fi
