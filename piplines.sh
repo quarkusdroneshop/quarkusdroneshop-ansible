@@ -57,7 +57,7 @@ if [ "$DOMAIN_CONFREM" != "yes" ]; then
     exit 1
 fi
 
-setup() {
+deploy() {
     echo "セットアップ開始..."
     # オペレータのインストール
     # プロジェクトが存在するか確認
@@ -79,22 +79,6 @@ setup() {
     oc adm policy add-scc-to-user privileged -z pipeline -n  $CICD_NAMESPACE
     
     cd ../tekton-pipelines
-    # quarkuscoffeeshop-barista Pipline の設定
-    #kustomize build quarkuscoffeeshop-barista | oc create -f - 
-    # quarkuscoffeeshop-kitchen Pipline の設定
-    #kustomize build quarkuscoffeeshop-kitchen | oc create -f - 
-    # quarkuscoffeeshop-counter Pipline の設定
-    #kustomize build quarkuscoffeeshop-counter | oc create -f - 
-    # quarkuscoffeeshop-web Pipline の設定
-    #kustomize build quarkuscoffeeshop-web | oc create -f - 
-    # quarkuscoffeeshop-inventory Pipline の設定
-    #kustomize build quarkuscoffeeshop-inventory | oc create -f - 
-    # quarkuscoffeeshop-homeofficebackend Pipline の設定
-    #kustomize build quarkuscoffeeshop-homeofficebackend | oc create -f - 
-    # quarkuscoffeeshop-homeoffice-ui Pipline の設定
-    #kustomize build quarkuscoffeeshop-homeoffice-ui | oc create -f - 
-    # quarkuscoffeeshop-customermocker Pipline の設定
-    #kustomize build quarkuscoffeeshop-customermocker | oc create -f - 
     
     OPTIONS=(
     "barista"
@@ -147,6 +131,12 @@ democonfig() {
     oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline
 }
 
+setup() {
+      oc new-project $CICD_NAMESPACE
+      oc apply -f openshift/openshift-pipline.yaml
+      sleep 10
+}
+
 cleanup() {
     echo "クリーンナップ開始..."
     for pvc in $(oc get pvc -n "$CICD_NAMESPACE" -o name); do
@@ -158,17 +148,13 @@ cleanup() {
     oc delete project $CICD_NAMESPACE
 }
 
-#######
-# オペレータをインストするようなタスクを別途作成、
-# これが先に作らないと、パイプラインタスクを2度実行しないといけないらしい
-## 
-
-
-
 
 case "$1" in
     setup)
         setup
+        ;;
+    deploy)
+        deploy
         ;;
     democonfig)
         democonfig
@@ -178,7 +164,7 @@ case "$1" in
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|democonfig|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|democonfig|cleanup}${RESET}"
         exit 1
         ;;
 esac
