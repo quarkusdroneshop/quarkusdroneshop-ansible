@@ -3,8 +3,8 @@ kind: Kafka
 metadata:
   name: cafe-cluster
   namespace: quarkuscoffeeshop-demo
-  annotations:                                 ## KRafeバクによる回避
-   strimzi.io/kraft: enabled                   ## KRafeバクによる回避
+  annotations:
+   strimzi.io/kraft: enabled
 spec:
   kafka:
     version: "3.9.0"
@@ -30,20 +30,8 @@ spec:
         tls: true
       - name: external
         port: 9094
-        type: route
+        type: loadbalancer
         tls: false
-        configuration:
-          bootstrap:
-            host: external-cafe-cluster-kafka-bsite
-            brokers:
-            - broker: 0
-              host: broker-0.external-cafe-cluster-kafka-bsite
-            - broker: 1
-              host: broker-1.external-cafe-cluster-kafka-bsite
-            - broker: 2
-              host: broker-2.external-cafe-cluster-kafka-bsite
-          ## パラメータの参照先
-          ## https://strimzi.io/docs/operators/latest/configuring.html
   entityOperator:
     topicOperator: {}
     userOperator: {}

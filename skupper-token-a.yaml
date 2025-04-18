@@ -1,29 +1,29 @@
 apiVersion: skupper.io/v2alpha1
 kind: AccessToken
 metadata:
-  name: skupper-asite-06714a09-9403-471a-98c3-f7f7b7206bd4
+  name: skupper-asite-9f8b21dc-e26e-4f22-9bc8-02192aaa7300
 spec:
   ca: |
     -----BEGIN CERTIFICATE-----
-    MIIDNzCCAh+gAwIBAgIRAO+62hwMW29b7ABuT9HvpcQwDQYJKoZIhvcNAQELBQAw
-    HzEdMBsGA1UEAxMUU2t1cHBlckdyYW50U2VydmVyQ0EwHhcNMjUwNDE3MjEyMzI1
-    WhcNMzAwNDE2MjEyMzI1WjAfMR0wGwYDVQQDExRTa3VwcGVyR3JhbnRTZXJ2ZXJD
-    QTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOXbyZyfc/aLuTs3N1ER
-    inDjpoeNfkPmXvbUUXnxGXGTDbGqMSF/moMpd4twc8Q30QwRydm0IOuX/nTOHaoE
-    Km5RrLV0ld8LXSgmcG8TxW+57Gxe1PDAoQ+TSP3ezYjJe2SiWYu5DPujEC2PhNDC
-    vjR4Jbq1eQR1rCukEVyK4BQeh59nObXSuLHePJrrIDQoFKtG0MCh7rzMBqAdfv9L
-    XeQyQQH8MVMAOnNVCHOKQsQ+C8f0SbMjZx+7OFlZTKHTyx1n235tl0S6M0pppSkm
-    1itlNAFqEWcAZvQaWtsD+o4DhCmDllm5/4aGI2IyvRteG6vfIOTOsUhj6jc6tj7Z
-    az0CAwEAAaNuMGwwDgYDVR0PAQH/BAQDAgKkMB0GA1UdJQQWMBQGCCsGAQUFBwMB
-    BggrBgEFBQcDAjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTV/pMgLUk3v2wQ
-    cJGkFupvMXgqODALBgNVHREEBDACggAwDQYJKoZIhvcNAQELBQADggEBAJp4lYFG
-    KXHHBs+IXZNlSfIQLPgN7AydYkUkdx6+rZxmaBwcoIabtFdXpAWmseQd2YMB4nkU
-    b2sKIfVbHlZz2a/0b5QvtgLiBCcteCr7N5KaqgySd3EQUaxuIu8zlHAfP0QfYkiN
-    ZtFjLTwfKqfvCMnZ7ek5uUMFy7b55UBZsIGEswGKAm7aZcx3zxwhSv86XoYV6kQS
-    SM1hTrEw5x3gcas2z/y2Xu8He48mwqGJRHMY5zo2EQp4LXDVUzhmdP18Aaqp/Ayn
-    ERIS1GBz8X4Z5X5d2Nv/vlFhYDofUos8bQKIrs/tZc0E8hG0agu9aD9r7LblskO4
-    vpYXapnCvHjlmKA=
+    MIIDNzCCAh+gAwIBAgIRANK8UmkmgaF13gQ8sUOrA3owDQYJKoZIhvcNAQELBQAw
+    HzEdMBsGA1UEAxMUU2t1cHBlckdyYW50U2VydmVyQ0EwHhcNMjUwNDE4MTYyODM4
+    WhcNMzAwNDE3MTYyODM4WjAfMR0wGwYDVQQDExRTa3VwcGVyR3JhbnRTZXJ2ZXJD
+    QTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOCTNYl4jfyivy4F/y4x
+    MlhyatcpoOYmJG/YVEYxxw7oKlg86bxyfCYRdrTvGVa8dPK835qx9uPW0WWYN+IC
+    g942MQP2tctnxVVnnxjVcmeuSkHg9UfRGywZClKTtK9GJhJ3/z8WVvJIg5Zv+yrK
+    Sy7F7lO2NCiVELB4xEyPGwcP/7r55CF4LaivFFIdIu46RkCis0lnClRrw/Bw48g8
+    5q0elXeTPLrfhyc1aZm9YpDSIdKQMRiJ5tKicY/UUuVYxj21d3COyxwL/Sf1Qg0X
+    53kbLQi+xYY5Kj7pw6aZo/Pb19TUgxVcswYnP2u54mbxX0zeRHJ5wvFcFl0qtg0m
+    MT0CAwEAAaNuMGwwDgYDVR0PAQH/BAQDAgKkMB0GA1UdJQQWMBQGCCsGAQUFBwMB
+    BggrBgEFBQcDAjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRrVVtat0T2kMWv
+    suTvaU5LKjtJYTALBgNVHREEBDACggAwDQYJKoZIhvcNAQELBQADggEBAJa+5prH
+    uy6VNHUC1naRzB+lPo0wGs4fugAx/Eh4Sw7op+GZMFFw2eHIxpB3x+hzViihaOlB
+    +/7qYvWdAFcKT2YD0lV4rv/wtTXUxUE2wCrFVpNzck0ZP/CXayDgVauy/3GBoiF7
+    l373ZsVQSSH8EmVJBYaKgK7ALeTeMFNowzJCvB61HLQPW+hN1Ep71H7A7e4Jieen
+    nZ23TnjWbTtivCpHO5rwgrZha3fQdowZb54hSPSfd7h4AFebO1suQQm+KEB+W83s
+    P21IcCYnR5dM2NAaDFLgIrZOalsOqVHMi8zt1wRcYjLgfhVmLW5tnymjs9Ijpivy
+    JSolYiiZvoP6ptY=
     -----END CERTIFICATE-----
-  code: F17lbfxvev1WceLt8gt7aKXr
+  code: AuTEyb5m2kmCHYf0KTXUof6o
   linkCost: 1
-  url: https://skupper-grant-server-https-quarkuscoffeeshop-demo.apps.cluster-g64dj.g64dj.sandbox2076.opentlc.com:443/f769d0e1-206e-4572-80b0-3cb0ca2e8c22
+  url: https://skupper-grant-server-https-quarkuscoffeeshop-demo.apps.cluster-g64dj.g64dj.sandbox2076.opentlc.com:443/b7626a98-2b8b-4307-a075-3bedc45a3711

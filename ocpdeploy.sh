@@ -4,13 +4,13 @@
 # Description: This script deploys the application to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-26
-# Last Modified: 2025-04-06
-# Version: 1.9
+# Last Modified: 2025-04-17
+# Version: 1.10
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
 #   ./deploy.sh deploy          - To deploy the all application.
-#   ./deploy.sh customermocker  - To deploy the customermocker.
+#   ./deploy.sh openmetadata    - To deploy the openmetadata application.
 #   ./deploy.sh cleanup         - To delete the application.
 #
 # Prerequisites:
@@ -63,13 +63,23 @@ sed -i '' "s/^CLUSTER_DOMAIN_NAME=.*$/CLUSTER_DOMAIN_NAME=$DOMAIN_NAME/" $ENV_FI
 sed -i '' "s/^TOKEN=.*$/TOKEN=$DOMAIN_TOKEN/" $ENV_FILE
 
 setup() {
+
+    # OCPのセットアップ、共通ミドルのセットアップ
     echo "セットアップ開始..."
     # Podman イメージの作成とOperatorのインストール
     podman build --no-cache -t quarkuscoffeeshop . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE quarkuscoffeeshop
+
 }
 
 deploy() {
+
+    read -p "本当にコマンドでアプリインストールしますか？推奨はPiplineによるインストールです。(yes/no): " DEPLOY_CONFREM
+    if [ "$DEPLOY_CONFREM" != "yes" ]; then
+        echo -e "${RED}処理を中断します。${RESET}"
+        exit 1
+    fi
+
     #############################################################
     # 本パラメータは、tekton-pipline に移行したため、現在利用なし。
     # Tektonで問題でた時のバックアップ用とする。

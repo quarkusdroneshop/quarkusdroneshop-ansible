@@ -4,8 +4,8 @@
 # Description: This script sets up the application pipeline.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2025-04-06
-# Version: 1.1
+# Last Modified: 2025-04-18
+# Version: 1.2
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
@@ -58,28 +58,28 @@ if [ "$DOMAIN_CONFREM" != "yes" ]; then
 fi
 
 deploy() {
+
     echo "セットアップ開始..."
     # オペレータのインストール
     # プロジェクトが存在するか確認
     if oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then
-      read -p "Operatorのインストールを実行しますか？ (y/N): " answer
+      read -p "Operatorのインストールを先に実行してください。一旦実行をやめますか？ (y/N): " answer
       if [[ "$answer" =~ ^[Yy]$ ]]; then
-          oc apply -f openshift/openshift-pipline.yaml
-          sleep 30        
+          echo -e "${RED}処理を中断します。${RESET}"
+          exit 1
       fi
     else
       oc new-project $CICD_NAMESPACE
-      oc apply -f openshift/openshift-pipline.yaml
-      sleep 30
     fi
 
-    # 共通設定
+    # 共通設定（共通タスクの作成）
     oc apply -f openshift/buildah-clustertask.yaml -n  $CICD_NAMESPACE
     oc apply -f openshift/openshift-client-clustertask.yaml -n  $CICD_NAMESPACE
     oc adm policy add-scc-to-user privileged -z pipeline -n  $CICD_NAMESPACE
     
     cd ../tekton-pipelines
     
+    # メニュー表示
     OPTIONS=(
     "barista"
     "kitchen"
@@ -126,28 +126,38 @@ deploy() {
 }
 
 democonfig() {
-    oc apply -f openshift/coffeeshop-configmap.yaml
-    oc apply -f openshift/coffeeshop-sub-configmap.yaml
+
+    # CongfigMapの作成と
+    oc apply -f openshift/coffeeshop-configmap.yaml                             ## A用サイト
+    oc apply -f openshift/coffeeshop-sub-configmap.yaml                         ## BC用サイト
     oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline
+
 }
 
 setup() {
-      oc new-project $CICD_NAMESPACE
-      oc apply -f openshift/openshift-pipline.yaml
-      sleep 10
+    
+    # Piplineオペレータの作成
+    oc new-project $CICD_NAMESPACE
+    oc apply -f openshift/openshift-pipline.yaml
+    sleep 30
+
 }
 
 cleanup() {
+    
     echo "クリーンナップ開始..."
+    ## 全アプリのPipline削除
     for pvc in $(oc get pvc -n "$CICD_NAMESPACE" -o name); do
         oc patch "$pvc" -n "$CICD_NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}'
     done
+    ## 共通タスクの削除
     oc delete task push-app    
     oc delete task git-clone
-    oc delete task maven
+    oc delete task mave
+    ## CICDプロジェクトの削除
     oc delete project $CICD_NAMESPACE
-}
 
+}
 
 case "$1" in
     setup)
