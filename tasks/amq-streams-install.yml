@@ -16,16 +16,15 @@
     - amq
     - acm-workload
     
-#### バグ対応
-#- name: Create AMQ Subscription
-#  kubernetes.core.k8s:
-#    state: present
-#    definition: "{{ lookup('template', 'amq-sub.yaml.j2') }}"
-#  register: rbac_result
-#  when: not delete_deployment|bool
-#  tags: 
-#    - amq
-#    - acm-workload
+- name: Create AMQ Subscription
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'amq-sub.yaml.j2') }}"
+  register: rbac_result
+  when: not delete_deployment|bool
+  tags: 
+    - amq
+    - acm-workload
 
 # wait for AMQ to be ready
 - name: Wait for AMQ CRD to be ready
