@@ -114,7 +114,8 @@
     - helm
 
 - name:  Create and load postgres database
-  command: "{{ oc_location }}  exec -it {{ postgres_utils_pod }} -n {{ project_namespace }}  -- /bin/init_postgres_db.sh"
+  #command: "{{ oc_location }}  exec -it {{ postgres_utils_pod }} -n {{ project_namespace }}  -- /bin/init_postgres_db.sh"
+  command: "{{ oc_location }}  exec {{ postgres_utils_pod }} -n {{ project_namespace }}  -- /bin/init_postgres_db.sh"
   when: not delete_deployment|bool
   tags: 
     - postgres
