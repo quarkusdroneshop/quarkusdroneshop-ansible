@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 if [ -z ${PGPASSWORD} ];
 then 
   echo "postgres password not in enviornment."
@@ -14,6 +12,7 @@ then
   exit 1
 fi 
 
+psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "CREATE SCHEMA IF NOT EXISTS coffeeshop;"
 psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "CREATE SCHEMA coffeeshop AUTHORIZATION coffeeshopadmin;"
 psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "alter table if exists coffeeshop.LineItems
     drop constraint if exists FK6fhxopytha3nnbpbfmpiv4xgn;"
