@@ -165,7 +165,7 @@ insecure_skip_tls_verify  |  Skip insecure tls verify  |  true
 default_owner | Default owner of template files. | root
 default_group | Default group of template files. |  root
 delete_deployment  | delete the deployment and project for quarkuscoffeeshop-demo  | false
-amqstartingCSV  | Red Hat AMQ csv version  |  amqstreams.v2.9.0
+amqstartingCSV  | Red Hat AMQ csv version  |  amqstreams.v2.9.0-1
 mongodbstartingCSV  | MongoDB Ops Manager version  |  mongodb-enterprise.v1.8.0
 config_location  | default location for application templates  | "/tmp/"
 version_barista | Default container barista tag | 5.0.0-SNAPSHOT
@@ -247,21 +247,6 @@ To-Do
 * F2Fの自動テストする
 * QuarkusバージョンとJavaのバージョンアップをする
 * Piplineメニューを2回実行しないといけない問題の回避検討
-
-Bug対応
--------
-* KRaftモードで、advertised.listenersがあり、ZooKeeperに戻している。
-  将来KRaftモードに再度移行予定。
-    https://github.com/strimzi/strimzi-kafka-operator/issues/10353
-  問題は、KRaft,Strimzi,Skupperを使ったときに問題になる。
-  また、Kafkaオペレータにも同問題があり、Strimizオペレータを暫定的に利用。（0.46.0を採用）
-
-  - advertised.listeners設定エラー（Strimzi 0.30.0）
-  - Kafkaステータスとadvertised.listenersの不一致（Strimzi 0.43.0）
-  
-  →なんだか行けそうなので次の手順で回避検討
-  　Strimizオペレータはそのままで、KRaftモードに移行して、共有できるか確認
-  　オペレータをRHBuildに変更して、共有できるか確認
 
 License
 -------

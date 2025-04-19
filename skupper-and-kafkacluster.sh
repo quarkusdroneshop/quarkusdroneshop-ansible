@@ -92,9 +92,11 @@ deploy() {
         # Linkの作成
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
+        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-asite --host external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
         skupper connector create external-cafe-cluster-kafka-asite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
+        skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
         
         # KafkaClusterの再作成
         oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
@@ -125,15 +127,51 @@ deploy() {
         # Linkの作成
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
+        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-bsite --host external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
         skupper connector create external-cafe-cluster-kafka-bsite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
+        skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
         
         # KafkaClusterの再作成
         oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-b-site.yaml -n "$NAMESPACE"
+
+    elif [ "$SITE_CONFREM" = "C" ]; then
+
+        # Siteの作成
+        skupper site create skupper-csite
+        skupper site update --enable-link-access -n "$NAMESPACE"
+
+        # Siteのステータス確認
+        skupper site status
+
+        # TOKEN/LINKの作成
+        skupper token issue skupper-token-c.yaml
+        
+        # LINK作成の確認
+        read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
+        if [ "$LINK_CONFREM" != "yes" ]; then
+            echo -e "${YELLOW}処理を終了します。${RESET}"
+            exit 1
+        fi
+
+        # Linkの作成
+        oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
+        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
+        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
+        skupper listener create external-cafe-cluster-kafka-csite --host external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
+        skupper connector create external-cafe-cluster-kafka-csite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
+        skupper listener create external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
+        skupper listener create external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
+        
+        # KafkaClusterの再作成
+        oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+
+        # MirrorMakerの設定
+        oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"
 
     fi
 
@@ -153,8 +191,7 @@ retoken() {
         skupper token issue skupper-token-a.yaml
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
-        ##skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
-
+        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
         # Tokenの作り直し後のステータス確認
         skupper site status
         skupper link status
@@ -167,8 +204,7 @@ retoken() {
         skupper token issue skupper-token-b.yaml
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
-        ##skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
-
+        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
         # Tokenの作り直し後のステータス確認
         skupper site status
         skupper link status
@@ -182,12 +218,12 @@ retoken() {
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
-
         # Tokenの作り直し後のステータス確認
         skupper site status
         skupper link status
         skupper listener status
         skupper connector status
+
     fi
 }
 
@@ -198,13 +234,13 @@ cleanup() {
     oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
     skupper listener delete external-cafe-cluster-kafka-asite -n "$NAMESPACE"
     skupper listener delete external-cafe-cluster-kafka-bsite -n "$NAMESPACE"
+    skupper listener delete external-cafe-cluster-kafka-csite -n "$NAMESPACE"
     skupper connector delete external-cafe-cluster-kafka-asite -n "$NAMESPACE"
     skupper connector delete external-cafe-cluster-kafka-bsite -n "$NAMESPACE"
+    skupper connector delete external-cafe-cluster-kafka-csite -n "$NAMESPACE"
     skupper site delete skupper-asite
     skupper site delete skupper-bsite
     skupper site delete skupper-csite
-
-    #### ここは後で整理する
     oc delete all -l skupper.io/component
     oc delete configmap -l skupper.io/component
     oc delete secret -l skupper.io/component

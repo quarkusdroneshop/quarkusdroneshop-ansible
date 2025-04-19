@@ -63,8 +63,8 @@ deploy() {
     # オペレータのインストール
     # プロジェクトが存在するか確認
     if oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then
-      read -p "Operatorのインストールを先に実行してください。一旦実行をやめますか？ (y/N): " answer
-      if [[ "$answer" =~ ^[Yy]$ ]]; then
+      read -p "Operatorのインストールを先に実行してください。実行を続けますか？ (y/N): " answer
+      if [[ "$answer" =~ ^[Nn]$ ]]; then
           echo -e "${RED}処理を中断します。${RESET}"
           exit 1
       fi
