@@ -22,7 +22,7 @@ Currently tested on
 * OpenShift 4.16.2
 * OpenShift Pipelines: 1.9.0
 * AMQ Streams: 2.9.0-1
-* Postgres Operator: v5.7.4
+* Postgres Operator: v5.8.1
 * OpenShift Quay: v3.8.1
 * OpenShift GitOps: v1.7.1
 

@@ -68,10 +68,6 @@ deploy() {
     read -p "どのサイトを構築しますか？(A/B/C): " SITE_CONFREM
     if [ "$SITE_CONFREM" = "A" ]; then
 
-        ## skupper 2.0 から console が無効。一旦残しておく
-        #skupper site create --console-auth internal --console-user admin --console-password skupper
-        #skupper site create asite --console-auth internal --console-user admin --console-password skupper --enable-link-access
-
         # Site作成
         skupper site create skupper-asite
         skupper site update --enable-link-access -n "$NAMESPACE"
