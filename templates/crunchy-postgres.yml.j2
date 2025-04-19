@@ -7,7 +7,7 @@ spec:
   backups:
     pgbackrest:
       image: >-
-        registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.45-2
+        registry.connect.redhat.com/crunchydata/crunchy-pgbackrest@sha256:826e579759b43ee2f1533f6d8d64f694a756d384db66e54f99aa43a7d015ae0f
       repos:
         - name: repo1
           volume:
@@ -17,7 +17,7 @@ spec:
               resources:
                 requests:
                   storage: 1Gi
-  image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-16.2-1
+  image: registry.connect.redhat.com/crunchydata/crunchy-postgres@sha256:33797d8f5986eb07194dff59e6befe6290e4983172c47249e7f87265ceef590f
   instances:
     - dataVolumeClaimSpec:
         accessModes:
