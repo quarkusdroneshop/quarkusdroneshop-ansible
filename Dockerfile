@@ -1,6 +1,6 @@
 FROM --platform=linux/amd64 fedora:latest
 
-RUN dnf makecache && dnf install -y bind-utils openssl openssh-clients wget  python3-pip git bash-completion python3-jmespath ansible --setopt=install_weak_deps=False  && \
+RUN dnf makecache && dnf install -y bind-utils openssl openssh-clients gawk wget python3-pip git bash-completion python3-jmespath ansible --setopt=install_weak_deps=False  && \
     dnf clean all &&  rm -rf /var/cache/yum 
 
 RUN curl -OL https://raw.githubusercontent.com/nmushino/openshift-4-deployment-notes/master/pre-steps/configure-openshift-packages.sh && \
