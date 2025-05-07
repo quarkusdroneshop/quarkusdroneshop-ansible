@@ -67,8 +67,11 @@ setup() {
     # OCPのセットアップ、共通ミドルのセットアップ
     echo "セットアップ開始..."
     # Podman イメージの作成とOperatorのインストール
-    podman build --no-cache -t quarkuscoffeeshop . 
-    podman run --platform linux/amd64 -it --env-file=./$ENV_FILE quarkuscoffeeshop
+    podman build --no-cache -t "$NAMESPACE" . 
+    podman run --platform linux/amd64 -it --env-file=./$ENV_FILE "$NAMESPACE"
+    # PostgreSQLCluster へ権限の追加
+    oc adm policy add-scc-to-user anyuid -z coffeeshopdb-instance -n "$NAMESPACE"
+    oc adm policy add-scc-to-user anyuid system:serviceaccount:"$NAMESPACE":default
 
 }
 
