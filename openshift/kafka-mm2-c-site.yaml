@@ -7,11 +7,19 @@ spec:
   version: 3.9.0
   replicas: 1
   connectCluster: "cafe-csite"
+  enableRestApi: true
   clusters:
     - alias: "cafe-asite"
       bootstrapServers: "external-cafe-cluster-kafka-asite:9094"
     - alias: "cafe-csite"
-      bootstrapServers: "cafe-cluster-kafka-bootstrap:9094"
+      bootstrapServers: "cafe-cluster-kafka-external-bootstrap:9094"
+  ports:
+    - name: rest-api
+      port: 8083
+      targetPort: 8083
+      protocol: TCP
+  selector:
+    strimzi.io/name: mm2-extended-mirrormaker2
   logging:
     type: inline
     loggers:
@@ -24,12 +32,12 @@ spec:
   mirrors:
     - sourceCluster: "cafe-asite"
       targetCluster: "cafe-csite"
-      topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*)$"
+      topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
         config:
-          bootstrap.servers: "external-cafe-cluster-kafka-asite:9092"
+          bootstrap.servers: "external-cafe-cluster-kafka-csite:9094"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"

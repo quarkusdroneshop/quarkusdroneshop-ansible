@@ -52,10 +52,10 @@ oc exec -n "$NAMESPACE" -it "$KAFKA_POD" -- bash -c "
     /opt/kafka/bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVER --delete --topic \"\$topic\"
   done
 "
-# Kafka Pod 内でトピックリストを取得し、残りのTopicをすべて削除する
-oc exec -n "$NAMESPACE" -it "$KAFKA_POD" -- bash -c '
-  for topic in $(/opt/kafka/bin/kafka-topics.sh --bootstrap-server '"$BOOTSTRAP_SERVER"' --list); do
-    echo 'Deleting topic: '\$topic
-    /opt/kafka/bin/kafka-topics.sh --bootstrap-server '"$BOOTSTRAP_SERVER"' --delete --topic "$topic"
-  done
-"
+## Kafka Pod 内でトピックリストを取得し、残りのTopicをすべて削除する
+#oc exec -n "$NAMESPACE" -it "$KAFKA_POD" -- bash -c "
+#  for topic in $(/opt/kafka/bin/kafka-topics.sh --bootstrap-server '"$BOOTSTRAP_SERVER"' --list); do
+#    echo "Deleting topic: " $topic
+#    /opt/kafka/bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVER --delete --topic "$topic"
+#  done
+#"

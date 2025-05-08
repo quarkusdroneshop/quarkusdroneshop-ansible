@@ -128,9 +128,9 @@ deploy() {
 democonfig() {
 
     # CongfigMapの作成と
-    oc apply -f openshift/coffeeshop-configmap.yaml                             ## A用サイト
-    oc apply -f openshift/coffeeshop-sub-configmap.yaml                         ## BC用サイト
-    oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline
+    oc apply -f openshift/coffeeshop-configmap.yaml -n $DEMO_NAMESPACE                            ## A用サイト
+    oc apply -f openshift/coffeeshop-sub-configmap.yaml -n $DEMO_NAMESPACE                        ## B/C用サイト
+    oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
 
 }
 
