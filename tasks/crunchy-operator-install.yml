@@ -65,6 +65,7 @@
   kubernetes.core.k8s_info:
     api_version: postgres-operator.crunchydata.com/v1beta1
     kind: PostgresCluster
+    name: coffeeshopdb
     namespace: "{{ project_namespace }}"
   register: r_pgo_status
   retries: 20
@@ -78,16 +79,9 @@
     (
       r_pgo_status.resources[0].status.conditions
       | selectattr("type", "equalto", "Ready")
-      | map(attribute="status")
+      | selectattr("status", "equalto", "True")
       | list
-    ) | length > 0 and
-    (
-      r_pgo_status.resources[0].status.conditions
-      | selectattr("type", "equalto", "Ready")
-      | map(attribute="status")
-      | list
-    )[0] == "True"
-  ignore_errors: true
+    ) | length > 0
   when: not delete_deployment | bool
   tags:
     - postgres

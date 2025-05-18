@@ -77,7 +77,7 @@ setup() {
 
 deploy() {
 
-    read -p "本当にコマンドでアプリインストールしますか？推奨はPiplineによるインストールです。(yes/no): " DEPLOY_CONFREM
+    read -p "本当にアプリインストールしますか？推奨はPiplineによるインストールです。(yes/no): " DEPLOY_CONFREM
     if [ "$DEPLOY_CONFREM" != "yes" ]; then
         echo -e "${RED}処理を中断します。${RESET}"
         exit 1
