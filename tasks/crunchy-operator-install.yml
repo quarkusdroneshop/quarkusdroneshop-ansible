@@ -71,6 +71,7 @@
   delay: 30
   until: >
     r_pgo_status is defined and
+    r_pgo_status.resources is defined and
     r_pgo_status.resources | length > 0 and
     r_pgo_status.resources[0].status is defined and
     r_pgo_status.resources[0].status.conditions is defined and
@@ -79,9 +80,15 @@
       | selectattr("type", "equalto", "Ready")
       | map(attribute="status")
       | list
+    ) | length > 0 and
+    (
+      r_pgo_status.resources[0].status.conditions
+      | selectattr("type", "equalto", "Ready")
+      | map(attribute="status")
+      | list
     )[0] == "True"
   ignore_errors: true
-  when: not delete_deployment|bool
+  when: not delete_deployment | bool
   tags:
     - postgres
     - acm-workload
@@ -101,26 +108,22 @@
     - acm-workload
     - helm
 
-- name: Set original_secret from first resource if it exists
+- name: Get the original cred secrets
   set_fact:
-    original_secret: "{{ databasepassword.resources[0].data.password }}"
-  when:
-    - not delete_deployment | bool
-    - databasepassword.resources is defined
-    - databasepassword.resources | length > 0
+    original_secret: "{{ item.data.password }}"
+  with_items: "{{ databasepassword.resources }}"
+  when: not delete_deployment|bool
   no_log: true
   tags:
     - postgres
     - acm-workload
     - helm
 
-- name: Set postgres_password by decoding original_secret
+- name: Get postgress password
   set_fact:
-    postgres_password: "{{ original_secret | b64decode }}"
-  when:
-    - not delete_deployment | bool
-    - original_secret is defined
-  tags:
+    postgres_password: '{{ original_secret| b64decode }}'
+  when: not delete_deployment|bool
+  tags: 
     - postgres
     - acm-workload
     - helm
