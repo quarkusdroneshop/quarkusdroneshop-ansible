@@ -216,7 +216,7 @@ cleanup() {
     if [ "$DELETE_CONFREM" == "yes" ]; then
         # KafkaTopic リソースを強制削除
         for topic in $(oc get kafkatopics.kafka.strimzi.io -n "$NAMESPACE" -o name); do
-            oc patch $topic -n "$NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}'
+            oc patch $topic -n "$NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}' 
         done
         oc delete project "$NAMESPACE" --force --grace-period=0
         oc delete project "$OPENMETADATASPACE" --force --grace-period=0

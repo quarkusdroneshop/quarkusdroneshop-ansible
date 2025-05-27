@@ -10,27 +10,27 @@
     - helm
 
 # wait for Postgres to be ready
-- name: Wait for Postgres CRD to be ready
+- name: Wait for Crunchy Postgres operator pod to be ready
   kubernetes.core.k8s_info:
-    api_version: operators.coreos.com/v1alpha1
-    kind: ClusterServiceVersion
-    namespace: "openshift-operators"
-    field_selectors:
-      - "metadata.name={{ crunchystartingCSV }}"
-  register: r_pgo_crd
-  retries: 20
-  delay: 60
-  until: r_pgo_crd.resources | list | length == 1
-  when: not delete_deployment|bool
-  tags: 
-    - postgres
-    - acm-workload
-    - helm
+    kind: Pod
+    namespace: "{{ project_namespace }}"
+    label_selectors:
+      - metadata.name={{ crunchystartingCSV }}
+    register: r_pgo_crd
+    retries: 20
+    delay: 60
+    until: r_pgo_crd.resources | list | length == 1
+    when: not delete_deployment|bool
+    tags: 
+      - postgres
+      - acm-workload
+      - helm
 
 - name: Create Crunchy Postgres database instance 
   kubernetes.core.k8s:
     state: present
     namespace: "{{ project_namespace }}"
+    apply: true
     definition: "{{ lookup('template', 'crunchy-postgres.yml.j2') }}"
   when: not delete_deployment|bool
   tags:
@@ -65,24 +65,31 @@
   kubernetes.core.k8s_info:
     api_version: postgres-operator.crunchydata.com/v1beta1
     kind: PostgresCluster
-    name: coffeeshopdb
     namespace: "{{ project_namespace }}"
   register: r_pgo_status
   retries: 20
   delay: 30
-  until: >
-    r_pgo_status is defined and
-    r_pgo_status.resources is defined and
-    r_pgo_status.resources | length > 0 and
-    r_pgo_status.resources[0].status is defined and
-    r_pgo_status.resources[0].status.conditions is defined and
-    (
-      r_pgo_status.resources[0].status.conditions
-      | selectattr("type", "equalto", "Ready")
-      | selectattr("status", "equalto", "True")
-      | list
-    ) | length > 0
-  when: not delete_deployment | bool
+  until:
+    - r_pgo_status.resources is defined
+    - r_pgo_status.resources | length > 0
+    - r_pgo_status.resources[0].status is defined
+    - r_pgo_status.resources[0].status.conditions is defined
+    - r_pgo_status.resources[0].status.conditions | length > 1
+    - r_pgo_status.resources[0].status.conditions[1].status == 'True'
+  ignore_errors: true
+  when: not delete_deployment|bool
+  tags:
+    - postgres
+    - acm-workload
+    - helm
+
+- name: Create Crunchy PGAdmin instance 
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ project_namespace }}"
+    apply: true
+    definition: "{{ lookup('template', 'pgadmin.yaml.j2') }}"
+  when: not delete_deployment|bool
   tags:
     - postgres
     - acm-workload

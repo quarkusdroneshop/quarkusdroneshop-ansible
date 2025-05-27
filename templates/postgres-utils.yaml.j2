@@ -19,6 +19,28 @@ spec:
       referencePolicy:
         type: Source
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pgo-pdb-access
+rules:
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pgo-pdb-access-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pgo-pdb-access
+subjects:
+  - kind: ServiceAccount
+    name: pgo
+    namespace: openshift-operators
+---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:

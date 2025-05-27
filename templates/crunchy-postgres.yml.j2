@@ -6,8 +6,7 @@ metadata:
 spec:
   backups:
     pgbackrest:
-      image: >-
-        registry.connect.redhat.com/crunchydata/crunchy-pgbackrest@sha256:826e579759b43ee2f1533f6d8d64f694a756d384db66e54f99aa43a7d015ae0f
+      image: registry.connect.redhat.com/crunchydata/crunchy-pgbackrest@sha256:ccd5291f05c5d47345f32033840c4830e10a0e507c8e57f59b0271caccc37841
       repos:
         - name: repo1
           volume:
@@ -17,20 +16,19 @@ spec:
               resources:
                 requests:
                   storage: 1Gi
-  image: registry.connect.redhat.com/crunchydata/crunchy-postgres@sha256:75a4247265bea34f10f77367e33a5d3e54081d28c272421ede499c6d9d733a68
+  image: registry.connect.redhat.com/crunchydata/crunchy-postgres@sha256:583a290f224701d5215d4e44e723cb6c542b1306ced074cd4d3bbe5810f22c0b
   instances:
-    - dataVolumeClaimSpec:
+    - name: coffeeshopdb
+      replicas: 1
+      dataVolumeClaimSpec:
         accessModes:
           - ReadWriteOnce
         resources:
           requests:
             storage: 1Gi
-      name: ''
-      replicas: 1
   port: 5432
-  postgresVersion: 17
+  postgresVersion: {{ postgres_version }}
   users:
-    - databases:
+    - name: coffeeshopadmin
+      databases:
         - coffeeshopdb
-      name: coffeeshopadmin
-

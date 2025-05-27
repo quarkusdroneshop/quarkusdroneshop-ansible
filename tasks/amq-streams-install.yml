@@ -15,6 +15,15 @@
   tags:
     - amq
     - acm-workload
+
+- name: Create Opeator group
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'operator-group.yaml.j2') }}"
+  when: not delete_deployment | bool
+  tags: 
+  - amq
+  - acm-workload
     
 - name: Create AMQ Subscription
   kubernetes.core.k8s:
@@ -26,7 +35,6 @@
     - amq
     - acm-workload
 
-# wait for AMQ to be ready
 - name: Wait for AMQ CRD to be ready
   kubernetes.core.k8s_info:
     api_version: operators.coreos.com/v1alpha1
@@ -78,23 +86,6 @@
     - amq
     - acm-workload
 
-#- name: Search for all Pods labeled  cafe-cluster-zookeeper
-#  kubernetes.core.k8s_info:
-#    kind: Pod
-#    namespace:  "{{ project_namespace }}"
-#    label_selectors:
-#      - "strimzi.io/name=cafe-cluster-zookeeper"
-#    field_selectors:
-#      - status.phase=Running
-#  register: r_zookeeper_status
-#  retries: 200
-#  delay: 10
-#  until: r_zookeeper_status.resources  | list | length == 3
-#  when: not delete_deployment|bool
-#  tags:
-#    - amq
-#    - acm-workload
-
 - name: Search for all Pods labeled cafe-cluster-kafka
   kubernetes.core.k8s_info:
     kind: Pod
@@ -122,26 +113,47 @@
     - amq
     - acm-workload
 
-- name: Create kafdrop
+- name: Create AMQ Console Subscription
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'amq-console-sub.yaml.j2') }}"
+  register: rbac_result
+  when: not delete_deployment|bool
+  tags: 
+    - amq
+    - acm-workload
+
+- name: Create Kafka Console
   kubernetes.core.k8s:
     state: present
     namespace:  "{{ project_namespace }}"
-    definition: "{{ lookup('template', 'kafdrop.yaml.j2') }}"
+    definition: "{{ lookup('template', 'amq-kafka-console.yaml.j2') }}"
   when: not delete_deployment|bool
   tags:
     - amq
     - acm-workload
 
-- name: Remove kafdrop
-  kubernetes.core.k8s:
-    state: absent
-    namespace:  "{{ project_namespace }}"
-    definition: "{{ lookup('template', 'kafdrop.yaml.j2') }}"
-  ignore_errors: yes
-  when: delete_deployment|bool
-  tags:
-    - amq
-    - acm-workload
+# Disable Kafdrop
+#- name: Create kafdrop
+#  kubernetes.core.k8s:
+#    state: present
+#    namespace:  "{{ project_namespace }}"
+#    definition: "{{ lookup('template', 'kafdrop.yaml.j2') }}"
+#  when: not delete_deployment|bool
+#  tags:
+#    - amq
+#    - acm-workload
+
+#- name: Remove kafdrop
+#  kubernetes.core.k8s:
+#    state: absent
+#    namespace:  "{{ project_namespace }}"
+#    definition: "{{ lookup('template', 'kafdrop.yaml.j2') }}"
+#  ignore_errors: yes
+#  when: delete_deployment|bool
+#  tags:
+#    - amq
+#    - acm-workload
 
 - name: Remove kafka topics
   command: "{{ oc_location }}  delete -f {{ config_location }}amq-kafka-topics.yaml"

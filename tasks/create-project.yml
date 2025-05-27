@@ -1,7 +1,6 @@
 - name: Create new project for quarkus-coffeeshop
   command: "{{ oc_location }}  new-project {{ project_namespace }}"
   register: create_project_result
-  ignore_errors: yes
   when: not delete_deployment|bool
 
 - name: Switch to project for  quarkus-coffeeshop

@@ -18,8 +18,18 @@
     - acm-workload
     - helm
 
+- name: Create Opeator group
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'operator-group.yaml.j2') }}"
+  when: not delete_deployment | bool
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
+
 - name:  Check if postgres-operator is running 
-  shell: "{{ oc_location }} get pods  -n openshift-operators | grep Running | grep -E -o 'pgo-[0-9a-z][0-9a-z].*-[0-9a-z]{5}'"
+  shell: "{{ oc_location }} get pods  -n {{ project_namespace }} | grep Running | grep -E -o 'pgo-[0-9a-z][0-9a-z].*-[0-9a-z]{5}'"
   register: get_operator
   ignore_errors: yes
   args:
@@ -60,17 +70,8 @@
     - acm-workload
     - helm
 
-- name: Copying over pgadmin file
-  template:
-    src: templates/pgadmin.yaml.j2
-    dest:  "{{ config_location }}/pgadmin.yaml"
-    owner: "{{ default_owner }}"
-    group: "{{ default_group }}"
-    mode: 0666
-  when: not delete_deployment|bool
-
 - name: Deploy Postgres utils
-  command: "{{ oc_location }}  create -f {{ config_location }}/postgres-utils.yaml -n {{ project_namespace }}"
+  command: "{{ oc_location }}  apply -f {{ config_location }}/postgres-utils.yaml -n {{ project_namespace }}"
   ignore_errors: yes
   when: not delete_deployment|bool
   tags: 

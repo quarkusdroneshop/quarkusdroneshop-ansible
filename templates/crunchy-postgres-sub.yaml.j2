@@ -2,11 +2,33 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: crunchy-postgres-operator
-  namespace: openshift-operators
+  namespace: {{ project_namespace }}
 spec:
   channel: v5
   installPlanApproval: Automatic
   name: crunchy-postgres-operator
   source: certified-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: {{ crunchystartingCSV }} 
+  startingCSV: {{ crunchystartingCSV }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pgo-pdb-access
+rules:
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pgo-pdb-access-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pgo-pdb-access
+subjects:
+  - kind: ServiceAccount
+    name: pgo
+    namespace: quarkuscoffeeshop-demo

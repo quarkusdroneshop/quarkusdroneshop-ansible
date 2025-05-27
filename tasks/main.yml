@@ -35,7 +35,7 @@
       include_tasks: create-project.yml
       when: not delete_deployment | bool
       tags: always
-
+        
     - name: AMQ Streams installation
       include_tasks: amq-streams-install.yml
       when: not delete_deployment | bool

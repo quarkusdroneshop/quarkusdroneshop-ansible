@@ -1,0 +1,36 @@
+apiVersion: console.streamshub.github.com/v1alpha1
+kind: Console
+metadata:
+  name: cafe-console
+  namespace: quarkuscoffeeshop-demo
+spec:
+  features:
+    kafka:
+      staticConfig: true
+  replicas: 1
+  hostname: cafe-console-quarkuscoffeeshop-demo.apps.{{ domain }}
+  template:
+    metadata:
+      labels:
+        app: console
+  kafkaClusters:
+    - name: cafe-cluster
+      namespace: {{ project_namespace }}
+      listener: plain
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kafka-resources
+  namespace: {{ project_namespace }}
+  labels:
+    app: console-kafka-monitor
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ project_namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+  podMetricsEndpoints:
+    - port: tcp-prometheus

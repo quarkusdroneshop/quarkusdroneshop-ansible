@@ -1,0 +1,70 @@
+{
+    "apiVersion": "v1",
+    "kind": "Namespace",
+    "metadata": {
+        "annotations": {
+            "openshift.io/description": "",
+            "openshift.io/display-name": "",
+            "openshift.io/sa.scc.mcs": "s0:c28,c22",
+            "openshift.io/sa.scc.supplemental-groups": "1000800000/10000",
+            "openshift.io/sa.scc.uid-range": "1000800000/10000"
+        },
+        "creationTimestamp": "2025-05-22T12:20:55Z",
+        "deletionTimestamp": "2025-05-23T10:32:07Z",
+        "labels": {
+            "kubernetes.io/metadata.name": "quarkuscoffeeshop-demo",
+            "pod-security.kubernetes.io/audit": "baseline",
+            "pod-security.kubernetes.io/audit-version": "v1.24",
+            "pod-security.kubernetes.io/warn": "baseline",
+            "pod-security.kubernetes.io/warn-version": "v1.24"
+        },
+        "name": "quarkuscoffeeshop-demo",
+        "resourceVersion": "220965",
+        "uid": "be5d74e0-0feb-4b41-bd61-db8b497039da"
+    },
+    "spec": {
+        "finalizers": [
+            "kubernetes"
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastTransitionTime": "2025-05-23T10:32:15Z",
+                "message": "All resources successfully discovered",
+                "reason": "ResourcesDiscovered",
+                "status": "False",
+                "type": "NamespaceDeletionDiscoveryFailure"
+            },
+            {
+                "lastTransitionTime": "2025-05-23T10:32:15Z",
+                "message": "All legacy kube types successfully parsed",
+                "reason": "ParsedGroupVersions",
+                "status": "False",
+                "type": "NamespaceDeletionGroupVersionParsingFailure"
+            },
+            {
+                "lastTransitionTime": "2025-05-23T10:32:15Z",
+                "message": "All content successfully deleted, may be waiting on finalization",
+                "reason": "ContentDeleted",
+                "status": "False",
+                "type": "NamespaceDeletionContentFailure"
+            },
+            {
+                "lastTransitionTime": "2025-05-23T10:32:15Z",
+                "message": "Some resources are remaining: postgresclusters.postgres-operator.crunchydata.com has 1 resource instances",
+                "reason": "SomeResourcesRemain",
+                "status": "True",
+                "type": "NamespaceContentRemaining"
+            },
+            {
+                "lastTransitionTime": "2025-05-23T10:32:15Z",
+                "message": "Some content in the namespace has finalizers remaining: postgres-operator.crunchydata.com/finalizer in 1 resource instances",
+                "reason": "SomeFinalizersRemain",
+                "status": "True",
+                "type": "NamespaceFinalizersRemaining"
+            }
+        ],
+        "phase": "Terminating"
+    }
+}
