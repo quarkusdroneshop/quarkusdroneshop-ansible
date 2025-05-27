@@ -175,6 +175,8 @@ openmetadata() {
     oc adm policy add-scc-to-user anyuid -z mysql -n "$OPENMETADATASPACE"
 
     # OpenMetadataの依存Podの作成
+    helm repo add open-metadata https://helm.open-metadata.org
+    helm repo update
     helm install openmetadata-dependencies open-metadata/openmetadata-dependencies -n "$OPENMETADATASPACE"
 
     # 既存PVCを一度削除

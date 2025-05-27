@@ -25,7 +25,7 @@ Requirements
 Currently tested on 
 -------------------
 * OpenShift 4.16.2
-* OpenShift Pipelines: 1.9.0
+* OpenShift Pipelines: 1.18.0
 * AMQ Streams: 2.9.0-2
 * Postgres Operator: v5.8.2
 
@@ -139,6 +139,7 @@ OpenShiftへのデプロイ手順
 * quarkuscoffeeshop-kitchen
 * quarkuscoffeeshop-barista
 * quarkuscoffeeshop-inventory
+* quarkuscoffeeshop-customermocker
 * homeoffice-backend
 * quarkuscoffeeshop-homeoffice-ui
 
@@ -181,8 +182,12 @@ Operatorのインストール後、デプロイするアプリを選択するメ
 ```
 
 Piplineは、quarkuscoffeeshop-cicdプロジェクトに作成されます。
-OpenShiftコンソールにあるPiplineメニューから、アプリデプロイを実行してください。
-その際、PVCの選択を促されますが、アプリ名にあったPVCを適宜選択してください。
+OpenShiftコンソールにあるPiplineメニューから、適切なアプリを選択しOpenShiftのPiplineメニューから作成をクリックしてください。
+その際、作成フォルダとしてPVCの選択を促されますが、アプリ名にあったPVCを適宜選択して実行してください。
+Piplineが無事実行されればアプリデプロイは完了します。
+
+※ デプロイ対象アプリメニューをいくつか選択すると「Error from server (AlreadyExists)」となる場合もありますが、
+　特段気にせずに実行してください。
 
 また、デプロイ推奨構成としては下記になります。
 #### Aサイト
@@ -205,8 +210,22 @@ SiteA、SiteB、SiteCのミドルウエアとアプリのインストールが�
 ```
 ./skupper-and-kafkacluster.sh deploy
 ```
+### pgadminのログイン
+「quarkuscoffeeshop」プロジェクトにある「pgadmin4」Routeからログインします。
+Ansibleの定義ファイルにある下記を参考にログインしてください。
+* ユーザ：{{ pgadmin_setup_email }}
+* パスワード：{{ pgadmin_default_password }}
 
-#### OpenMetadataの準備
+### アプリのWeb画面
+Webアプリをデプロイしたドメインに「quarkuscoffeeshop-web」というRouteができていると思います。
+これをクリックしてアプリにアクセスしてください。
+その際、HTTPでのアクセスになりますので、ご注意ください。
+
+アプリはメニューから、飲み物と食べ物をオーダする簡単なものです。
+オーダが成功すれば「Orders」のリストに表示され、バックエンドサービスがオーダを処理していきます。
+Readyになったオーダは削除されていきます。
+
+### OpenMetadataの準備
 最適なドメインににて、OpenMetadataをインストールします。
 openmetadataプロジェクトが作成され、OpenMetadataがインストールされます。
 
@@ -214,7 +233,13 @@ openmetadataプロジェクトが作成され、OpenMetadataがインストー�
 ./ocpdeploy.sh openmetadata
 ```
 
-#### 環境削除
+openmetadataプロジェクトのRouteにopenmetadataができますので、そこから画面にアクセスしてください。
+HTTPアクセスであること、Pod起動するまでに5分ぐらいかかるので、注意してください。
+
+デフォルトのログインユーザは下記を参考にしてください。
+https://docs.open-metadata.org/latest/deployment/security/basic-auth
+
+### 環境削除
 環境のリセットは下記コマンドで実施します。
 
 ```
