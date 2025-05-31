@@ -1,6 +1,7 @@
 source.envaider-env/bin/activate
 aider_setup.sh
 aider-env/bin/activate
+node_modules
 .aider*
 .DS_Store
 source.env

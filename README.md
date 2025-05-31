@@ -143,7 +143,7 @@ OpenShiftへのデプロイ手順
 * homeoffice-backend
 * quarkuscoffeeshop-homeoffice-ui
 
-クラスタは下記のようなシングルノードで問題ありません。ただし、3クラスタ作成しておいてください。
+クラスタは下記のようなシングルノードで問題ありません。ただし、3つクラスタ作成しておいてください。
 https://catalog.demo.redhat.com/catalog?search=single&item=babylon-catalog-prod%2Fsandboxes-gpte.ocp4-single-node.prod
 
 ### 環境設定ファイルの作成
@@ -225,6 +225,14 @@ Webアプリをデプロイしたドメインに「quarkuscoffeeshop-web」と�
 オーダが成功すれば「Orders」のリストに表示され、バックエンドサービスがオーダを処理していきます。
 Readyになったオーダは削除されていきます。
 
+#### Cypressによる自動テスト
+上記の一連の操作をE2Eテストツールにより実行します。
+すべての商品を購入していきます。
+
+```
+./cypress-tests.sh
+```
+
 ### OpenMetadataの準備
 最適なドメインににて、OpenMetadataをインストールします。
 openmetadataプロジェクトが作成され、OpenMetadataがインストールされます。
@@ -248,8 +256,6 @@ https://docs.open-metadata.org/latest/deployment/security/basic-auth
 
 To-Do
 -------
-* OpenMetadataの設定インポートを試す
-* F2Fの自動テストする
 * QuarkusバージョンとJavaのバージョンアップをする
 
 
@@ -302,6 +308,15 @@ crunchystartingCSV: postgresoperator.v5.8.2
 接続がうまく言ってない場合、下記シェルにて、SkupperのToken作り直すことができます。
 ```
 ./skupper-and-kafkacluster.sh retoken
+```
+
+#### Piplineタスクがうまくいかない場合
+
+quarkuscoffeeshop-demmoプロジェクトをクリアしたときに問題が発生する場合があります。
+その場合、下記シェルにて、mode用のConfigmapを追加する必要があります。
+
+```
+./piplines.sh democonfig
 ```
 
 License
