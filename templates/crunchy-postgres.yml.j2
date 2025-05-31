@@ -4,6 +4,9 @@ metadata:
   name: coffeeshopdb
   namespace: {{ project_namespace }}
 spec:
+  postgresConfig:
+    global:
+      shared_preload_libraries: "pg_stat_statements,pgaudit"
   backups:
     pgbackrest:
       image: registry.connect.redhat.com/crunchydata/crunchy-pgbackrest@sha256:ccd5291f05c5d47345f32033840c4830e10a0e507c8e57f59b0271caccc37841
