@@ -122,6 +122,14 @@
     - acm-workload
     - helm
 
+- name:  Load shared_preload_libraries
+  command: "{{ oc_location }}  exec -it {{ postgres_utils_pod }} -n {{ project_namespace }}  -- /bin/initdb_postgres_custom.sh"
+  when: not delete_deployment|bool
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
+
 - name: Deploy pgadmin
   command: "{{ oc_location }}  create -f {{ config_location }}/pgadmin.yaml"
   ignore_errors: yes
