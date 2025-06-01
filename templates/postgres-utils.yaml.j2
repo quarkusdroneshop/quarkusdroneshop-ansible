@@ -63,6 +63,7 @@ spec:
       FROM fedora:latest
       RUN yum install -y nc wget curl postgresql
       RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
+      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_custom.sh && chmod +x init_postgres_custom.sh && mv init_postgres_custom.sh /bin/init_postgres_custom.sh
       CMD ["sleep", "10000"]
     type: Dockerfile
   strategy:

@@ -2,7 +2,7 @@ apiVersion: postgres-operator.crunchydata.com/v1beta1
 kind: PostgresCluster
 metadata:
   name: coffeeshopdb
-  namespace: quarkuscoffeeshop-demo
+  namespace: {{ project_namespace }}
 spec:
   backups:
     pgbackrest:
@@ -27,9 +27,9 @@ spec:
           requests:
             storage: 1Gi
   port: 5432
-  postgresVersion: 17
+  postgresVersion: {{ postgres_version }}
   users:
-    - name: coffeeshopadmin
+    - name: {{ pgsql_username }}
       databases:
         - coffeeshopdb
     - name: postgres
