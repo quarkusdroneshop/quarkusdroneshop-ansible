@@ -281,7 +281,6 @@ oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
 Operatorがバージョンアップが変わっている可能性があります。
 defaults/mailn.yamlのバージョンをオペレータに合わせて修正してください。
 修正後反映するには、コミット、Pushまで行う必要があることに注意くしてください。
-> ただし、Operatorの仕様が変わっている場合がありますので、バージョン変更だけでは直らないこともあります。
 
 ```
 amqchannel: stable
@@ -313,7 +312,7 @@ crunchystartingCSV: postgresoperator.v5.8.2
 #### Piplineタスクがうまくいかない場合
 
 quarkuscoffeeshop-demmoプロジェクトをクリアしたときに問題が発生する場合があります。
-その場合、下記シェルにて、mode用のConfigmapを追加する必要があります。
+その場合、下記シェルにて、Demo用のConfigmapを追加する必要があります。
 
 ```
 ./piplines.sh democonfig
