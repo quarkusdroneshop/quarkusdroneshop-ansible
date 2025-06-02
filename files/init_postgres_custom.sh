@@ -5,4 +5,4 @@ export PGPASSWORD=$(oc get secret coffeeshopdb-pguser-postgres -n quarkuscoffees
 export PGHOSTNAME=$(oc get secret coffeeshopdb-pguser-postgres -n quarkuscoffeeshop-demo -o jsonpath='{.data.host}' | base64 -d)
 
 psql -U postgres -h ${PGHOSTNAME} -c "SHOW shared_preload_libraries;"
-psql -U postgres -h ${PGHOSTNAME} -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+psql -U postgres -h ${PGHOSTNAME} -d coffeeshopdb -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
