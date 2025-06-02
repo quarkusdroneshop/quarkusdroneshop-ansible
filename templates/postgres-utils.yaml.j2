@@ -29,6 +29,16 @@ rules:
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secret-reader
+  namespace: {{ target_project }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: pgo-pdb-access-binding
@@ -40,6 +50,20 @@ subjects:
   - kind: ServiceAccount
     name: pgo
     namespace: openshift-operators
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-sa-secret-reader
+  namespace: {{ target_project }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secret-reader
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: {{ target_project }}
 ---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
@@ -62,13 +86,14 @@ spec:
     dockerfile: |-
       FROM fedora:latest
       RUN yum install -y nc wget curl postgresql
-      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
 
       RUN curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz \
         && tar -xvf openshift-client-linux.tar.gz -C /usr/local/bin \
         && chmod +x /usr/local/bin/oc \
         && rm openshift-client-linux.tar.gz
-      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_custom.sh && chmod +x init_postgres_db.sh && mv init_postgres_custom.sh /bin/init_postgres_custom.sh
+
+      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
+      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_custom.sh && chmod +x init_postgres_custom.sh && mv init_postgres_custom.sh /bin/init_postgres_custom.sh
       CMD ["sleep", "10000"]
     type: Dockerfile
   strategy:
@@ -136,9 +161,9 @@ spec:
       containers:
       - env:
         - name: PGHOSTNAME
-          value: '{{ postgres_hostname }}'
+          value: 'coffeeshopdb-primary.{{ target_project }}.svc'
         - name: PGPASSWORD
-          value: '{{ postgres_password }}'
+          value: 'postgres'
         image: image-registry.openshift-image-registry.svc:5000/{{ target_project }}/postgres-utilites:latest
         imagePullPolicy: IfNotPresent
         name: postgres-utilites
