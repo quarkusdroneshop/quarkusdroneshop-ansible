@@ -4,8 +4,8 @@
 # Description: This script deploys the application to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-26
-# Last Modified: 2025-04-17
-# Version: 1.10
+# Last Modified: 2025-06-02
+# Version: 1.11
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
@@ -66,12 +66,13 @@ setup() {
 
     # OCPのセットアップ、共通ミドルのセットアップ
     echo "セットアップ開始..."
-    # PostgreSQLCluster へ権限の追加
-    oc adm policy add-scc-to-user anyuid -z coffeeshopdb-instance -n "$NAMESPACE"
+    # default ServiceAccount へ権限の追加
     oc adm policy add-scc-to-user anyuid system:serviceaccount:"$NAMESPACE":default
     # Podman イメージの作成とOperatorのインストール
     podman build --no-cache -t "$NAMESPACE" . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE "$NAMESPACE"
+    # PostgreSQLCluster へ権限の追加
+    oc adm policy add-scc-to-user anyuid -z coffeeshopdb-instance -n "$NAMESPACE"
 }
 
 deploy() {
