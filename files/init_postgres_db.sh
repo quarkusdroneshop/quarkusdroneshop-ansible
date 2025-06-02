@@ -1,16 +1,8 @@
 #!/bin/bash
 
-if [ -z ${PGPASSWORD} ];
-then 
-  echo "postgres password not in enviornment."
-  exit 1
-fi 
-
-if [ -z ${PGHOSTNAME} ];
-then 
-  echo "hostname target not in enviornment."
-  exit 1
-fi 
+### coffeeshopadminで実行する
+export PGPASSWORD=$(oc get secret coffeeshopdb-pguser-coffeeshopadmin -n quarkuscoffeeshop-demo -o jsonpath='{.data.password}' | base64 -d)
+export PGHOSTNAME=$(oc get secret coffeeshopdb-pguser-coffeeshopadmin -n quarkuscoffeeshop-demo -o jsonpath='{.data.host}' | base64 -d)
 
 psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "CREATE SCHEMA IF NOT EXISTS coffeeshop;"
 psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "CREATE SCHEMA coffeeshop AUTHORIZATION coffeeshopadmin;"
