@@ -123,6 +123,10 @@
     - amq
     - acm-workload
 
+- name: Wait for AMQ Console CRD to be ready
+  ansible.builtin.pause:
+    seconds: 120
+
 - name: Create Kafka Console
   kubernetes.core.k8s:
     state: present
@@ -143,6 +147,10 @@
     - amq
     - acm-workload
 
+- name: Wait for Apicurio Registry CRD to be ready
+  ansible.builtin.pause:
+    seconds: 120
+
 - name: Create Apicurio Registry
   kubernetes.core.k8s:
     state: present
@@ -152,10 +160,6 @@
   tags:
     - amq
     - acm-workload
-
-- name: Wait for Apicurio Registry CRD to be ready
-  ansible.builtin.pause:
-    seconds: 120
 
 - name:  Load Registry Schema
   ansible.builtin.script: files/service-registory.sh
