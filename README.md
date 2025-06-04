@@ -28,6 +28,7 @@ Currently tested on
 * OpenShift Pipelines: 1.18.0
 * AMQ Streams: 2.9.0-2
 * Postgres Operator: v5.8.2
+* Apicurio Registry: 1.1.3-v2.6.4.final
 
 ScreenShots
 ------------------------------------------------

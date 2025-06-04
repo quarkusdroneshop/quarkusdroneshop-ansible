@@ -1,0 +1,12 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: apicurio-registry
+  namespace: {{ project_namespace }}
+spec:
+  channel: {{ registry_channel }}
+  installPlanApproval: Automatic
+  name: apicurio-registry
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: {{ registry_starting_csv }}

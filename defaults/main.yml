@@ -60,6 +60,10 @@ pgadmin_setup_email: nmushino@redhat.com
 pgadmin_default_password: postgres
 pgadmin_setup_password: postgres
 
+# picurio Registry information
+registry_channel: 2.x
+registry_starting_csv: 1.1.3-v2.6.4.final
+
 # Store ID
 storeid: TOKYO
 

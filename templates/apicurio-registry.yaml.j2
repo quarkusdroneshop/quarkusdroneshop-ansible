@@ -1,0 +1,25 @@
+apiVersion: registry.apicur.io/v1
+kind: ApicurioRegistry
+metadata:
+  name: coffeeshop-apicurioregistry-kafkasql
+  namespace: {{ project_namespace }}
+spec:
+  configuration:
+    persistence: kafkasql
+    kafkasql:
+      bootstrapServers: cafe-cluster-kafka-bootstrap.{{ project_namespace }}.svc:9092
+  deployment:
+    env:
+      - name: KAFKA_SASL_JAAS_CONFIG
+        valueFrom:
+          secretKeyRef:
+            name: quarkuscoffeeshop-user
+            key: sasl.jaas.config
+      - name: KAFKA_SASL_MECHANISM
+        value: SCRAM-SHA-512
+      - name: KAFKA_SECURITY_PROTOCOL
+        value: SASL_SSL
+      - name: ENABLE_CONFLUENT_API
+        value: "true"
+      - name: ENABLE_CONFLUENT_ID_MODE
+        value: "true"

@@ -133,6 +133,33 @@
     - amq
     - acm-workload
 
+- name: Create Apicurio Registry Subscription
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'apicurio-registry-sub.yaml.j2') }}"
+  register: rbac_result
+  when: not delete_deployment|bool
+  tags: 
+    - amq
+    - acm-workload
+
+- name: Create Apicurio Registry
+  kubernetes.core.k8s:
+    state: present
+    namespace:  "{{ project_namespace }}"
+    definition: "{{ lookup('template', 'apicurio-registry-sub.yaml.j2') }}"
+  when: not delete_deployment|bool
+  tags:
+    - amq
+    - acm-workload
+
+- name:  Load Registry Schema
+  ansible.builtin.shell: ./files/registory.sh
+  when: not delete_deployment|bool
+  tags: 
+    - amq
+    - acm-workload
+
 # Disable Kafdrop
 #- name: Create kafdrop
 #  kubernetes.core.k8s:

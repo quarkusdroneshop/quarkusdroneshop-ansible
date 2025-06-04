@@ -4,8 +4,8 @@
 # Description: This script deploys the application to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-26
-# Last Modified: 2025-06-02
-# Version: 1.11
+# Last Modified: 2025-06-04
+# Version: 1.13
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
@@ -73,6 +73,7 @@ setup() {
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE "$NAMESPACE"
     # PostgreSQLCluster へ権限の追加
     oc adm policy add-scc-to-user anyuid -z coffeeshopdb-instance -n "$NAMESPACE"
+    oc adm policy add-scc-to-user privileged -z default -n "$NAMESPACE"
 }
 
 deploy() {
@@ -196,8 +197,29 @@ openmetadata() {
     oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-namespace=openmetadata -n "$OPENMETADATASPACE"
     
     # OpenMetadataの作成
+    #helm install openmetadata open-metadata/openmetadata -n "$OPENMETADATASPACE" -f ./openshift/values-openmetadata.yaml
     helm install openmetadata open-metadata/openmetadata -n "$OPENMETADATASPACE"
     oc expose svc openmetadata -n "$OPENMETADATASPACE"
+
+    #helm repo add minio https://charts.min.io/
+    #helm repo update
+    #helm install minio minio/minio \
+    #    --namespace openmetadata \
+    #    --set rootUser=minioadmin \
+    #    --set rootPassword=minioadmin \
+    #    --set mode=standalone \
+    #    --set persistence.storageClass=gp3-csi \
+    #    --set resources.requests.memory=256Mi \
+    #    --set service.type=ClusterIP \
+    #    --set securityContext.enabled=false \
+    #    --set containerSecurityContext.enabled=false \
+    #    --set lifecycleHooks.postInstallJob.enabled=false \
+    #    --set lifecycleHooks.postUpgradeJob.enabled=false \
+    #    --wait
+    #pip install psycopg2-binary
+    #oc expose svc coffeeshopdb-primary 
+    #metadata ingest -c ./openshift/values-openmetadata.yaml
+
 }
 
 cleanup() {
