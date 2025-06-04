@@ -8,3 +8,4 @@ source.env
 skupper-token-a.yaml
 skupper-token-b.yaml
 skupper-token-c.yaml
+openmetadata_backup.sql
