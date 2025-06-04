@@ -2,12 +2,12 @@ apiVersion: registry.apicur.io/v1
 kind: ApicurioRegistry
 metadata:
   name: coffeeshop-apicurioregistry-kafkasql
-  namespace: {{ project_namespace }}
+  namespace: quarkuscoffeeshop-demo
 spec:
   configuration:
     persistence: kafkasql
     kafkasql:
-      bootstrapServers: cafe-cluster-kafka-bootstrap.{{ project_namespace }}.svc:9092
+      bootstrapServers: 'cafe-cluster-kafka-bootstrap.quarkuscoffeeshop-demo.svc:9092'
   deployment:
     env:
       - name: KAFKA_SASL_JAAS_CONFIG

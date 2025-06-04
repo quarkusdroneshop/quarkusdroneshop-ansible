@@ -147,14 +147,14 @@
   kubernetes.core.k8s:
     state: present
     namespace:  "{{ project_namespace }}"
-    definition: "{{ lookup('template', 'apicurio-registry-sub.yaml.j2') }}"
+    definition: "{{ lookup('template', 'apicurio-registry.yaml.j2') }}"
   when: not delete_deployment|bool
   tags:
     - amq
     - acm-workload
 
 - name:  Load Registry Schema
-  ansible.builtin.shell: ./files/registory.sh
+  ansible.builtin.script: files/registory.sh
   when: not delete_deployment|bool
   tags: 
     - amq
