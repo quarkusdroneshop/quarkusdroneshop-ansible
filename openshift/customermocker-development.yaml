@@ -16,5 +16,5 @@ spec:
            - name: REST_URL
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-sub-config
+                 name: coffeeshop-config
                  key: REST_URL

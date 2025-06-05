@@ -98,12 +98,12 @@ deploy() {
     select opt in "${OPTIONS[@]}"; do
         case $opt in
             "barista"|"kitchen"|"counter"|"web"|"inventory"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
-                echo "🔧 実行中: $opt"
+                echo "実行中: $opt"
                 kustomize build "quarkuscoffeeshop-$opt" | oc create -f -
                 ;;
             "all")
                 for d in barista kitchen counter web inventory homeofficebackend homeoffice-ui customermocker; do
-                    echo "🔁 実行中: $d"
+                    echo "実行中: $d"
                     kustomize build "quarkuscoffeeshop-$d" | oc create -f -
                 done
                 ;;
@@ -128,8 +128,7 @@ deploy() {
 democonfig() {
 
     # CongfigMapの作成と
-    oc apply -f openshift/coffeeshop-configmap.yaml -n $DEMO_NAMESPACE                            ## A用サイト
-    oc apply -f openshift/coffeeshop-sub-configmap.yaml -n $DEMO_NAMESPACE                        ## B/C用サイト
+    oc apply -f openshift/coffeeshop-configmap.yaml -n $DEMO_NAMESPACE                         ## A/B/C用サイト
     oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
 
 }
