@@ -28,7 +28,7 @@ Currently tested on
 * OpenShift Pipelines: 1.18.0
 * AMQ Streams: 2.9.0-2
 * Postgres Operator: v5.8.2
-* Apicurio Registry: 1.1.3-v2.6.4.final
+* Apicurio Registry: v2.6.10
 
 ScreenShots
 ------------------------------------------------
@@ -133,7 +133,7 @@ OpenShiftへのデプロイ手順
 ### 事前作業
 事前に、OpenShiftクラスタの作成と、ログインを済ませておいてください。
 次に下記プロジェクトをCloneします。
-（オリジナルサイトのアプリでなく同Gitアカウント上にリポジトリを利用してください）
+（オリジナルサイトのアプリでなく同Gitアカウント上にあるリポジトリを利用してください）
 
 * quarkuscoffeeshop-web
 * quarkuscoffeeshop-counter
@@ -171,6 +171,16 @@ DEBUG=-v
 ./ocpdeploy.sh setup
 ```
 
+### DataMeshの準備
+SiteA、SiteB、SiteCのミドルウエアとアプリのインストールが済んだ状況になっていると思います。
+最後に、各サイト間にSkupperを張り、KafkaMirror2で相互にSyncします。
+下記コマンドをそれぞれのSite上で実行してください。メニューが表示されるのでサイトを選択して構築します。
+このシェルによりSite間の接続と、MirrorMaker2の接続ができます。
+
+```
+./skupper-and-kafkacluster.sh deploy
+```
+
 ### OpenShift Pipline を使ってアプリのデプロイを行う（A/B/Cサイト共通実行）
 その後、piplines.sh にて各アプリのデプロイを行います。下記コマンドを順に実行します。
 Operatorのインストール後、デプロイするアプリを選択するメニューがでますので、自ドメインにデプロイするアプリを選択してください。
@@ -202,21 +212,6 @@ Piplineが無事実行されればアプリデプロイは完了します。
 * homeoffice-backend
 * quarkuscoffeeshop-homeoffice-ui
 
-### DataMeshの準備
-SiteA、SiteB、SiteCのミドルウエアとアプリのインストールが済んだ状況になっていると思います。
-最後に、各サイト間にSkupperを張り、KafkaMirror2で相互にSyncします。
-下記コマンドをそれぞれのSite上で実行してください。メニューが表示されるのでサイトを選択して構築します。
-このシェルによりSite間の接続と、MirrorMaker2の接続ができます。
-
-```
-./skupper-and-kafkacluster.sh deploy
-```
-### pgadminのログイン
-「quarkuscoffeeshop」プロジェクトにある「pgadmin4」Routeからログインします。
-Ansibleの定義ファイルにある下記を参考にログインしてください。
-* ユーザ：{{ pgadmin_setup_email }}
-* パスワード：{{ pgadmin_default_password }}
-
 ### アプリのWeb画面
 Webアプリをデプロイしたドメインに「quarkuscoffeeshop-web」というRouteができていると思います。
 これをクリックしてアプリにアクセスしてください。
@@ -247,6 +242,12 @@ HTTPアクセスであること、Pod起動するまでに5分ぐらいかかる
 
 デフォルトのログインユーザは下記を参考にしてください。
 https://docs.open-metadata.org/latest/deployment/security/basic-auth
+
+### pgadminのログイン
+「quarkuscoffeeshop」プロジェクトにある「pgadmin4」Routeからログインします。
+Ansibleの定義ファイルにある下記を参考にログインしてください。
+* ユーザ：{{ pgadmin_setup_email }}
+* パスワード：{{ pgadmin_default_password }}
 
 ### 環境削除
 環境のリセットは下記コマンドで実施します。
@@ -284,16 +285,19 @@ defaults/mailn.yamlのバージョンをオペレータに合わせて修正し�
 修正後反映するには、コミット、Pushまで行う必要があることに注意くしてください。
 
 ```
-amqchannel: stable
 amqstartingCSV: amqstreams.v2.9.0-2
 mongodbstartingCSV: mongodb-enterprise.v1.32.0
 crunchystartingCSV: postgresoperator.v5.8.2
+registry_starting_csv: service-registry-operator.v2.6.10
 ```
+
+もしオペレータのバージョンがあっていても失敗する場合、
+もう一度 ocpdeploy.sh を実行してみてください。
 
 #### 不要なKafkaTopicをすべて消したい場合の対策
 > 利用時にはドメインなど間違えないように注意してください。
 
-下記シェルにて、強制的に削除する。
+下記シェルにて、Topicを強制的に削除します。
 
 ```
 ./kafka-delete-topic.sh

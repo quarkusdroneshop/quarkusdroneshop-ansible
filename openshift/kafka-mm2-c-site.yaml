@@ -51,7 +51,9 @@ spec:
           refresh.topics.enabled: true
           refresh.groups.enabled: true
           auto.create.topics.enable: true
-          security.protocol: PLAINTEXT
+          security.protocol: SASL_PLAINTEXT
+          sasl.mechanism: SCRAM-SHA-512
+          sasl.jaas.config: "${SASL_JAAS_CONFIG}"
           producer.request.timeout.ms: 60000
           consumer.request.timeout.ms: 60000
           consumer.metadata.fetch.timeout.ms: 60000
@@ -68,3 +70,8 @@ spec:
           value: "mm2-extended-mirrormaker2"
         - name: KAFKA_CONNECT_REST_PORT
           value: "8083"
+        - name: SASL_JAAS_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: quarkuscoffeeshop-user
+              key: sasl.jaas.config
