@@ -102,7 +102,6 @@ deploy() {
     
     # Configmap の追加
     oc apply -f openshift/coffeeshop-configmap.yaml
-    oc apply -f openshift/coffeeshop-sub-configmap.yaml
 
     # Counter App
     oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
@@ -153,7 +152,7 @@ deploy() {
 
     # ConfigMap の修正
     REST_URL=$(oc get route quarkuscoffeeshop-customermocker -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)
-    oc patch configmap coffeeshop-sub-config -n "$NAMESPACE" -p "{\"data\":{\"REST_URL\":\"http://$REST_URL/orders\"}}"
+    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"REST_URL\":\"http://$REST_URL/orders\"}}"
 }
 
 openmetadata() {
