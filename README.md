@@ -24,7 +24,7 @@ Requirements
 
 Currently tested on 
 -------------------
-* OpenShift 4.16.2
+* OpenShift 4.16.41
 * OpenShift Pipelines: 1.18.0
 * AMQ Streams: 2.9.0-2
 * Postgres Operator: v5.8.2
@@ -197,7 +197,7 @@ OpenShiftコンソールにあるPiplineメニューから、適切なアプリ�
 その際、作成フォルダとしてPVCの選択を促されますが、アプリ名にあったPVCを適宜選択して実行してください。
 Piplineが無事実行されればアプリデプロイは完了します。
 
-※ デプロイ対象アプリメニューをいくつか選択すると「Error from server (AlreadyExists)」となる場合もありますが、
+※ デプロイ対象アプリメニューを複数選択すると「Error from server (AlreadyExists)」となる場合もありますが、
 　特段気にせずに実行してください。
 
 また、デプロイ推奨構成としては下記になります。
@@ -259,6 +259,7 @@ Ansibleの定義ファイルにある下記を参考にログインしてくだ�
 To-Do
 -------
 * BackOfficeを修正する
+* OpenMetadataのエクスポートとインポート
 * QuarkusバージョンとJavaのバージョンアップをする
 
 
