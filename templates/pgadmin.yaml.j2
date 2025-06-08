@@ -4,6 +4,8 @@ metadata:
   name: pgadmin4
   namespace: {{ project_namespace }}
 spec:
+  securityContext:
+    fsGroup: 5050
   dataVolumeClaimSpec:
     accessModes:
       - ReadWriteOnce
