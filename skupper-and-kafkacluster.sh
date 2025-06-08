@@ -96,7 +96,7 @@ deploy() {
         skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
         
         # KafkaClusterの再作成
-        #oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-a-site.yaml -n "$NAMESPACE"
@@ -131,7 +131,7 @@ deploy() {
         skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
         
         # KafkaClusterの再作成
-        #oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-b-site.yaml -n "$NAMESPACE"
@@ -165,7 +165,7 @@ deploy() {
         skupper listener create external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
         
         # KafkaClusterの再作成
-        #oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"

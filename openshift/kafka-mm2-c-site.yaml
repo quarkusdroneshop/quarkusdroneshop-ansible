@@ -37,7 +37,7 @@ spec:
       sourceConnector:
         enabled: true
         config:
-          bootstrap.servers: "external-cafe-cluster-kafka-csite:9094"
+          bootstrap.servers: "external-cafe-cluster-kafka-asite:9094"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"

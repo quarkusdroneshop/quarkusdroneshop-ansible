@@ -3,17 +3,15 @@ kind: Kafka
 metadata:
   name: cafe-cluster
   namespace: quarkuscoffeeshop-demo
-  #annotations:                                 ## KRafeバクによる回避
-  # strimzi.io/kraft: enabled                   ## KRafeバクによる回避
+  annotations:                                 ## KRafeバクによる回避
+   strimzi.io/kraft: enabled                   ## KRafeバクによる回避
 spec:
   kafka:
     version: "3.9.0"
     replicas: 3
-    zookeeper:                                  ## KRafeバクによるZookeeper復活
-      replicas: 3                               ## KRafeバクによるZookeeper復活
-    #controllerReplicas: 3                      ## KRafeバクによる回避
+    controllerReplicas: 3                      ## KRafeバクによる回避
     config:
-      #process.roles: "controller,broker"       ## KRafeバクによる回避
+      process.roles: "controller,broker"       ## KRafeバクによる回避
       controller.listener.names: CONTROLLER
       log.dirs: "/var/lib/kafka/data"
       offsets.topic.replication.factor: 3
