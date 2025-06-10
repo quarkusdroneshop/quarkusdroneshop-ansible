@@ -4,7 +4,17 @@ metadata:
   name: pgadmin4
   namespace: {{ project_namespace }}
 spec:
+  initContainers:
+    - name: fix-permissions
+      image: busybox
+      command: ["sh", "-c", "chown -R 5050:5050 /var/lib/pgadmin"]
+      volumeMounts:
+        - name: data
+          mountPath: /var/lib/pgadmin
+      securityContext:
+        runAsUser: 0
   securityContext:
+    runAsUser: 5050
     fsGroup: 5050
   dataVolumeClaimSpec:
     accessModes:
