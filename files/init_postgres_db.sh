@@ -12,13 +12,12 @@ psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "drop table if
 drop table if exists coffeeshop.Orders cascade;
 drop table if exists coffeeshop.OutboxEvent cascade;"
 psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table coffeeshop.LineItems (
+                           id uuid not null,
                            order_id varchar(255) not null,
-                           itemId varchar(255) not null,
                            item varchar(255),
                            lineItemStatus varchar(255),
-                           name varchar(255),
                            price numeric(19, 2),
-                           primary key (order_id)
+                           primary key (id)
 );"
 
 psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table coffeeshop.Orders (
