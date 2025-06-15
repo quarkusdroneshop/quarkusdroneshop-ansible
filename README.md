@@ -325,6 +325,9 @@ quarkuscoffeeshop-demmoプロジェクトをクリアしたときに問題が発
 ./piplines.sh democonfig
 ```
 
+#### coffeeshopdb-coffeeshopdbのStatefulSetがうまくいかない場合
+oc adm policy add-scc-to-user anyuid -z coffeeshopdb-instance -n quarkuscoffeeshop-demo
+
 License
 -------
 GPLv3

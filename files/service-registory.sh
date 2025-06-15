@@ -36,3 +36,11 @@ curl -X POST \
     "schemaType": "AVRO"
   }'
 sleep 5
+
+curl -X POST \
+  http://coffeeshop-apicurioregistry-kafkasql.quarkuscoffeeshop-demo.router-default.apps.${CLUSTER_DOMAIN_NAME}/apis/ccompat/v7/subjects/web-updates/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"web_updates\",\"namespace\":\"quarkuscoffeeshop_demo\",\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"lineItemId\",\"type\":\"string\"},{\"name\":\"item\",\"type\":\"string\"},{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"timestamp\",\"type\":\"double\"},{\"name\":\"madeBy\",\"type\":[\"null\",\"string\"],\"default\":null}]}",
+    "schemaType": "AVRO"
+  }'
