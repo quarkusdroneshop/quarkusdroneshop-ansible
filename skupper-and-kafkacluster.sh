@@ -94,7 +94,10 @@ deploy() {
         skupper connector create external-cafe-cluster-kafka-asite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
-        
+
+        skupper listener create external-cafe-cluster-postgres-asite --host external-cafe-cluster-postgres-asite 5432 -n "$NAMESPACE"
+        skupper connector create external-cafe-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=coffeeshopdb -n "$NAMESPACE"
+
         # KafkaClusterの再作成
         oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
@@ -129,6 +132,9 @@ deploy() {
         skupper connector create external-cafe-cluster-kafka-bsite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
+
+        skupper listener create external-cafe-cluster-postgres-bsite --host external-cafe-cluster-postgres-bsite 5432 -n "$NAMESPACE"
+        skupper connector create external-cafe-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=coffeeshopdb -n "$NAMESPACE"
         
         # KafkaClusterの再作成
         oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
@@ -163,7 +169,13 @@ deploy() {
         skupper connector create external-cafe-cluster-kafka-csite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
-        
+       
+        skupper listener create external-cafe-cluster-postgres-csite --host external-cafe-cluster-postgres-csite 5432 -n "$NAMESPACE"
+        skupper connector create external-cafe-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=coffeeshopdb -n "$NAMESPACE"
+        skupper listener create external-cafe-cluster-postgres-asite 5432 -n "$NAMESPACE"
+        skupper listener create external-cafe-cluster-postgres-bsite 5432 -n "$NAMESPACE"
+
+                
         # KafkaClusterの再作成
         oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
@@ -235,6 +247,14 @@ cleanup() {
     skupper connector delete external-cafe-cluster-kafka-asite -n "$NAMESPACE"
     skupper connector delete external-cafe-cluster-kafka-bsite -n "$NAMESPACE"
     skupper connector delete external-cafe-cluster-kafka-csite -n "$NAMESPACE"
+
+    skupper listener delete external-cafe-cluster-postgres-asite -n quarkuscoffeeshop-demo
+    skupper connector delete external-cafe-cluster-postgres-asite -n quarkuscoffeeshop-demo
+    skupper listener delete external-cafe-cluster-postgres-bsite -n quarkuscoffeeshop-demo
+    skupper connector delete external-cafe-cluster-postgres-bsite -n quarkuscoffeeshop-demo
+    skupper listener delete external-cafe-cluster-postgres-csite -n quarkuscoffeeshop-demo
+    skupper connector delete external-cafe-cluster-postgres-csite -n quarkuscoffeeshop-demo
+
     skupper site delete skupper-asite
     skupper site delete skupper-bsite
     skupper site delete skupper-csite
