@@ -1,20 +1,20 @@
 apiVersion: console.streamshub.github.com/v1alpha1
 kind: Console
 metadata:
-  name: cafe-console
+  name: shop-console
   namespace: quarkusdroneshop-demo
 spec:
   features:
     kafka:
       staticConfig: true
   replicas: 1
-  hostname: cafe-console-quarkusdroneshop-demo.apps.{{ domain }}
+  hostname: shop-console-quarkusdroneshop-demo.apps.{{ domain }}
   template:
     metadata:
       labels:
         app: console
   kafkaClusters:
-    - name: cafe-cluster
+    - name: shop-cluster
       namespace: {{ project_namespace }}
       listener: plain
 ---

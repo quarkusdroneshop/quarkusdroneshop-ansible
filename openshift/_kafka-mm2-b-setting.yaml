@@ -3,7 +3,7 @@ kind: KafkaTopic
 metadata:
   name: mirrormaker2-cluster-offsets
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   topicName: mirrormaker2-cluster-offsets
   partitions: 1
@@ -16,7 +16,7 @@ kind: KafkaTopic
 metadata:
   name: mirrormaker2-cluster-status
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   topicName: mirrormaker2-cluster-status
   partitions: 1
@@ -29,7 +29,7 @@ kind: KafkaTopic
 metadata:
   name: mirrormaker2-cluster-configs
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   topicName: mirrormaker2-cluster-configs
   partitions: 1

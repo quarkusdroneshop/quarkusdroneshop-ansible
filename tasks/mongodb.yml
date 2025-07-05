@@ -11,7 +11,7 @@
   when: not delete_deployment|bool
 
 - name: Create mongodb instance
-  command: "{{ oc_location }} new-app --name=mongodb --template=mongodb-ephemeral -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -e MONGODB_DATABASE=cafedb -e MONGODB_ADMIN_PASSWORD=mongodb"
+  command: "{{ oc_location }} new-app --name=mongodb --template=mongodb-ephemeral -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -e MONGODB_DATABASE=shopdb -e MONGODB_ADMIN_PASSWORD=mongodb"
   when: not delete_deployment|bool
 
 - name: Waiting for mongodb build to complete

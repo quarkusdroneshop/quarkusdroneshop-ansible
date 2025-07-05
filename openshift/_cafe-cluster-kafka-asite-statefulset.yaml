@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: cafe-cluster-kafka
+  name: shop-cluster-kafka
   namespace: quarkusdroneshop-demo
 spec:
-  serviceName: "cafe-cluster-kafka"
+  serviceName: "shop-cluster-kafka"
   replicas: 3
   selector:
     matchLabels:
-      strimzi.io/cluster: cafe-cluster
+      strimzi.io/cluster: shop-cluster
   template:
     metadata:
       labels:
-        strimzi.io/cluster: cafe-cluster
+        strimzi.io/cluster: shop-cluster
     spec:
       initContainers:
         - name: init-config
@@ -21,7 +21,7 @@ spec:
             - -c
             - |
               echo "listeners=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9091" > /tmp/strimzi.properties
-              echo "advertised.listeners=PLAINTEXT://external-cafe-cluster-kafka-asite:9094" >> /tmp/strimzi.properties
+              echo "advertised.listeners=PLAINTEXT://external-shop-cluster-kafka-asite:9094" >> /tmp/strimzi.properties
           volumeMounts:
             - name: config-volume
               mountPath: /opt/kafka/config

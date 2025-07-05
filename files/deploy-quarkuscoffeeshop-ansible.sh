@@ -82,8 +82,8 @@ function configure-ansible-and-playbooks(){
   fi 
   
   checkpipmodules
-  echo "${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-cafe.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD}"
-  ${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-cafe.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD} -e 'ansible_python_interpreter=/usr/bin/python3' ${DEBUG}
+  echo "${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-shop.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD}"
+  ${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-shop.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD} -e 'ansible_python_interpreter=/usr/bin/python3' ${DEBUG}
 }
 
 function destory_drone_shop(){
@@ -93,8 +93,8 @@ function destory_drone_shop(){
   configure-ansible-and-playbooks
   checkpipmodules
 
-  echo "${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-cafe.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD}"
-  ${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-cafe.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD} -e 'ansible_python_interpreter=/usr/bin/python3'  ${DEBUG}
+  echo "${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-shop.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD}"
+  ${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-shop.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD} -e 'ansible_python_interpreter=/usr/bin/python3'  ${DEBUG}
 }
 
 function checkpipmodules(){
@@ -259,7 +259,7 @@ else
   QUAY_URL="quayecosystem-quay-{{ quay_project_name }}"
 fi 
 
-cat >/tmp/deploy-quarkus-cafe.yml<<YAML
+cat >/tmp/deploy-quarkus-shop.yml<<YAML
 - hosts: localhost
   become: yes
   vars:
@@ -278,7 +278,7 @@ cat >/tmp/deploy-quarkus-cafe.yml<<YAML
     - quarkusdroneshop-ansible
 YAML
 
-cat /tmp/deploy-quarkus-cafe.yml
+cat /tmp/deploy-quarkus-shop.yml
 sleep 3s 
 
 unameOut="$(uname -s)"

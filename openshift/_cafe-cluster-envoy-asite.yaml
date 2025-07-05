@@ -31,7 +31,7 @@ data:
                   - endpoint:
                       address:
                         socket_address:
-                          address: external-cafe-cluster-kafka-bsite.quarkusdroneshop-demo.svc.cluster.local
+                          address: external-shop-cluster-kafka-bsite.quarkusdroneshop-demo.svc.cluster.local
                           port_value: 9092
         admin:
       access_log_path: /tmp/admin_access.log

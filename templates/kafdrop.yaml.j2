@@ -1,7 +1,7 @@
 kind: DeploymentConfig
 apiVersion: apps.openshift.io/v1
 metadata:
-  name: quarkus-cafe-events-kafdrop
+  name: quarkus-shop-events-kafdrop
   labels:
     app: kafdrop
   annotations:
@@ -22,7 +22,7 @@ spec:
         - name: kafdrop
           env:
             - name: KAFKA_BROKERCONNECT
-              value: "cafe-cluster-kafka-bootstrap:9092"
+              value: "shop-cluster-kafka-bootstrap:9092"
           imagePullPolicy: IfNotPresent
           image: obsidiandynamics/kafdrop
           ports:
@@ -62,7 +62,7 @@ spec:
       protocol: TCP
       targetPort: 9000
   selector:
-    deploymentconfig: quarkus-cafe-events-kafdrop
+    deploymentconfig: quarkus-shop-events-kafdrop
 ---
 kind: Route
 apiVersion: route.openshift.io/v1

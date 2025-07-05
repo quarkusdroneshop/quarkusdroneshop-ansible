@@ -7,7 +7,7 @@ spec:
   configuration:
     persistence: kafkasql
     kafkasql:
-      bootstrapServers: 'cafe-cluster-kafka-bootstrap.{{ project_namespace }}.svc:9092'
+      bootstrapServers: 'shop-cluster-kafka-bootstrap.{{ project_namespace }}.svc:9092'
   deployment:
     env:
       - name: KAFKA_SASL_JAAS_CONFIG

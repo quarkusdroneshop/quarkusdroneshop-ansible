@@ -1,6 +1,6 @@
 galaxy_info:
   author: Tosin Akinoshoo
-  description: The quarkus-cafe-demo-role will deploy a event-driven demo application built with Quarkus, AMQ Streams (Kafka).
+  description: The quarkus-shop-demo-role will deploy a event-driven demo application built with Quarkus, AMQ Streams (Kafka).
   company: Red Hat
 
   # If the issue tracker for your role is not on github, uncomment the

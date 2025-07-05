@@ -23,11 +23,11 @@ replica_count:
   customerloyalty: {{ replica_customerloyalty }}
   web: {{ replica_web }}
 {% if  single_mongodb_install  == false and skip_mongodb_operator_install == false %}
-mongodb_url: mongodb://{{ mongodb_username }}:{{ mongodb_password }}+srv@quarkus-droneshop-replica-set-0.quarkus-droneshop-replica-set-svc.{{ project_namespace }}.svc.cluster.local:27017,quarkus-droneshop-replica-set-1.quarkus-droneshop-replica-set-svc.{{ project_namespace }}.svc.cluster.local:27017,quarkus-droneshop-replica-set-2.quarkus-droneshop-replica-set-svc.{{ project_namespace }}.svc.cluster.local:27017/cafedb?replicaSet=quarkus-droneshop-replica-set
+mongodb_url: mongodb://{{ mongodb_username }}:{{ mongodb_password }}+srv@quarkus-droneshop-replica-set-0.quarkus-droneshop-replica-set-svc.{{ project_namespace }}.svc.cluster.local:27017,quarkus-droneshop-replica-set-1.quarkus-droneshop-replica-set-svc.{{ project_namespace }}.svc.cluster.local:27017,quarkus-droneshop-replica-set-2.quarkus-droneshop-replica-set-svc.{{ project_namespace }}.svc.cluster.local:27017/shopdb?replicaSet=quarkus-droneshop-replica-set
 mongodb_username: {{ mongodb_username }}
 mongodb_password: {{ mongodb_password }}
 {% elif skip_mongodb_operator_install == false and single_mongodb_install == true %}
-mongodb_url: mongodb://mongodb:mongodb@mongodb:27017/cafedb
+mongodb_url: mongodb://mongodb:mongodb@mongodb:27017/shopdb
 mongodb_username: mongodb
 mongodb_password: mongodb
 {% elif skip_mongodb_operator_install  == true  and  single_mongodb_install  == true %}

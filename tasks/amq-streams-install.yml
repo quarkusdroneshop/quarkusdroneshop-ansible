@@ -86,12 +86,12 @@
     - amq
     - acm-workload
 
-- name: Search for all Pods labeled cafe-cluster-kafka
+- name: Search for all Pods labeled shop-cluster-kafka
   kubernetes.core.k8s_info:
     kind: Pod
     namespace: "{{ project_namespace }}"
     label_selectors:
-      - "strimzi.io/name=cafe-cluster-kafka,strimzi.io/broker-role=true"
+      - "strimzi.io/name=shop-cluster-kafka,strimzi.io/broker-role=true"
     field_selectors:
       - status.phase=Running
   register: r_kafka_status

@@ -1,12 +1,12 @@
 kind: DeploymentConfig
 apiVersion: v1
 metadata:
-  name: quarkus-cafe-demo-mongoku
+  name: quarkus-shop-demo-mongoku
   labels:
     app: mongoku
-    app.kubernetes.io/part-of: quarkus-cafe-demo-mongoku
+    app.kubernetes.io/part-of: quarkus-shop-demo-mongoku
   annotations:
-    app.openshift.io/connects-to: quarkus-cafe-demo-mongoku
+    app.openshift.io/connects-to: quarkus-shop-demo-mongoku
     app.openshift.io/vcs-uri: 'https://github.com/huggingface/Mongoku'
 spec:
   replicas: 1
@@ -64,7 +64,7 @@ spec:
       protocol: TCP
       targetPort: 3100
   selector:
-    deploymentconfig: quarkus-cafe-demo-mongoku
+    deploymentconfig: quarkus-shop-demo-mongoku
 ---
 kind: Route
 apiVersion: route.openshift.io/v1

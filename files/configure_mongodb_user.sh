@@ -2,7 +2,7 @@
 set -xe
 
 cat >/tmp/populate-user-mongo-script.js<<EOF
-db = db.getSiblingDB('cafedb')
+db = db.getSiblingDB('shopdb')
 db.createUser({
    user:"${MONGO_USERNAME}",
    pwd:"${MONGO_PASSWORD}",

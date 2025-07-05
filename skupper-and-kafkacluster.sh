@@ -90,16 +90,16 @@ deploy() {
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-asite --host external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-kafka-asite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-asite --host external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
+        skupper connector create external-shop-cluster-kafka-asite 9094 --selector app.kubernetes.io/part-of=strimzi-shop-cluster -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
 
-        skupper listener create external-cafe-cluster-postgres-asite --host external-cafe-cluster-postgres-asite 5432 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-asite --host external-shop-cluster-postgres-asite 5432 -n "$NAMESPACE"
+        skupper connector create external-shop-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
 
         # KafkaClusterの再作成
-        oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/shop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-a-site.yaml -n "$NAMESPACE"
@@ -128,16 +128,16 @@ deploy() {
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-bsite --host external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-kafka-bsite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-bsite --host external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
+        skupper connector create external-shop-cluster-kafka-bsite 9094 --selector app.kubernetes.io/part-of=strimzi-shop-cluster -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
 
-        skupper listener create external-cafe-cluster-postgres-bsite --host external-cafe-cluster-postgres-bsite 5432 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-bsite --host external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
+        skupper connector create external-shop-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         
         # KafkaClusterの再作成
-        oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/shop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-b-site.yaml -n "$NAMESPACE"
@@ -165,19 +165,19 @@ deploy() {
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-csite --host external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-kafka-csite 9094 --selector app.kubernetes.io/part-of=strimzi-cafe-cluster -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-asite 9094 -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-csite --host external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
+        skupper connector create external-shop-cluster-kafka-csite 9094 --selector app.kubernetes.io/part-of=strimzi-shop-cluster -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
        
-        skupper listener create external-cafe-cluster-postgres-csite --host external-cafe-cluster-postgres-csite 5432 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-postgres-asite 5432 -n "$NAMESPACE"
-        skupper listener create external-cafe-cluster-postgres-bsite 5432 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-csite --host external-shop-cluster-postgres-csite 5432 -n "$NAMESPACE"
+        skupper connector create external-shop-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-asite 5432 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
 
                 
         # KafkaClusterの再作成
-        oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/shop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"
@@ -241,19 +241,19 @@ cleanup() {
     # Site含む全部削除
     oc delete kafkamirrormaker2 --all -n "$NAMESPACE"
     oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-    skupper listener delete external-cafe-cluster-kafka-asite -n "$NAMESPACE"
-    skupper listener delete external-cafe-cluster-kafka-bsite -n "$NAMESPACE"
-    skupper listener delete external-cafe-cluster-kafka-csite -n "$NAMESPACE"
-    skupper connector delete external-cafe-cluster-kafka-asite -n "$NAMESPACE"
-    skupper connector delete external-cafe-cluster-kafka-bsite -n "$NAMESPACE"
-    skupper connector delete external-cafe-cluster-kafka-csite -n "$NAMESPACE"
+    skupper listener delete external-shop-cluster-kafka-asite -n "$NAMESPACE"
+    skupper listener delete external-shop-cluster-kafka-bsite -n "$NAMESPACE"
+    skupper listener delete external-shop-cluster-kafka-csite -n "$NAMESPACE"
+    skupper connector delete external-shop-cluster-kafka-asite -n "$NAMESPACE"
+    skupper connector delete external-shop-cluster-kafka-bsite -n "$NAMESPACE"
+    skupper connector delete external-shop-cluster-kafka-csite -n "$NAMESPACE"
 
-    skupper listener delete external-cafe-cluster-postgres-asite -n quarkusdroneshop-demo
-    skupper connector delete external-cafe-cluster-postgres-asite -n quarkusdroneshop-demo
-    skupper listener delete external-cafe-cluster-postgres-bsite -n quarkusdroneshop-demo
-    skupper connector delete external-cafe-cluster-postgres-bsite -n quarkusdroneshop-demo
-    skupper listener delete external-cafe-cluster-postgres-csite -n quarkusdroneshop-demo
-    skupper connector delete external-cafe-cluster-postgres-csite -n quarkusdroneshop-demo
+    skupper listener delete external-shop-cluster-postgres-asite -n quarkusdroneshop-demo
+    skupper connector delete external-shop-cluster-postgres-asite -n quarkusdroneshop-demo
+    skupper listener delete external-shop-cluster-postgres-bsite -n quarkusdroneshop-demo
+    skupper connector delete external-shop-cluster-postgres-bsite -n quarkusdroneshop-demo
+    skupper listener delete external-shop-cluster-postgres-csite -n quarkusdroneshop-demo
+    skupper connector delete external-shop-cluster-postgres-csite -n quarkusdroneshop-demo
 
     skupper site delete skupper-asite
     skupper site delete skupper-bsite

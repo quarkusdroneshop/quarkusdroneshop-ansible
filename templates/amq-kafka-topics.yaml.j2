@@ -3,7 +3,7 @@ kind: KafkaTopic
 metadata:
   name: barista-in
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -16,7 +16,7 @@ kind: KafkaTopic
 metadata:
   name: kitchen-in
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -29,7 +29,7 @@ kind: KafkaTopic
 metadata:
   name: orders-in
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -42,7 +42,7 @@ kind: KafkaTopic
 metadata:
   name: orders-up
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -55,7 +55,7 @@ spec:
 #metadata:
 #  name: orders
 #  labels:
-#    strimzi.io/cluster: cafe-cluster
+#    strimzi.io/cluster: shop-cluster
 #spec:
 #  partitions: 10
 #  replicas: 3
@@ -68,7 +68,7 @@ spec:
 #metadata:
 #  name: consumer-offsets---84e7a678d08f4bd226872e5cdd4eb527fadc1c6a
 #  labels:
-#    strimzi.io/cluster: cafe-cluster
+#    strimzi.io/cluster: shop-cluster
 #spec:
 #  partitions: 10
 #  replicas: 3
@@ -81,7 +81,7 @@ spec:
 #metadata:
 #  name: web-in
 #  labels:
-#    strimzi.io/cluster: cafe-cluster
+#    strimzi.io/cluster: shop-cluster
 #spec:
 #  partitions: 10
 #  replicas: 3
@@ -94,7 +94,7 @@ kind: KafkaTopic
 metadata:
   name: web-updates
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -107,7 +107,7 @@ kind: KafkaTopic
 metadata:
   name: loyalty-updates
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -120,7 +120,7 @@ spec:
 #metadata:
 #  name: webui
 #  labels:
-#    strimzi.io/cluster: cafe-cluster
+#    strimzi.io/cluster: shop-cluster
 #spec:
 #  partitions: 10
 #  replicas: 3
@@ -133,7 +133,7 @@ spec:
 #metadata:
 #  name: web-updates-order-up
 #  labels:
-#    strimzi.io/cluster:  cafe-cluster
+#    strimzi.io/cluster:  shop-cluster
 #spec:
 #  partitions: 10
 #  replicas: 3
@@ -146,7 +146,7 @@ kind: KafkaTopic
 metadata:
   name: eighty-six
   labels:
-    strimzi.io/cluster:  cafe-cluster
+    strimzi.io/cluster:  shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -159,7 +159,7 @@ kind: KafkaTopic
 metadata:
   name: inventory-in
   labels:
-    strimzi.io/cluster:  cafe-cluster
+    strimzi.io/cluster:  shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -172,7 +172,7 @@ kind: KafkaTopic
 metadata:
   name: inventory-out
   labels:
-    strimzi.io/cluster:  cafe-cluster
+    strimzi.io/cluster:  shop-cluster
 spec:
   partitions: 10
   replicas: 3
@@ -185,7 +185,7 @@ kind: KafkaTopic
 metadata:
   name: loyalty-member-purchase
   labels:
-    strimzi.io/cluster:  cafe-cluster
+    strimzi.io/cluster:  shop-cluster
 spec:
   partitions: 10
   replicas: 3

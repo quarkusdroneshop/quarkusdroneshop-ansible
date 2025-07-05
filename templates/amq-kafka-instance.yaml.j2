@@ -4,7 +4,7 @@ metadata:
   annotations:
     strimzi.io/kraft: enabled
     strimzi.io/node-pools: enabled
-  name: cafe-cluster
+  name: shop-cluster
   namespace: {{ project_namespace }}
   labels:
     environment: dev
@@ -37,10 +37,10 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaNodePool
 metadata:
-  name: cafe-cluster-controllers
+  name: shop-cluster-controllers
   namespace: {{ project_namespace }}
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   replicas: 3
   roles:
@@ -53,10 +53,10 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaNodePool
 metadata:
-  name: cafe-cluster-brokers
+  name: shop-cluster-brokers
   namespace: {{ project_namespace }}
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   replicas: 3
   roles:
@@ -72,7 +72,7 @@ metadata:
   name: quarkusdroneshop-user
   namespace: quarkusdroneshop-demo
   labels:
-    strimzi.io/cluster: cafe-cluster
+    strimzi.io/cluster: shop-cluster
 spec:
   authentication:
     type: scram-sha-512

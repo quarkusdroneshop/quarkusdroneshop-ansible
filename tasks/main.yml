@@ -1,5 +1,5 @@
 ---
-# tasks file for quarkus-cafe-demo-role
+# tasks file for quarkus-shop-demo-role
 - name: Configure settings environment using OpenShift token
   block:
     - name: Login Cluster

@@ -4,7 +4,7 @@ metadata:
   name: droneshop-config
   namespace: quarkusdroneshop-demo
 data:
-  KAFKA_BOOTSTRAP_URLS: "cafe-cluster-kafka-bootstrap:9092"
+  KAFKA_BOOTSTRAP_URLS: "shop-cluster-kafka-bootstrap:9092"
   STREAM_URL: "http://localhost:8080/dashboard/stream"
   LOYALTY_STREAM_URL: "http://localhost:8080/dashboard/loyaltystream"
   CORS_ORIGINS: "http://localhost:8080"

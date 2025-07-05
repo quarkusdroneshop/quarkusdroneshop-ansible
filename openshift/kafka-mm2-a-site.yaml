@@ -6,13 +6,13 @@ metadata:
 spec:
   version: 3.9.0
   replicas: 1
-  connectCluster: "cafe-asite"
+  connectCluster: "shop-asite"
   enableRestApi: true
   clusters:
-    - alias: "cafe-bsite"
-      bootstrapServers: "external-cafe-cluster-kafka-bsite:9094"
-    - alias: "cafe-asite"
-      bootstrapServers: "cafe-cluster-kafka-external-bootstrap:9094"
+    - alias: "shop-bsite"
+      bootstrapServers: "external-shop-cluster-kafka-bsite:9094"
+    - alias: "shop-asite"
+      bootstrapServers: "shop-cluster-kafka-external-bootstrap:9094"
   ports:
     - name: rest-api
       port: 8083
@@ -30,14 +30,14 @@ spec:
       org.apache.kafka.connect.mirror.MirrorClient: "DEBUG"
       org.apache.kafka.connect.mirror.OffsetSyncStore: "DEBUG"
   mirrors:
-    - sourceCluster: "cafe-bsite"
-      targetCluster: "cafe-asite"
+    - sourceCluster: "shop-bsite"
+      targetCluster: "shop-asite"
       topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
         config:
-          bootstrap.servers: "external-cafe-cluster-kafka-bsite:9094"
+          bootstrap.servers: "external-shop-cluster-kafka-bsite:9094"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"

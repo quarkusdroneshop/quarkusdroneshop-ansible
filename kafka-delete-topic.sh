@@ -16,10 +16,10 @@
 
 NAMESPACE="quarkusdroneshop-demo"
 KAFKA_POD=$(oc get pod -n "$NAMESPACE" -l strimzi.io/kind=Kafka -o jsonpath='{.items[0].metadata.name}')
-BOOTSTRAP_SERVER="cafe-cluster-kafka-bootstrap:9092"                                    ## ローカルKafka
-A_PATTERN="^cafe-asite.*"
-B_PATTERN="^cafe-bsite.*"
-C_PATTERN="^cafe-csite.*"
+BOOTSTRAP_SERVER="shop-cluster-kafka-bootstrap:9092"                                    ## ローカルKafka
+A_PATTERN="^shop-asite.*"
+B_PATTERN="^shop-bsite.*"
+C_PATTERN="^shop-csite.*"
 
 echo "###################################"
 echo "このシェルはメンテナンスシェルです"

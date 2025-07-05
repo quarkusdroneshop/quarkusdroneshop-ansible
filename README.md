@@ -32,26 +32,26 @@ Currently tested on
 
 ScreenShots
 ------------------------------------------------
-![quarkusdroneshop topology](images/quarkus-cafe-applications.png "quarkusdroneshop topology")
+![quarkusdroneshop topology](images/quarkus-shop-applications.png "quarkusdroneshop topology")
 
 ![quarkusdroneshop AMQ kafka topics](images/amq-topics.png "quarkusdroneshop  kafka topics")
 
-http://quarkusdroneshop-web-quarkus-cafe-demo.apps.example.com example
+http://quarkusdroneshop-web-quarkus-shop-demo.apps.example.com example
 ![qquarkusdroneshop application](images/webpage-example.png "quarkusdroneshop application")
 
 Usage
 ----------------
 * Default web page 5.0.1-SNAPSHOT  
-  * http://quarkusdroneshop-web-quarkus-cafe-demo.apps.example.com/
+  * http://quarkusdroneshop-web-quarkus-shop-demo.apps.example.com/
 this endpoint is used to view the events coming into the cluster
 * Default web page v3.3.1  
-  * http://quarkusdroneshop-web-quarkus-cafe-demo.apps.example.com/cafe
+  * http://quarkusdroneshop-web-quarkus-shop-demo.apps.example.com/shop
 this endpoint is used to view the events coming into the cluster
-* If you deploy skip_quarkus_cafe_customermock this will automatically push events to the quarkus cafe dashboard.
+* If you deploy skip_quarkus_shop_customermock this will automatically push events to the quarkus shop dashboard.
 * If you would like to manally push events to AMQ use the command below.
 
 ```shell
-export ENDPOINT="quarkusdroneshop-web-quarkus-cafe-demo.apps.ocp4.example.com"
+export ENDPOINT="quarkusdroneshop-web-quarkus-shop-demo.apps.ocp4.example.com"
 curl  --request POST http://${ENDPOINT}/order \
 --header 'Content-Type: application/json' \
 --header 'Accept: application/json' \
@@ -106,7 +106,7 @@ single_mongodb_install | Skip single instance mongodb | false
 skip_quarkusdroneshop_helm_install |  Skip quarkusdroneshop helm chart install  |  false
 openshift_token | OpenShift login token  | 123456789
 openshift_url | OpenShift target url  | https://master.example.com
-project_namespace | OpenShift Project name for the quarkus-cafe | quarkusdroneshop-demo
+project_namespace | OpenShift Project name for the quarkus-shop | quarkusdroneshop-demo
 insecure_skip_tls_verify  |  Skip insecure tls verify  |  true
 default_owner | Default owner of template files. | root
 default_group | Default group of template files. |  root

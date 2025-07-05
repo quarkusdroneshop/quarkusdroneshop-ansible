@@ -3,7 +3,7 @@ kind: KafkaUser
 metadata:
   name: test
   labels:
-    strimzi.io/cluster: cafe-cluster              # ← Kafka クラスタ名に合わせて
+    strimzi.io/cluster: shop-cluster              # ← Kafka クラスタ名に合わせて
   namespace: quarkusdroneshop-demo                # ← Kafka クラスタがある namespace に変更
 spec:
   authentication:

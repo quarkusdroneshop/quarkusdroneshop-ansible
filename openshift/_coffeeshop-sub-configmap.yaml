@@ -4,7 +4,7 @@ metadata:
   name: droneshop-sub-config
   namespace: quarkusdroneshop-demo
 data:
-  KAFKA_BOOTSTRAP_URLS: "cafe-cluster-kafka-bootstrap:9092"
+  KAFKA_BOOTSTRAP_URLS: "shop-cluster-kafka-bootstrap:9092"
   QUARKUS_LOG_LEVEL: "INFO"
   QUARKUSCOFFEESHOP_LOG_LEVEL: "INFO"
   REST_URL: "http://localhost:8080/order"
