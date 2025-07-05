@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: homeoffice-backend
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
   labels:
     app: homeoffice-backend
     environment: production
-    category: coffeeshop
+    category: droneshop
 spec:
   template:
     spec:
@@ -16,15 +16,15 @@ spec:
            - name: POSTGRESQL_JDBC_URL
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: PGSQL_URL
            - name: POSTGRESQL_USER
              valueFrom:
                secretKeyRef:
-                 name: coffeeshopdb-pguser-coffeeshopadmin
+                 name: droneshopdb-pguser-droneshopadmin
                  key: user
            - name: POSTGRESQL_PASSWORD
              valueFrom:
                secretKeyRef:
-                 name: coffeeshopdb-pguser-coffeeshopadmin
+                 name: droneshopdb-pguser-droneshopadmin
                  key: password

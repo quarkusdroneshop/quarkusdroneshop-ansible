@@ -15,5 +15,5 @@
 # 実行にはnpm install --save-dev cypressによる node_modules が必須です。
 
 cd tests
-# Cypress テスト coffeeshop.cy.js を実行
-npx cypress run --spec "cypress/e2e/coffeeshop.cy.js"
+# Cypress テスト droneshop.cy.js を実行
+npx cypress run --spec "cypress/e2e/droneshop.cy.js"

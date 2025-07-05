@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: customermocker
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
   labels:
     app: customermocker
     environment: production
-    category: coffeeshop
+    category: droneshop
 spec:
   template:
     spec:
@@ -16,5 +16,5 @@ spec:
            - name: REST_URL
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: REST_URL

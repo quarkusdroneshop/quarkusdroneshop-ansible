@@ -131,7 +131,7 @@
     public_apikey: "{{ publicApiKey.stdout }}"
   when: not delete_deployment|bool
 
-- name: Create quarkuscoffeeshop ops-manager-admin-key in  project
+- name: Create quarkusdroneshop ops-manager-admin-key in  project
   shell: "{{ oc_location }} -n {{ project_namespace }} create secret generic ops-manager-admin-key --from-literal=\"user={{ mongodbops_admin }}\" --from-literal=\"publicApiKey={{ public_apikey }}\""
   when: not delete_deployment|bool
   ignore_errors: yes
@@ -139,15 +139,15 @@
     executable: /bin/bash
 
 
-- name: Create quarkuscoffeeshop organization
-  shell: " curl --user {{ mongodbops_admin }}:{{ public_apikey }} --digest  --header 'Accept: application/json'  --header 'Content-Type: application/json'  --include  --request POST \"http://{{ mongodb_url }}/api/public/v1.0/orgs\"  --data '{ \"name\" : \"quarkuscoffeeshop\" }'"
+- name: Create quarkusdroneshop organization
+  shell: " curl --user {{ mongodbops_admin }}:{{ public_apikey }} --digest  --header 'Accept: application/json'  --header 'Content-Type: application/json'  --include  --request POST \"http://{{ mongodb_url }}/api/public/v1.0/orgs\"  --data '{ \"name\" : \"quarkusdroneshop\" }'"
   register: publicApiKey
   when: not delete_deployment|bool
   args:
     executable: /bin/bash
 
-- name: Get quarkuscoffeeshop organization
-  shell: "curl -s  --user {{ mongodbops_admin }}:{{ public_apikey }} --digest  --header 'Accept: application/json'  --header 'Content-Type: application/json'   --request GET http://{{ mongodb_url }}/api/public/v1.0/orgs |  jq '.results[] | select(  .name == \"quarkuscoffeeshop\" ) |.id' | xargs"
+- name: Get quarkusdroneshop organization
+  shell: "curl -s  --user {{ mongodbops_admin }}:{{ public_apikey }} --digest  --header 'Accept: application/json'  --header 'Content-Type: application/json'   --request GET http://{{ mongodb_url }}/api/public/v1.0/orgs |  jq '.results[] | select(  .name == \"quarkusdroneshop\" ) |.id' | xargs"
   register: get_org_id
   ignore_errors: yes
   args:
@@ -171,19 +171,19 @@
 
 - name: Copying over MongoDB Replica Set
   template:
-    src: templates/quarkus-coffeeshop-replica-set.yaml.j2
-    dest:  "{{ config_location }}/quarkus-coffeeshop-replica-set.yaml"
+    src: templates/quarkus-droneshop-replica-set.yaml.j2
+    dest:  "{{ config_location }}/quarkus-droneshop-replica-set.yaml"
     owner: "{{ default_owner }}"
     group: "{{ default_group }}"
     mode: 0666
 
 - name:  Create MongoDB Replica Set
-  command: "{{ oc_location }}  create -f {{ config_location }}quarkus-coffeeshop-replica-set.yaml"
+  command: "{{ oc_location }}  create -f {{ config_location }}quarkus-droneshop-replica-set.yaml"
   when: not delete_deployment|bool
 
-- name: Waiting for quarkus-coffeeshop-replica-set to deploy
+- name: Waiting for quarkus-droneshop-replica-set to deploy
   shell: |
-    set -o pipefail && {{ oc_location }} get pods | grep quarkus-coffeeshop-replica-set | grep 1/1 | wc -l
+    set -o pipefail && {{ oc_location }} get pods | grep quarkus-droneshop-replica-set | grep 1/1 | wc -l
   register: mongoops_status
   when: not delete_deployment|bool
   until: "'3' in mongoops_status.stdout"
@@ -192,9 +192,9 @@
   args:
     executable: /bin/bash
 
-- name: Waiting for quarkus-coffeeshop-replica-set to  Reconcile
+- name: Waiting for quarkus-droneshop-replica-set to  Reconcile
   shell: |
-    set -o pipefail && {{ oc_location }} get MongoDB quarkus-coffeeshop-replica-set | grep Running  | wc -l
+    set -o pipefail && {{ oc_location }} get MongoDB quarkus-droneshop-replica-set | grep Running  | wc -l
   register: mongoops_reconcile
   when: not delete_deployment|bool
   until: "'1' in mongoops_reconcile.stdout"
@@ -277,12 +277,12 @@
   when: delete_deployment|bool
 
 - name:  Delete MongoDB Replica Set
-  command: "{{ oc_location }}  delete -f {{ config_location }}quarkus-coffeeshop-replica-set.yaml"
+  command: "{{ oc_location }}  delete -f {{ config_location }}quarkus-droneshop-replica-set.yaml"
   ignore_errors: yes
   when: delete_deployment|bool
 
 - name: Remove MongoDB Replica Set pvc
-  command: "{{ oc_location }}  delete pvc data-quarkus-coffeeshop-replica-set-{{ item }}"
+  command: "{{ oc_location }}  delete pvc data-quarkus-droneshop-replica-set-{{ item }}"
   ignore_errors: yes
   loop:
     - 0

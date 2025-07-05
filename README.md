@@ -1,19 +1,19 @@
 # Docs
 
-quarkuscoffeeshopを使ったDataMeshのデモアプリになります。
+quarkusdroneshopを使ったDataMeshのデモアプリになります。
 
 オリジナルサイトは下記をご覧ください。
-Please see the Github Pages Site for complete documentation: [quarkuscoffeeshop.github.io](https://quarkuscoffeeshop.github.io)
+Please see the Github Pages Site for complete documentation: [quarkusdroneshop.github.io](https://quarkusdroneshop.github.io)
 
 QuarkusCoffeeshop Install
 =========
 
 _NOTE:_ Ansible must be installed https://docs.ansible.com/ansible/latest/installation_guide/index.html
 
-The QuarkusCoffeeshop Ansbile Role performs a basic installation that includes the microservices for a coffeeshop, installation of the Crunchy PostgreSQL DB, AMQ Streams (Kafka.)
+The QuarkusCoffeeshop Ansbile Role performs a basic installation that includes the microservices for a droneshop, installation of the Crunchy PostgreSQL DB, AMQ Streams (Kafka.)
 
 The QuarkusCoffeeshop Role will deploy an event-driven demo application built with Quarkus, AMQ Streams (Kafka), and MongoDB. The application deploys to OpenShift (Kubernetes.)
-The source code for the  [quarkuscoffeeshop](https://github.com/quarkuscoffeeshop) application support doc can be found  [here](https://github.com/quarkuscoffeeshop/quarkuscoffeeshop-support).
+The source code for the  [quarkusdroneshop](https://github.com/quarkusdroneshop) application support doc can be found  [here](https://github.com/quarkusdroneshop/quarkusdroneshop-support).
 
 ※ MongoDBはテスト用なのでデモでは利用しません。
 
@@ -32,26 +32,26 @@ Currently tested on
 
 ScreenShots
 ------------------------------------------------
-![quarkuscoffeeshop topology](images/quarkus-cafe-applications.png "quarkuscoffeeshop topology")
+![quarkusdroneshop topology](images/quarkus-cafe-applications.png "quarkusdroneshop topology")
 
-![quarkuscoffeeshop AMQ kafka topics](images/amq-topics.png "quarkuscoffeeshop  kafka topics")
+![quarkusdroneshop AMQ kafka topics](images/amq-topics.png "quarkusdroneshop  kafka topics")
 
-http://quarkuscoffeeshop-web-quarkus-cafe-demo.apps.example.com example
-![qquarkuscoffeeshop application](images/webpage-example.png "quarkuscoffeeshop application")
+http://quarkusdroneshop-web-quarkus-cafe-demo.apps.example.com example
+![qquarkusdroneshop application](images/webpage-example.png "quarkusdroneshop application")
 
 Usage
 ----------------
 * Default web page 5.0.1-SNAPSHOT  
-  * http://quarkuscoffeeshop-web-quarkus-cafe-demo.apps.example.com/
+  * http://quarkusdroneshop-web-quarkus-cafe-demo.apps.example.com/
 this endpoint is used to view the events coming into the cluster
 * Default web page v3.3.1  
-  * http://quarkuscoffeeshop-web-quarkus-cafe-demo.apps.example.com/cafe
+  * http://quarkusdroneshop-web-quarkus-cafe-demo.apps.example.com/cafe
 this endpoint is used to view the events coming into the cluster
 * If you deploy skip_quarkus_cafe_customermock this will automatically push events to the quarkus cafe dashboard.
 * If you would like to manally push events to AMQ use the command below.
 
 ```shell
-export ENDPOINT="quarkuscoffeeshop-web-quarkus-cafe-demo.apps.ocp4.example.com"
+export ENDPOINT="quarkusdroneshop-web-quarkus-cafe-demo.apps.ocp4.example.com"
 curl  --request POST http://${ENDPOINT}/order \
 --header 'Content-Type: application/json' \
 --header 'Accept: application/json' \
@@ -103,14 +103,14 @@ deployment_method | docker or s2i build | docker
 skip_amq_install |  Skip Red Hat AMQ Install  |  false
 skip_mongodb_operator_install |  Skip MongoDB Operator Install  |  false
 single_mongodb_install | Skip single instance mongodb | false
-skip_quarkuscoffeeshop_helm_install |  Skip quarkuscoffeeshop helm chart install  |  false
+skip_quarkusdroneshop_helm_install |  Skip quarkusdroneshop helm chart install  |  false
 openshift_token | OpenShift login token  | 123456789
 openshift_url | OpenShift target url  | https://master.example.com
-project_namespace | OpenShift Project name for the quarkus-cafe | quarkuscoffeeshop-demo
+project_namespace | OpenShift Project name for the quarkus-cafe | quarkusdroneshop-demo
 insecure_skip_tls_verify  |  Skip insecure tls verify  |  true
 default_owner | Default owner of template files. | root
 default_group | Default group of template files. |  root
-delete_deployment  | delete the deployment and project for quarkuscoffeeshop-demo  | false
+delete_deployment  | delete the deployment and project for quarkusdroneshop-demo  | false
 amqstartingCSV  | Red Hat AMQ csv version  |  amqstreams.v2.9.0-2
 mongodbstartingCSV  | MongoDB Ops Manager version  |  mongodb-enterprise.v1.8.0
 config_location  | default location for application templates  | "/tmp/"
@@ -120,12 +120,12 @@ version_customermocker | Default container customermocker tag | 3.0.1
 version_kitchen | Default container kitchen tag | 5.0.0-SNAPSHOT
 version_web | Default container web tag | 5.0.1-SNAPSHOT
 helm_chart_version | Version of Qaurkus Cafe Helm Chart | 3.4.4
-pgsql_username | Default postgress user  | coffeeshopadmin
+pgsql_username | Default postgress user  | droneshopadmin
 postgres_password | this is the postgress password that will be used in deployment| must be changed
-pgsql_url | default postgres URL | 'jdbc:postgresql://coffeeshopdb:5432/coffeeshopdb?currentSchema=coffeeshop'
+pgsql_url | default postgres URL | 'jdbc:postgresql://droneshopdb:5432/droneshopdb?currentSchema=droneshop'
 storeid | Store id for web frontend | RALEIGH
-quarkus_log_level | Quarkus coffee shop log level |  INFO
-quarkuscoffeeshop_log_level | Microservice log level | DEBUG
+quarkus_log_level | Quarkus drone shop log level |  INFO
+quarkusdroneshop_log_level | Microservice log level | DEBUG
 
 OpenShiftへのデプロイ手順
 ---------------
@@ -135,14 +135,14 @@ OpenShiftへのデプロイ手順
 次に下記プロジェクトをCloneします。
 （オリジナルサイトのアプリでなく同Gitアカウント上にあるリポジトリを利用してください）
 
-* quarkuscoffeeshop-web
-* quarkuscoffeeshop-counter
-* quarkuscoffeeshop-kitchen
-* quarkuscoffeeshop-barista
-* quarkuscoffeeshop-inventory
-* quarkuscoffeeshop-customermocker
+* quarkusdroneshop-web
+* quarkusdroneshop-counter
+* quarkusdroneshop-kitchen
+* quarkusdroneshop-barista
+* quarkusdroneshop-inventory
+* quarkusdroneshop-customermocker
 * homeoffice-backend
-* quarkuscoffeeshop-homeoffice-ui
+* quarkusdroneshop-homeoffice-ui
 
 クラスタは下記のようなシングルノードで問題ありません。ただし、3つクラスタ作成しておいてください。
 https://catalog.demo.redhat.com/catalog?search=single&item=babylon-catalog-prod%2Fsandboxes-gpte.ocp4-single-node.prod
@@ -192,7 +192,7 @@ Operatorのインストール後、デプロイするアプリを選択するメ
 ./piplines.sh democonfig
 ```
 
-Piplineは、quarkuscoffeeshop-cicdプロジェクトに作成されます。
+Piplineは、quarkusdroneshop-cicdプロジェクトに作成されます。
 OpenShiftコンソールにあるPiplineメニューから、適切なアプリを選択しOpenShiftのPiplineメニューから作成をクリックしてください。
 その際、作成フォルダとしてPVCの選択を促されますが、アプリ名にあったPVCを適宜選択して実行してください。
 Piplineが無事実行されればアプリデプロイは完了します。
@@ -202,18 +202,18 @@ Piplineが無事実行されればアプリデプロイは完了します。
 
 また、デプロイ推奨構成としては下記になります。
 #### Aサイト
-* quarkuscoffeeshop-web
-* quarkuscoffeeshop-counter
+* quarkusdroneshop-web
+* quarkusdroneshop-counter
 #### Bサイト
-* quarkuscoffeeshop-kitchen
-* quarkuscoffeeshop-barista
-* quarkuscoffeeshop-inventory
+* quarkusdroneshop-kitchen
+* quarkusdroneshop-barista
+* quarkusdroneshop-inventory
 #### Cサイト
 * homeoffice-backend
-* quarkuscoffeeshop-homeoffice-ui
+* quarkusdroneshop-homeoffice-ui
 
 ### アプリのWeb画面
-Webアプリをデプロイしたドメインに「quarkuscoffeeshop-web」というRouteができていると思います。
+Webアプリをデプロイしたドメインに「quarkusdroneshop-web」というRouteができていると思います。
 これをクリックしてアプリにアクセスしてください。
 その際、HTTPでのアクセスになりますので、ご注意ください。
 
@@ -244,7 +244,7 @@ HTTPアクセスであること、Pod起動するまでに5分ぐらいかかる
 https://docs.open-metadata.org/latest/deployment/security/basic-auth
 
 ### pgadminのログイン
-「quarkuscoffeeshop」プロジェクトにある「pgadmin4」Routeからログインします。
+「quarkusdroneshop」プロジェクトにある「pgadmin4」Routeからログインします。
 Ansibleの定義ファイルにある下記を参考にログインしてください。
 * ユーザ：{{ pgadmin_setup_email }}
 * パスワード：{{ pgadmin_default_password }}
@@ -318,7 +318,7 @@ registry_starting_csv: service-registry-operator.v2.6.10
 
 #### Piplineタスクがうまくいかない場合
 
-quarkuscoffeeshop-demmoプロジェクトをクリアしたときに問題が発生する場合があります。
+quarkusdroneshop-demmoプロジェクトをクリアしたときに問題が発生する場合があります。
 その場合、下記シェルにて、Demo用のConfigmapを追加する必要があります。
 
 ```

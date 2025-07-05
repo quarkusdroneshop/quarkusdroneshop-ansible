@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: cafe-cluster-kafka
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
 spec:
   serviceName: "cafe-cluster-kafka"
   replicas: 3

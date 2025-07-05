@@ -1,8 +1,8 @@
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
-  name: quarkuscoffeeshop-cicd-operatorgroup
-  namespace: quarkuscoffeeshop-cicd
+  name: quarkusdroneshop-cicd-operatorgroup
+  namespace: quarkusdroneshop-cicd
 spec:
   targetNamespaces:
     - openshift-operators

@@ -12,13 +12,13 @@
         "creationTimestamp": "2025-05-22T12:20:55Z",
         "deletionTimestamp": "2025-05-23T10:32:07Z",
         "labels": {
-            "kubernetes.io/metadata.name": "quarkuscoffeeshop-demo",
+            "kubernetes.io/metadata.name": "quarkusdroneshop-demo",
             "pod-security.kubernetes.io/audit": "baseline",
             "pod-security.kubernetes.io/audit-version": "v1.24",
             "pod-security.kubernetes.io/warn": "baseline",
             "pod-security.kubernetes.io/warn-version": "v1.24"
         },
-        "name": "quarkuscoffeeshop-demo",
+        "name": "quarkusdroneshop-demo",
         "resourceVersion": "220965",
         "uid": "be5d74e0-0feb-4b41-bd61-db8b497039da"
     },

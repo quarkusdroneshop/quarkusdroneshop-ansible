@@ -32,7 +32,7 @@ spec:
 
       RUN dnf install -y  curl wget  
 
-      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/master/files/configure_mongodb_utils.sh && chmod +x  configure_mongodb_utils.sh && bash configure_mongodb_utils.sh
+      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkusdroneshop-ansible/refs/heads/master/files/configure_mongodb_utils.sh && chmod +x  configure_mongodb_utils.sh && bash configure_mongodb_utils.sh
       
       CMD ["sleep", "10000"]
   triggers:
@@ -120,7 +120,7 @@ spec:
           env:
             - name: MONGO_CONNECTION_STRING
               value: >-
-                quarkus-coffeeshop-replica-set-0.quarkus-coffeeshop-replica-set-svc.{{ project_namespace }}.svc.cluster.local
+                quarkus-droneshop-replica-set-0.quarkus-droneshop-replica-set-svc.{{ project_namespace }}.svc.cluster.local
             - name: MONGO_USERNAME
               value: {{ mongodb_username }}
             - name: MONGO_PASSWORD

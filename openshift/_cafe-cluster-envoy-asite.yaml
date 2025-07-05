@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: envoy-config
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
 data:
   envoy.yaml: |
     static_resources:
@@ -31,7 +31,7 @@ data:
                   - endpoint:
                       address:
                         socket_address:
-                          address: external-cafe-cluster-kafka-bsite.quarkuscoffeeshop-demo.svc.cluster.local
+                          address: external-cafe-cluster-kafka-bsite.quarkusdroneshop-demo.svc.cluster.local
                           port_value: 9092
         admin:
       access_log_path: /tmp/admin_access.log
@@ -44,7 +44,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: envoy
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
 spec:
   replicas: 1
   selector:
@@ -74,7 +74,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: envoy
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
 spec:
   ports:
     - name: kafka

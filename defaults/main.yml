@@ -1,11 +1,11 @@
 ---
-# defaults file for quarkuscoffeeshop-demo-role
+# defaults file for quarkusdroneshop-demo-role
 openshift_token: 1234567890
 openshift_url: https://api.ocp4.example.com:6443
 default_owner: root
 default_group: root
 insecure_skip_tls_verify: true
-project_namespace: quarkuscoffeeshop-demo
+project_namespace: quarkusdroneshop-demo
 delete_deployment: false
 amqchannel: stable
 amqstartingCSV: amqstreams.v2.9.0-3
@@ -49,11 +49,11 @@ skip_mongodb_operator_install: false
 
 # Postgres database information
 postgres_version: 17
-pgsql_username: coffeeshopadmin
+pgsql_username: droneshopadmin
 original_secret: postgres
 postgres_password: postgres
-postgres_hostname: "coffeeshopdb-primary.{{ project_namespace }}.svc"
-pgsql_url: 'jdbc:postgresql://coffeeshopdb:5432/coffeeshopdb?currentSchema=coffeeshop'
+postgres_hostname: "droneshopdb-primary.{{ project_namespace }}.svc"
+pgsql_url: 'jdbc:postgresql://droneshopdb:5432/droneshopdb?currentSchema=droneshop'
 
 # pgAdmin Database values 
 pgadmin_setup_email: nmushino@redhat.com
@@ -69,11 +69,11 @@ storeid: TOKYO
 
 #Quarkus counter logging level
 quarkus_log_level: INFO
-quarkuscoffeeshop_log_level: DEBUG
+quarkusdroneshop_log_level: DEBUG
 
 # Settings for ACM Deployment
-development_project: quarkuscoffeeshop-cicd
-homeoffice_project: quarkuscoffeeshop-homeoffice
+development_project: quarkusdroneshop-cicd
+homeoffice_project: quarkusdroneshop-homeoffice
 
 # gogs configureation settings 
 gogs_image_version:  0.12.10
@@ -94,13 +94,13 @@ user_format: user%d
 my_user: user1
 # Name of repository on checkout from workshop repo
 reponame_local: tekton-pipelines
-acm_reponame_local: quarkuscoffeeshop-gitops
+acm_reponame_local: quarkusdroneshop-gitops
 # Name of repository on checkout from workshop repo
 reponame: tekton-pipelines
-acm_reponame: quarkuscoffeeshop-gitops
+acm_reponame: quarkusdroneshop-gitops
 # tekton pipelines repo for applications
 repo_url: https://github.com/nmushino/tekton-pipelines.git
-acm_repo_url: https://github.com/nmushino/quarkuscoffeeshop-gitops.git
+acm_repo_url: https://github.com/nmushino/quarkusdroneshop-gitops.git
 
 # OpenShift Storage
 odf_version: "stable-4.12" 

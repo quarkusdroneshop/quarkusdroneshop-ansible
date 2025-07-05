@@ -27,7 +27,7 @@ echo "**************************************************************************
 sleep 5s
 if [ $DELETE_DEPLOYMENT == "true" ]; then
    echo "Deleting deployment..."
-   /opt/workspace/files/deploy-quarkuscoffeeshop-ansible.sh  -d ${CLUSTER_DOMAIN_NAME} -t  ${TOKEN}  -s STORE-${RANDOM_STRING} -u true
+   /opt/workspace/files/deploy-quarkusdroneshop-ansible.sh  -d ${CLUSTER_DOMAIN_NAME} -t  ${TOKEN}  -s STORE-${RANDOM_STRING} -u true
 else 
-   /opt/workspace/files/deploy-quarkuscoffeeshop-ansible.sh  -d ${CLUSTER_DOMAIN_NAME} -t  ${TOKEN}  -s STORE-${RANDOM_STRING}
+   /opt/workspace/files/deploy-quarkusdroneshop-ansible.sh  -d ${CLUSTER_DOMAIN_NAME} -t  ${TOKEN}  -s STORE-${RANDOM_STRING}
 fi

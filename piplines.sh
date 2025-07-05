@@ -21,13 +21,13 @@
 #
 # =============================================================================
 
-CICD_NAMESPACE="quarkuscoffeeshop-cicd"
-DEMO_NAMESPACE="quarkuscoffeeshop-demo"
+CICD_NAMESPACE="quarkusdroneshop-cicd"
+DEMO_NAMESPACE="quarkusdroneshop-demo"
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 DOMAIN_TOKEN=$(oc whoami -t)
 
 # ロゴの表示
-figlet "coffeeshop"
+figlet "droneshop"
 
 # 前処理
 oc status
@@ -99,12 +99,12 @@ deploy() {
         case $opt in
             "barista"|"kitchen"|"counter"|"web"|"inventory"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
                 echo "実行中: $opt"
-                kustomize build "quarkuscoffeeshop-$opt" | oc create -f -
+                kustomize build "quarkusdroneshop-$opt" | oc create -f -
                 ;;
             "all")
                 for d in barista kitchen counter web inventory homeofficebackend homeoffice-ui customermocker; do
                     echo "実行中: $d"
-                    kustomize build "quarkuscoffeeshop-$d" | oc create -f -
+                    kustomize build "quarkusdroneshop-$d" | oc create -f -
                 done
                 ;;
             "cancel")
@@ -122,14 +122,14 @@ deploy() {
     if [ $? -ne 0 ]; then
       oc new-project "$DEMO_NAMESPACE"
     fi
-    oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
+    oc policy add-role-to-user admin system:serviceaccount:quarkusdroneshop-cicd:pipeline -n $DEMO_NAMESPACE
 }
 
 democonfig() {
 
     # CongfigMapの作成と
-    oc apply -f openshift/coffeeshop-configmap.yaml -n $DEMO_NAMESPACE                         ## A/B/C用サイト
-    oc policy add-role-to-user admin system:serviceaccount:quarkuscoffeeshop-cicd:pipeline -n $DEMO_NAMESPACE
+    oc apply -f openshift/droneshop-configmap.yaml -n $DEMO_NAMESPACE                         ## A/B/C用サイト
+    oc policy add-role-to-user admin system:serviceaccount:quarkusdroneshop-cicd:pipeline -n $DEMO_NAMESPACE
 
 }
 

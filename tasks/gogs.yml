@@ -8,7 +8,7 @@
   tags: gogs
 
 - name: create gogs project {{ gogs_project_name }}
-  shell: "{{ oc_location }} new-project {{ gogs_project_name }} --display-name='quarkuscoffeeshop-cicd' --description='quarkuscoffeeshop-cicd project'"
+  shell: "{{ oc_location }} new-project {{ gogs_project_name }} --display-name='quarkusdroneshop-cicd' --description='quarkusdroneshop-cicd project'"
   when: gogs_project_result is failed
   tags: gogs
 

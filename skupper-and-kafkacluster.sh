@@ -23,12 +23,12 @@
 #
 # =============================================================================
 
-NAMESPACE="quarkuscoffeeshop-demo"
+NAMESPACE="quarkusdroneshop-demo"
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 DOMAIN_TOKEN=$(oc whoami -t)
 
 # ロゴの表示
-figlet "coffeeshop"
+figlet "droneshop"
 
 # 前処理
 oc status
@@ -96,7 +96,7 @@ deploy() {
         skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
 
         skupper listener create external-cafe-cluster-postgres-asite --host external-cafe-cluster-postgres-asite 5432 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=coffeeshopdb -n "$NAMESPACE"
+        skupper connector create external-cafe-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
 
         # KafkaClusterの再作成
         oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
@@ -134,7 +134,7 @@ deploy() {
         skupper listener create external-cafe-cluster-kafka-csite 9094 -n "$NAMESPACE"
 
         skupper listener create external-cafe-cluster-postgres-bsite --host external-cafe-cluster-postgres-bsite 5432 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=coffeeshopdb -n "$NAMESPACE"
+        skupper connector create external-cafe-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         
         # KafkaClusterの再作成
         oc apply -f openshift/cafe-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
@@ -171,7 +171,7 @@ deploy() {
         skupper listener create external-cafe-cluster-kafka-bsite 9094 -n "$NAMESPACE"
        
         skupper listener create external-cafe-cluster-postgres-csite --host external-cafe-cluster-postgres-csite 5432 -n "$NAMESPACE"
-        skupper connector create external-cafe-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=coffeeshopdb -n "$NAMESPACE"
+        skupper connector create external-cafe-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-postgres-asite 5432 -n "$NAMESPACE"
         skupper listener create external-cafe-cluster-postgres-bsite 5432 -n "$NAMESPACE"
 
@@ -248,12 +248,12 @@ cleanup() {
     skupper connector delete external-cafe-cluster-kafka-bsite -n "$NAMESPACE"
     skupper connector delete external-cafe-cluster-kafka-csite -n "$NAMESPACE"
 
-    skupper listener delete external-cafe-cluster-postgres-asite -n quarkuscoffeeshop-demo
-    skupper connector delete external-cafe-cluster-postgres-asite -n quarkuscoffeeshop-demo
-    skupper listener delete external-cafe-cluster-postgres-bsite -n quarkuscoffeeshop-demo
-    skupper connector delete external-cafe-cluster-postgres-bsite -n quarkuscoffeeshop-demo
-    skupper listener delete external-cafe-cluster-postgres-csite -n quarkuscoffeeshop-demo
-    skupper connector delete external-cafe-cluster-postgres-csite -n quarkuscoffeeshop-demo
+    skupper listener delete external-cafe-cluster-postgres-asite -n quarkusdroneshop-demo
+    skupper connector delete external-cafe-cluster-postgres-asite -n quarkusdroneshop-demo
+    skupper listener delete external-cafe-cluster-postgres-bsite -n quarkusdroneshop-demo
+    skupper connector delete external-cafe-cluster-postgres-bsite -n quarkusdroneshop-demo
+    skupper listener delete external-cafe-cluster-postgres-csite -n quarkusdroneshop-demo
+    skupper connector delete external-cafe-cluster-postgres-csite -n quarkusdroneshop-demo
 
     skupper site delete skupper-asite
     skupper site delete skupper-bsite

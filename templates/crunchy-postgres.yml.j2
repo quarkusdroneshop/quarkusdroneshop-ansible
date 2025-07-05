@@ -1,7 +1,7 @@
 apiVersion: postgres-operator.crunchydata.com/v1beta1
 kind: PostgresCluster
 metadata:
-  name: coffeeshopdb
+  name: droneshopdb
   namespace: {{ project_namespace }}
 spec:
   backups:
@@ -18,7 +18,7 @@ spec:
                   storage: 1Gi
   image: registry.connect.redhat.com/crunchydata/crunchy-postgres@sha256:583a290f224701d5215d4e44e723cb6c542b1306ced074cd4d3bbe5810f22c0b
   instances:
-    - name: coffeeshopdb
+    - name: droneshopdb
       replicas: 1
       dataVolumeClaimSpec:
         accessModes:
@@ -31,7 +31,7 @@ spec:
   users:
     - name: {{ pgsql_username }}
       databases:
-        - coffeeshopdb
+        - droneshopdb
     - name: postgres
       password:
         type: AlphaNumeric

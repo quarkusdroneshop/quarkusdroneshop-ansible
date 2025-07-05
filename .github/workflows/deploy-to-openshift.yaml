@@ -102,7 +102,7 @@ jobs:
         echo "Deploying Quarkus Coffee Shop application"
         source env.variables
         cat env.variables
-        ./files/deploy-quarkuscoffeeshop-ansible.sh -d ${{ secrets.CLUSTER_DOMAIN_NAME }} -t ${{ secrets.OPENSHIFT_TOKEN }} -s RALEIGH || exit $?
+        ./files/deploy-quarkusdroneshop-ansible.sh -d ${{ secrets.CLUSTER_DOMAIN_NAME }} -t ${{ secrets.OPENSHIFT_TOKEN }} -s RALEIGH || exit $?
       env:
         CLUSTER_DOMAIN_NAME: ${{ secrets.CLUSTER_DOMAIN_NAME }}
         TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}

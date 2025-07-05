@@ -21,14 +21,14 @@
 #
 # =============================================================================
 
-NAMESPACE="quarkuscoffeeshop-demo"
+NAMESPACE="quarkusdroneshop-demo"
 OPENMETADATASPACE="openmetadata"
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 DOMAIN_TOKEN=$(oc whoami -t)
 ENV_FILE="source.env"
 
 # ロゴの表示
-figlet "coffeeshop"
+figlet "droneshop"
 
 # 前処理
 oc status
@@ -72,7 +72,7 @@ setup() {
     podman build --no-cache -t "$NAMESPACE" . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE "$NAMESPACE"
     # PostgreSQLCluster へ権限の追加
-    oc adm policy add-scc-to-user anyuid -z coffeeshopdb-instance -n "$NAMESPACE"
+    oc adm policy add-scc-to-user anyuid -z droneshopdb-instance -n "$NAMESPACE"
     oc adm policy add-scc-to-user privileged -z default -n "$NAMESPACE"
 }
 
@@ -101,36 +101,36 @@ deploy() {
     oc delete all -l app=customermocker -n "$NAMESPACE"
     
     # Configmap の追加
-    oc apply -f openshift/coffeeshop-configmap.yaml
+    oc apply -f openshift/droneshop-configmap.yaml
 
     # Counter App
-    oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkuscoffeeshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkusdroneshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/counter-development.yaml -n "$NAMESPACE"
 
     # Inventory App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-inventory.git --name=inventory --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-inventory.git --name=inventory --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/inventory-development.yaml -n "$NAMESPACE"
 
     # Web App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-web.git --name=web --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-web.git --name=web --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/web-development.yaml -n "$NAMESPACE"
-    oc expose deployment web --port=8080 --name=quarkuscoffeeshop-web -n "$NAMESPACE"
-    oc expose svc quarkuscoffeeshop-web --name=quarkuscoffeeshop-web -n "$NAMESPACE"
+    oc expose deployment web --port=8080 --name=quarkusdroneshop-web -n "$NAMESPACE"
+    oc expose svc quarkusdroneshop-web --name=quarkusdroneshop-web -n "$NAMESPACE"
 
     # ConfigMap の修正
-    CORS_ORIGINS=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)
-    LOYALTY_STREAM_URL=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)/dashboard/loyaltystream
-    STREAM_URL=$(oc get route quarkuscoffeeshop-web -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)/dashboard/stream
-    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"CORS_ORIGINS\":\"http://$CORS_ORIGINS\"}}"
-    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
-    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
+    CORS_ORIGINS=$(oc get route quarkusdroneshop-web -o jsonpath='{.spec.host}' -n quarkusdroneshop-demo)
+    LOYALTY_STREAM_URL=$(oc get route quarkusdroneshop-web -o jsonpath='{.spec.host}' -n quarkusdroneshop-demo)/dashboard/loyaltystream
+    STREAM_URL=$(oc get route quarkusdroneshop-web -o jsonpath='{.spec.host}' -n quarkusdroneshop-demo)/dashboard/stream
+    oc patch configmap droneshop-config -n "$NAMESPACE" -p "{\"data\":{\"CORS_ORIGINS\":\"http://$CORS_ORIGINS\"}}"
+    oc patch configmap droneshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
+    oc patch configmap droneshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
 
     # Kitchen App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/kitchen-development.yaml -n "$NAMESPACE"
 
     # Barista App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
     
     # Homeoffice Backend App
@@ -140,19 +140,19 @@ deploy() {
     oc expose svc homeoffice-backend --name=homeoffice-backend -n "$NAMESPACE"
 
     # Homeoffice UI App
-    oc new-app ubi8/nodejs-20~https://github.com/nmushino/quarkuscoffeeshop-homeoffice-ui.git --name=homeoffice-ui --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/nodejs-20~https://github.com/nmushino/quarkusdroneshop-homeoffice-ui.git --name=homeoffice-ui --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc expose deployment homeoffice-ui --port=8080 --name=homeoffice-ui -n "$NAMESPACE"
     oc expose svc homeoffice-ui --name=homeoffice-ui -n "$NAMESPACE"
 
     # Customermocker App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkuscoffeeshop-customermocker.git --name=customermocker --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-customermocker.git --name=customermocker --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/customermocker-development.yaml -n "$NAMESPACE"
-    oc expose deployment customermocker --port=8080 --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
-    oc expose svc quarkuscoffeeshop-customermocker --name=quarkuscoffeeshop-customermocker -n "$NAMESPACE"
+    oc expose deployment customermocker --port=8080 --name=quarkusdroneshop-customermocker -n "$NAMESPACE"
+    oc expose svc quarkusdroneshop-customermocker --name=quarkusdroneshop-customermocker -n "$NAMESPACE"
 
     # ConfigMap の修正
-    REST_URL=$(oc get route quarkuscoffeeshop-customermocker -o jsonpath='{.spec.host}' -n quarkuscoffeeshop-demo)
-    oc patch configmap coffeeshop-config -n "$NAMESPACE" -p "{\"data\":{\"REST_URL\":\"http://$REST_URL/orders\"}}"
+    REST_URL=$(oc get route quarkusdroneshop-customermocker -o jsonpath='{.spec.host}' -n quarkusdroneshop-demo)
+    oc patch configmap droneshop-config -n "$NAMESPACE" -p "{\"data\":{\"REST_URL\":\"http://$REST_URL/orders\"}}"
 }
 
 openmetadata() {
@@ -216,7 +216,7 @@ openmetadata() {
     #    --set lifecycleHooks.postUpgradeJob.enabled=false \
     #    --wait
     #pip install psycopg2-binary
-    #oc expose svc coffeeshopdb-primary 
+    #oc expose svc droneshopdb-primary 
     #metadata ingest -c ./openshift/values-openmetadata.yaml
 
 }
@@ -224,7 +224,7 @@ openmetadata() {
 cleanup() {
     echo "クリーンナップ開始..."
 
-    # quarkuscoffeeshop
+    # quarkusdroneshop
     oc delete subscription amq-streams --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete subscription crunchy-postgres-operator --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete operator --all -n openshift-operators --ignore-not-found=true

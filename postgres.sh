@@ -13,13 +13,13 @@
 #
 # =============================================================================
 
-NAMESPACE="quarkuscoffeeshop-demo"
+NAMESPACE="quarkusdroneshop-demo"
 
 echo "###################################"
 echo "このシェルはメンテナンスシェルです"
 echo "###################################"
 echo
 
-echo "Postgres Password: $(oc get secret coffeeshopdb-pguser-coffeeshopadmin -o jsonpath='{.data.password}' -n $NAMESPACE | base64 -d)"
-POSTGRES_POD_NAME=$(oc get pods -o jsonpath='{.items[*].metadata.name}' -n $NAMESPACE | tr ' ' '\n' | grep coffeeshopdb | head -n 1)
+echo "Postgres Password: $(oc get secret droneshopdb-pguser-droneshopadmin -o jsonpath='{.data.password}' -n $NAMESPACE | base64 -d)"
+POSTGRES_POD_NAME=$(oc get pods -o jsonpath='{.items[*].metadata.name}' -n $NAMESPACE | tr ' ' '\n' | grep droneshopdb | head -n 1)
 oc port-forward pod/$POSTGRES_POD_NAME 5432:5432 -n $NAMESPACE

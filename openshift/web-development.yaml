@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
   labels:
     app: web
     environment: production
-    category: coffeeshop
+    category: droneshop
 spec:
   template:
     spec:
@@ -16,25 +16,25 @@ spec:
            - name: KAFKA_BOOTSTRAP_URLS
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: KAFKA_BOOTSTRAP_URLS
            - name: STREAM_URL
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: STREAM_URL
            - name: LOYALTY_STREAM_URL
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: LOYALTY_STREAM_URL
            - name: CORS_ORIGINS
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: CORS_ORIGINS
            - name: STORE_ID
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: STORE_ID

@@ -18,10 +18,10 @@ function usage() {
   -t      OpenShift Token
   -s      Store ID
   -h      Display this help and exit
-  -u      Uninstall coffeeshop 
-  To deploy qaurkuscoffeeshop-ansible playbooks
+  -u      Uninstall droneshop 
+  To deploy qaurkusdroneshop-ansible playbooks
   ${0}  -d ocp4.example.com -t sha-123456789  -s ATLANTA
-  To Delete qaurkuscoffeeshop-ansible playbooks from OpenShift
+  To Delete qaurkusdroneshop-ansible playbooks from OpenShift
   ${0}  -d ocp4.example.com -t sha-123456789  -s ATLANTA -u true
 "
 }
@@ -54,26 +54,26 @@ function configure-ansible-and-playbooks(){
     ${USE_SUDO} ln /usr/local/bin/helm /bin/helm
   fi 
 
-  echo "Check if quarkuscoffeeshop-ansible role exists"
+  echo "Check if quarkusdroneshop-ansible role exists"
   if [ ! -z ${USE_SUDO} ];
   then 
-    ROLE_LOC=$(${USE_SUDO}  find  /root/.ansible/roles -name quarkuscoffeeshop-ansible)
+    ROLE_LOC=$(${USE_SUDO}  find  /root/.ansible/roles -name quarkusdroneshop-ansible)
   else 
-    ROLE_LOC=$(find  ~/.ansible/roles -name quarkuscoffeeshop-ansible)
+    ROLE_LOC=$(find  ~/.ansible/roles -name quarkusdroneshop-ansible)
   fi 
   
 
   if [[ $DEVELOPMENT == "false" ]] || [[ -z $DEVELOPMENT ]];
   then
     ${USE_SUDO} rm -rf ${ROLE_LOC}
-    ${USE_SUDO} ansible-galaxy install git+https://github.com/nmushino/quarkuscoffeeshop-ansible.git
+    ${USE_SUDO} ansible-galaxy install git+https://github.com/nmushino/quarkusdroneshop-ansible.git
     echo "****************"
     echo "Start Deployment"
     echo "****************"
   elif  [ $DEVELOPMENT == "true" ];
   then 
     ${USE_SUDO} rm -rf ${ROLE_LOC}
-    ${USE_SUDO} ansible-galaxy install git+https://github.com/nmushino/quarkuscoffeeshop-ansible.git,dev
+    ${USE_SUDO} ansible-galaxy install git+https://github.com/nmushino/quarkusdroneshop-ansible.git,dev
     echo "****************"
     echo " Start Deployment "
     echo " DEVELOPMENT MODE "
@@ -86,7 +86,7 @@ function configure-ansible-and-playbooks(){
   ${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-cafe.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD} -e 'ansible_python_interpreter=/usr/bin/python3' ${DEBUG}
 }
 
-function destory_coffee_shop(){
+function destory_drone_shop(){
   echo "******************"
   echo "Destroy Deployment"
   echo "******************"
@@ -268,14 +268,14 @@ cat >/tmp/deploy-quarkus-cafe.yml<<YAML
     insecure_skip_tls_verify: true
     default_owner: ${USERNAME}
     default_group: ${GROUP}
-    project_namespace: quarkuscoffeeshop-demo
+    project_namespace: quarkusdroneshop-demo
     delete_deployment: "${DESTROY}"
     domain: ${DOMAIN}
     storeid: ${STORE_ID}
     oc_version: ${OC_VERSION}
     quay_urlprefix: ${QUAY_URL}
   roles:
-    - quarkuscoffeeshop-ansible
+    - quarkusdroneshop-ansible
 YAML
 
 cat /tmp/deploy-quarkus-cafe.yml
@@ -297,7 +297,7 @@ then
   then 
     configure-ansible-and-playbooks
   else 
-    destory_coffee_shop
+    destory_drone_shop
   fi
 elif [ "${machine}" == 'Mac' ] && [ -f /usr/local/bin/ansible ];
 then
@@ -305,7 +305,7 @@ then
   then 
     configure-ansible-and-playbooks
   else 
-    destory_coffee_shop
+    destory_drone_shop
   fi
 else 
   install_ansible
@@ -317,7 +317,7 @@ if [ "${machine}" == 'Linux' ]; then
     if [ "${DESTROY}" == false ]; then
       configure-ansible-and-playbooks
     else
-      destory_coffee_shop
+      destory_drone_shop
     fi
   else
     install_ansible
@@ -327,7 +327,7 @@ elif [ "${machine}" == 'Mac' ]; then
     if [ "${DESTROY}" == false ]; then
       configure-ansible-and-playbooks
     else
-      destory_coffee_shop
+      destory_drone_shop
     fi
   else
     install_ansible

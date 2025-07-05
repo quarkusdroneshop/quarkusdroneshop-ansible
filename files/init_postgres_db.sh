@@ -1,17 +1,17 @@
 #!/bin/bash
 
-### coffeeshopadminで実行する
-export PGPASSWORD=$(oc get secret coffeeshopdb-pguser-coffeeshopadmin -n quarkuscoffeeshop-demo -o jsonpath='{.data.password}' | base64 -d)
-export PGHOSTNAME=$(oc get secret coffeeshopdb-pguser-coffeeshopadmin -n quarkuscoffeeshop-demo -o jsonpath='{.data.host}' | base64 -d)
+### droneshopadminで実行する
+export PGPASSWORD=$(oc get secret droneshopdb-pguser-droneshopadmin -n quarkusdroneshop-demo -o jsonpath='{.data.password}' | base64 -d)
+export PGHOSTNAME=$(oc get secret droneshopdb-pguser-droneshopadmin -n quarkusdroneshop-demo -o jsonpath='{.data.host}' | base64 -d)
 
-psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "CREATE SCHEMA IF NOT EXISTS coffeeshop;"
-psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "CREATE SCHEMA coffeeshop AUTHORIZATION coffeeshopadmin;"
-psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "alter table if exists coffeeshop.LineItems
+psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA IF NOT EXISTS droneshop;"
+psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA droneshop AUTHORIZATION droneshopadmin;"
+psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "alter table if exists droneshop.LineItems
     drop constraint if exists FK6fhxopytha3nnbpbfmpiv4xgn;"
-psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "drop table if exists coffeeshop.LineItems cascade;
-drop table if exists coffeeshop.Orders cascade;
-drop table if exists coffeeshop.OutboxEvent cascade;"
-psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table coffeeshop.LineItems (
+psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "drop table if exists droneshop.LineItems cascade;
+drop table if exists droneshop.Orders cascade;
+drop table if exists droneshop.OutboxEvent cascade;"
+psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "create table droneshop.LineItems (
                            id uuid not null,
                            order_id varchar(255) not null,
                            item varchar(255),
@@ -20,7 +20,7 @@ psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table 
                            primary key (id)
 );"
 
-psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table coffeeshop.Orders (
+psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "create table droneshop.Orders (
                         order_id varchar(255) not null,
                         loyaltyMemberId varchar(255),
                         location     varchar(255),
@@ -30,7 +30,7 @@ psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table 
                         primary key (order_id)
 );"
 
-psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table coffeeshop.OutboxEvent (
+psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "create table droneshop.OutboxEvent (
                              id uuid not null,
                              aggregatetype varchar(255) not null,
                              aggregateid varchar(255) not null,
@@ -40,7 +40,7 @@ psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "create table 
                              primary key (id)
 );"
 
-psql -h ${PGHOSTNAME} -p 5432 -U coffeeshopadmin coffeeshopdb  -c "alter table if exists coffeeshop.LineItems
+psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "alter table if exists droneshop.LineItems
     add constraint FK6fhxopytha3nnbpbfmpiv4xgn
         foreign key (order_id)
-            references coffeeshop.Orders;"
+            references droneshop.Orders;"

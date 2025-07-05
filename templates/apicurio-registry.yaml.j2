@@ -1,7 +1,7 @@
 apiVersion: registry.apicur.io/v1
 kind: ApicurioRegistry
 metadata:
-  name: coffeeshop-apicurioregistry-kafkasql
+  name: droneshop-apicurioregistry-kafkasql
   namespace: {{ project_namespace }}
 spec:
   configuration:
@@ -13,7 +13,7 @@ spec:
       - name: KAFKA_SASL_JAAS_CONFIG
         valueFrom:
           secretKeyRef:
-            name: quarkuscoffeeshop-user
+            name: quarkusdroneshop-user
             key: sasl.jaas.config
       - name: KAFKA_SASL_MECHANISM
         value: SCRAM-SHA-512

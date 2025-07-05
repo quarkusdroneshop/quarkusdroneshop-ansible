@@ -2,12 +2,12 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: postgresql-ha
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
 spec:
   host: postgresql.apps.cluster-4zg8h.4zg8h.sandbox2653.opentlc.com
   to:
     kind: Service
-    name: coffeeshopdb-ha
+    name: droneshopdb-ha
   port:
     targetPort: 5432
   tls:

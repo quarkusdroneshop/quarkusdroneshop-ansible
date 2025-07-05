@@ -90,8 +90,8 @@ spec:
         && tar -xvf openshift-client-linux.tar.gz -C /usr/local/bin \
         && chmod +x /usr/local/bin/oc \
         && rm openshift-client-linux.tar.gz
-      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
-      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkuscoffeeshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_custom.sh && chmod +x init_postgres_custom.sh && mv init_postgres_custom.sh /bin/init_postgres_custom.sh
+      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
+      RUN curl -OL https://raw.githubusercontent.com/nmushino/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_custom.sh && chmod +x init_postgres_custom.sh && mv init_postgres_custom.sh /bin/init_postgres_custom.sh
       CMD ["sleep", "10000"]
     type: Dockerfile
   strategy:
@@ -159,7 +159,7 @@ spec:
       containers:
       - env:
         - name: PGHOSTNAME
-          value: 'coffeeshopdb-primary.{{ target_project }}.svc'
+          value: 'droneshopdb-primary.{{ target_project }}.svc'
         - name: PGPASSWORD
           value: 'postgres'
         image: image-registry.openshift-image-registry.svc:5000/{{ target_project }}/postgres-utilites:latest

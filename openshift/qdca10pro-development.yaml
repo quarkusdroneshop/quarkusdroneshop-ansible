@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: barista
-  namespace: quarkuscoffeeshop-demo
+  name: kitchen
+  namespace: quarkusdroneshop-demo
   labels:
-    app: barista
+    app: kitchen
     environment: production
-    category: coffeeshop
+    category: droneshop
 spec:
   template:
     spec:
       containers:
-       - name: barista
+       - name: kitchen
          env:
            - name: KAFKA_BOOTSTRAP_URLS
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: KAFKA_BOOTSTRAP_URLS

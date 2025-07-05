@@ -2,7 +2,7 @@ apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaMirrorMaker2
 metadata:
   name: mm2-extended
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
 spec:
   version: 3.9.0
   replicas: 1
@@ -73,5 +73,5 @@ spec:
         - name: SASL_JAAS_CONFIG
           valueFrom:
             secretKeyRef:
-              name: quarkuscoffeeshop-user
+              name: quarkusdroneshop-user
               key: sasl.jaas.config

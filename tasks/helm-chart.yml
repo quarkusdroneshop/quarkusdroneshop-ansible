@@ -1,8 +1,8 @@
 # From repository
-- name: Add quarkuscoffeeshop helm chart repo
+- name: Add quarkusdroneshop helm chart repo
   kubernetes.core.helm_repository:
-    name: quarkuscoffeeshop-helm
-    repo_url: "https://quarkuscoffeeshop.github.io/quarkuscoffeeshop-helm/"
+    name: quarkusdroneshop-helm
+    repo_url: "https://quarkusdroneshop.github.io.quarkusdroneshop-helm/"
   when: not delete_deployment|bool
   tags: helm
 
@@ -11,7 +11,7 @@
   kubernetes.core.k8s_info:
     api: v1
     kind: Secret
-    name: coffeeshopdb-pguser-coffeeshopadmin
+    name: droneshopdb-pguser-droneshopadmin
     namespace: "{{ project_namespace }}"
   register: databasepassword
   when: not delete_deployment|bool
@@ -34,7 +34,7 @@
   tags: 
     - helm
 
-- name: Copying over  quarkuscoffeeshop helm chart values
+- name: Copying over  quarkusdroneshop helm chart values
   template:
     src: templates/vaules.yaml.j2
     dest:  "{{ config_location }}/vaules.yaml"
@@ -43,19 +43,19 @@
     mode: 0666
   tags: helm
 
-- name: Copying over quarkuscoffeeshop-web route
+- name: Copying over quarkusdroneshop-web route
   template:
-    src: templates/docker/quarkuscoffeeshop-web.yaml.j2
-    dest:  "{{ config_location }}/quarkuscoffeeshop-web.yaml"
+    src: templates/docker/quarkusdroneshop-web.yaml.j2
+    dest:  "{{ config_location }}/quarkusdroneshop-web.yaml"
     owner: "{{ default_owner }}"
     group: "{{ default_group }}"
     mode: 0666
   tags: helm
 
-- name: Deploy quarkuscoffeeshop helm chart to project
+- name: Deploy quarkusdroneshop helm chart to project
   kubernetes.core.helm:
-    name: quarkuscoffeeshop-helm
-    chart_ref: quarkuscoffeeshop-helm/quarkuscoffeeshop-charts
+    name: quarkusdroneshop-helm
+    chart_ref: quarkusdroneshop-helm/quarkusdroneshop-charts
     chart_version: "{{ helm_chart_version }}"
     release_namespace: "{{ project_namespace }}"
     update_repo_cache: true 
@@ -64,21 +64,21 @@
   when: not delete_deployment|bool
   tags: helm
 
-- name:  Create quarkuscoffeeshop-web route 
-  command: "{{ oc_location }}  create -f {{ config_location }}quarkuscoffeeshop-web.yaml"
+- name:  Create quarkusdroneshop-web route 
+  command: "{{ oc_location }}  create -f {{ config_location }}quarkusdroneshop-web.yaml"
   when: not delete_deployment|bool
   tags: helm
 
 - name: Remove test release and waiting suppression ending
   kubernetes.core.helm:
-    name: quarkuscoffeeshop-helm
+    name: quarkusdroneshop-helm
     state: absent
     release_namespace: "{{ project_namespace }}"
     wait: true
   when:  delete_deployment|bool
   tags: helm
 
-- name:  Delete quarkuscoffeeshop-web route 
-  command: "{{ oc_location }}  delete -f {{ config_location }}quarkuscoffeeshop-web.yaml"
+- name:  Delete quarkusdroneshop-web route 
+  command: "{{ oc_location }}  delete -f {{ config_location }}quarkusdroneshop-web.yaml"
   when:  delete_deployment|bool
   tags: helm

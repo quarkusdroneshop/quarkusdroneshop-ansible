@@ -2,7 +2,7 @@ apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
   name: cafe-cluster
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
   annotations:
    strimzi.io/kraft: enabled
 spec:

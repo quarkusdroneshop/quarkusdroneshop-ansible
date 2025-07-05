@@ -3,7 +3,7 @@ import '@testing-library/cypress/add-commands'
 describe('template spec', () => {
   it('passes', () => {
     // Webにアクセス
-    cy.visit("http://quarkuscoffeeshop-web-quarkuscoffeeshop-demo.apps.cluster-gkc2p.gkc2p.sandbox1535.opentlc.com/")
+    cy.visit("http://quarkusdroneshop-web-quarkusdroneshop-demo.apps.cluster-gkc2p.gkc2p.sandbox1535.opentlc.com/")
 
     // メニューボタンをクリック
     cy.get("section:nth-child(8)>div:nth-child(1)>div:nth-child(3)>div:nth-child(1)")

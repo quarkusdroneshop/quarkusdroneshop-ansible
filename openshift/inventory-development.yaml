@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: inventory
-  namespace: quarkuscoffeeshop-demo
+  namespace: quarkusdroneshop-demo
   labels:
     app: inventory
     environment: production
-    category: coffeeshop
+    category: droneshop
 spec:
   template:
     spec:
@@ -16,20 +16,20 @@ spec:
            - name: PGSQL_URL
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: PGSQL_URL
            - name: PGSQL_USER
              valueFrom:
                secretKeyRef:
-                 name: coffeeshopdb-pguser-coffeeshopadmin
+                 name: droneshopdb-pguser-droneshopadmin
                  key: user
            - name: PGSQL_PASS
              valueFrom:
                secretKeyRef:
-                 name: coffeeshopdb-pguser-coffeeshopadmin
+                 name: droneshopdb-pguser-droneshopadmin
                  key: password
            - name: KAFKA_BOOTSTRAP_URLS
              valueFrom:
                configMapKeyRef:
-                 name: coffeeshop-config
+                 name: droneshop-config
                  key: KAFKA_BOOTSTRAP_URLS

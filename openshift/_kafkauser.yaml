@@ -4,7 +4,7 @@ metadata:
   name: test
   labels:
     strimzi.io/cluster: cafe-cluster              # ← Kafka クラスタ名に合わせて
-  namespace: quarkuscoffeeshop-demo                # ← Kafka クラスタがある namespace に変更
+  namespace: quarkusdroneshop-demo                # ← Kafka クラスタがある namespace に変更
 spec:
   authentication:
     type: scram-sha-512
