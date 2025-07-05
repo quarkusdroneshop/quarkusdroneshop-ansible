@@ -34,7 +34,7 @@ spec:
   mirrors:
     - sourceCluster: "shop-asite"
       targetCluster: "shop-csite"
-      topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
+      topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
@@ -67,7 +67,7 @@ spec:
           status.storage.topic: mirrormaker2-cluster-status
     - sourceCluster: "shop-bsite"
       targetCluster: "shop-csite"
-      topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
+      topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true

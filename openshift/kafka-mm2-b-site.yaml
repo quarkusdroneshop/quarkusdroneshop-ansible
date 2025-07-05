@@ -32,7 +32,7 @@ spec:
   mirrors:
     - sourceCluster: "shop-asite"
       targetCluster: "shop-bsite"
-      topicsPattern: "^(barista-in|kitchen-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
+      topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true

@@ -66,7 +66,7 @@ curl  --request POST http://${ENDPOINT}/order \
             "name": "Minnie"
         }
     ],
-    "kitchenOrders": [
+    "QDCA10ProOrders": [
         {
             "item": "CAKEPOP",
             "name": "Mickey"
@@ -114,10 +114,10 @@ delete_deployment  | delete the deployment and project for quarkusdroneshop-demo
 amqstartingCSV  | Red Hat AMQ csv version  |  amqstreams.v2.9.0-2
 mongodbstartingCSV  | MongoDB Ops Manager version  |  mongodb-enterprise.v1.8.0
 config_location  | default location for application templates  | "/tmp/"
-version_barista | Default container barista tag | 5.0.0-SNAPSHOT
+version_QDCA10 | Default container QDCA10 tag | 5.0.0-SNAPSHOT
 version_counter | Default container counter tag | 5.0.1-SNAPSHOT
 version_customermocker | Default container customermocker tag | 3.0.1
-version_kitchen | Default container kitchen tag | 5.0.0-SNAPSHOT
+version_QDCA10Pro | Default container QDCA10Pro tag | 5.0.0-SNAPSHOT
 version_web | Default container web tag | 5.0.1-SNAPSHOT
 helm_chart_version | Version of Qaurkus Cafe Helm Chart | 3.4.4
 pgsql_username | Default postgress user  | droneshopadmin
@@ -137,11 +137,11 @@ OpenShiftへのデプロイ手順
 
 * quarkusdroneshop-web
 * quarkusdroneshop-counter
-* quarkusdroneshop-kitchen
-* quarkusdroneshop-barista
+* quarkusdroneshop-qdca10Pro
+* quarkusdroneshop-qdca10
 * quarkusdroneshop-inventory
 * quarkusdroneshop-customermocker
-* homeoffice-backend
+* quarkusdroneshop-homeoffice
 * quarkusdroneshop-homeoffice-ui
 
 クラスタは下記のようなシングルノードで問題ありません。ただし、3つクラスタ作成しておいてください。
@@ -205,8 +205,8 @@ Piplineが無事実行されればアプリデプロイは完了します。
 * quarkusdroneshop-web
 * quarkusdroneshop-counter
 #### Bサイト
-* quarkusdroneshop-kitchen
-* quarkusdroneshop-barista
+* quarkusdroneshop-qdca10pro
+* quarkusdroneshop-qdca10
 * quarkusdroneshop-inventory
 #### Cサイト
 * homeoffice-backend

@@ -94,8 +94,8 @@ deploy() {
     oc delete all -l app=web -n "$NAMESPACE"
     oc delete all -l app=counter -n "$NAMESPACE"
     oc delete all -l app=inventory -n "$NAMESPACE"
-    oc delete all -l app=kitchen -n "$NAMESPACE"
-    oc delete all -l app=barista -n "$NAMESPACE"
+    oc delete all -l app=QDCA10Pro -n "$NAMESPACE"
+    oc delete all -l app=QDCA10 -n "$NAMESPACE"
     oc delete all -l app=homeoffice-backend -n "$NAMESPACE"
     oc delete all -l app=homeoffice-ui -n "$NAMESPACE"
     oc delete all -l app=customermocker -n "$NAMESPACE"
@@ -125,13 +125,13 @@ deploy() {
     oc patch configmap droneshop-config -n "$NAMESPACE" -p "{\"data\":{\"LOYALTY_STREAM_URL\":\"http://$LOYALTY_STREAM_URL\"}}"
     oc patch configmap droneshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
 
-    # Kitchen App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-kitchen.git --name=kitchen --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f openshift/kitchen-development.yaml -n "$NAMESPACE"
+    # QDCA10Pro App
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-qdca10pro.git --name=QDCA10Pro --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc apply -f openshift/QDCA10Pro-development.yaml -n "$NAMESPACE"
 
-    # Barista App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-barista.git --name=barista --allow-missing-images --strategy=source -n "$NAMESPACE"
-    oc apply -f openshift/barista-development.yaml -n "$NAMESPACE"
+    # QDCA10 App
+    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-qdca10.git --name=QDCA10 --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc apply -f openshift/QDCA10-development.yaml -n "$NAMESPACE"
     
     # Homeoffice Backend App
     oc new-app ubi8/openjdk-17~https://github.com/nmushino/homeoffice-backend.git --name=homeoffice-backend --allow-missing-images --strategy=source -n "$NAMESPACE"

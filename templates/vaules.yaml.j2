@@ -7,19 +7,19 @@ projectnamespace: {{ project_namespace }}
 domain: {{ domain }}
 kafka_cluster_name: {{ kafka_cluster_name }}
 version:
-  barista: {{ version_barista }}
+  QDCA10: {{ version_QDCA10 }}
   counter: {{ version_counter }}
   customermocker: {{ version_customermocker }}
   inventory:  {{ version_inventory }}
-  kitchen: {{ version_kitchen }}
+  QDCA10Pro: {{ version_QDCA10Pro }}
   customerloyalty: {{ version_customerloyalty }}
   web: {{ version_web }}
 replica_count:
-  barista: {{ replica_barista }}
+  QDCA10: {{ replica_QDCA10 }}
   counter: {{ replica_counter }}
   customermocker: {{ replica_customermocker }}
   inventory:  {{ replica_inventory }}
-  kitchen: {{ replica_kitchen }}
+  QDCA10Pro: {{ replica_QDCA10Pro }}
   customerloyalty: {{ replica_customerloyalty }}
   web: {{ replica_web }}
 {% if  single_mongodb_install  == false and skip_mongodb_operator_install == false %}

@@ -22,20 +22,20 @@ branch: master # for developmemt change to dev
 helm_chart_version: 3.5.0
 
 # Application Versions 
-version_barista: 5.0.0-SNAPSHOT
+version_QDCA10: 5.0.0-SNAPSHOT
 version_counter: 5.0.3-SNAPSHOT
 version_customermocker: 5.0.1-SNAPSHOT
 version_inventory: 5.0.0-SNAPSHOT
-version_kitchen: 5.0.0-SNAPSHOT
+version_QDCA10Pro: 5.0.0-SNAPSHOT
 version_web: 5.0.3-SNAPSHOT
 version_customerloyalty: 5.0.1-SNAPSHOT
 
 # replica count 
-replica_barista: 1
+replica_QDCA10: 1
 replica_counter: 1
 replica_customermocker: 1
 replica_inventory: 1
-replica_kitchen: 1
+replica_QDCA10Pro: 1
 replica_web: 1
 replica_customerloyalty: 1
 
