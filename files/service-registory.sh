@@ -5,7 +5,7 @@ curl -X POST \
   http://droneshop-apicurioregistry-kafkasql.quarkusdroneshop-demo.router-default.apps.${CLUSTER_DOMAIN_NAME}/apis/ccompat/v7/subjects/orders-in/versions \
   -H "Content-Type: application/vnd.schemaregistry.v1+json" \
   -d '{
-    "schema": "{\"type\":\"record\",\"name\":\"orders_in\",\"namespace\":\"quarkusdroneshop.demo\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"orderSource\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"},{\"name\":\"loyaltyMemberId\",\"type\":\"string\"},{\"name\":\"QDCA10LineItems\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"QDCA10LineItem\",\"fields\":[{\"name\":\"item\",\"type\":\"string\"},{\"name\":\"price\",\"type\":\"float\"},{\"name\":\"name\",\"type\":\"string\"}]} }},{\"name\":\"QDCA10ProLineItems\",\"type\":{\"type\":\"array\",\"items\":\"string\"}}]}",
+    "schema": "{\"type\":\"record\",\"name\":\"orders_in\",\"namespace\":\"quarkusdroneshop.demo\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"orderSource\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"},{\"name\":\"loyaltyMemberId\",\"type\":\"string\"},{\"name\":\"Qdca10LineItems\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"QDCA10LineItem\",\"fields\":[{\"name\":\"item\",\"type\":\"string\"},{\"name\":\"price\",\"type\":\"float\"},{\"name\":\"name\",\"type\":\"string\"}]} }},{\"name\":\"qdca10proLineItems\",\"type\":{\"type\":\"array\",\"items\":\"string\"}}]}",
     "schemaType": "AVRO"
   }'
 sleep 5

@@ -81,8 +81,8 @@ deploy() {
     
     # メニュー表示
     OPTIONS=(
-    "QDCA10"
-    "QDCA10Pro"
+    "qdca10"
+    "qdca10pro"
     "counter"
     "web"
     "inventory"
