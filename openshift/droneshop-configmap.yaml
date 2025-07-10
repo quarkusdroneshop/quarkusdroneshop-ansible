@@ -11,4 +11,4 @@ data:
   STORE_ID: "TOKYO"
   PGSQL_URL: "jdbc:postgresql://droneshopdb-ha:5432/droneshopdb?currentSchema=droneshop"
   QUARKUS_LOG_LEVEL: "INFO"
-  QUARKUSCOFFEESHOP_LOG_LEVEL: "INFO"
+  QUARKUSDRONESHOP_LOG_LEVEL: "INFO"

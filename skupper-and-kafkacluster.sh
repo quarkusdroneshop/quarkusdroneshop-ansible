@@ -64,6 +64,7 @@ deploy() {
 
     # Skupper 初期化
     oc apply -f openshift/skupper-operator.yaml -n "$NAMESPACE"
+    oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
     sleep 60
     
     read -p "どのサイトを構築しますか？(A/B/C): " SITE_CONFREM

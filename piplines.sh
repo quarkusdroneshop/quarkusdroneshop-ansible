@@ -97,12 +97,12 @@ deploy() {
 
     select opt in "${OPTIONS[@]}"; do
         case $opt in
-            "QDCA10"|"QDCA10Pro"|"counter"|"web"|"inventory"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
+            "qdca10"|"qdca10pro"|"counter"|"web"|"inventory"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
                 echo "実行中: $opt"
                 kustomize build "quarkusdroneshop-$opt" | oc create -f -
                 ;;
             "all")
-                for d in QDCA10 QDCA10Pro counter web inventory homeofficebackend homeoffice-ui customermocker; do
+                for d in qdca10 qdca10pro counter web inventory homeofficebackend homeoffice-ui customermocker; do
                     echo "実行中: $d"
                     kustomize build "quarkusdroneshop-$d" | oc create -f -
                 done

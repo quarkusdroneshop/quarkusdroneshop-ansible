@@ -58,7 +58,7 @@ curl  --request POST http://${ENDPOINT}/order \
 -d '{
     "beverages": [
         {
-            "item": "COFFEE_WITH_ROOM",
+            "item": "DRONE_WITH_ROOM",
             "name": "Mickey"
         },
         {
