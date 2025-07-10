@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: example-service
+  description: デモンストレーション用のサービスです
+  labels:
+    app: example
+spec:
+  type: website
+  owner: user:default/<githubのuser名>
+  lifecycle: production
