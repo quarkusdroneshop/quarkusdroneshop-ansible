@@ -1,11 +1,11 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: example-service
-  description: デモンストレーション用のサービスです
-  labels:
-    app: example
+  name: counter
+  description: Counter app for quarkusdroneshop
+  annotations:
+    backstage.io/kubernetes-id: counter
 spec:
-  type: website
-  owner: user:default/<githubのuser名>
+  type: service
   lifecycle: production
+  owner: user:default/nmushino
