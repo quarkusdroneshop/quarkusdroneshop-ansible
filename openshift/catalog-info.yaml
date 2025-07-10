@@ -1,9 +1,11 @@
 apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
-  name: nmushino  # ← GitHub の username（ログイン中の人）
+  name: nmushino
+  annotations:
+    backstage.io/email: nmushino@redhat.com
 spec:
   profile:
     displayName: Noriaki Mushino
-    email: nmushino@example.com
+    email: nmushino@redhat.com
   memberOf: []
