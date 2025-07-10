@@ -2,9 +2,10 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: counter
-  description: Counter app for quarkusdroneshop
+  description: Counter microservice
   annotations:
-    backstage.io/kubernetes-id: counter
+    backstage.io/kubernetes-label-selector: 'app=counter'
+    backstage.io/techdocs-ref: dir:.
 spec:
   type: service
   lifecycle: production
