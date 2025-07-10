@@ -1,12 +1,24 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: counter
-  description: Counter microservice
+  name: sample-blog
+  description: デモンストレーション用のサービスです
+  labels:
+    app: sample-blog
+  links:
+    - url: https://console-openshift-console.apps.cluster-8sffx.8sffx.sandbox2156.opentlc.com/k8s/cluster/projects/sample-blog
+      title: OpenShift Console
+      icon: dashboard
+    - url: https://nginx-sample-blog.apps.cluster-8sffx.8sffx.sandbox2156.opentlc.com
+      title: Application Web Site
+      icon: dashboard
+    - url: https://github.com/nmushino/quarkusdroneshop-web.git
+      title: App Repository
+      icon: github
   annotations:
-    backstage.io/kubernetes-label-selector: 'app=counter'
-    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-label-selector: 'app=quarkusdroneshop-web'
+    backstage.io/kubernetes-namespace: quarkusdroneshop-web
 spec:
-  type: service
-  lifecycle: production
+  type: website
   owner: user:default/nmushino
+  lifecycle: production
