@@ -1,0 +1,24 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dynamic-plugins-rhdh
+  namespace: quarkusdroneshop-rhdh
+  annotations:
+    rhdh.redhat.com/backstage-name: developer-hub
+data:
+  dynamic-plugins.yaml: |
+    dynamicPlugins:
+      - package: '@backstage/plugin-scaffolder-backend-module-cookiecutter'
+      - package: '@backstage/plugin-scaffolder'
+      - package: '@backstage/plugin-scaffolder-backend'
+    includes:
+      - 'dynamic-plugins.default.yaml'
+    plugins:
+      - package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-org-dynamic
+        disabled: false
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
+        disabled: false
+      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
+        disabled: false
+      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
+        disabled: false

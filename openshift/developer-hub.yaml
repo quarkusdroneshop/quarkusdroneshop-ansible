@@ -1,0 +1,27 @@
+apiVersion: rhdh.redhat.com/v1alpha2
+kind: Backstage
+metadata:
+  name: developer-hub
+  namespace: quarkusdroneshop-rhdh
+spec:
+  application:
+    appConfig:
+      configMaps:
+        - name: app-config
+      mountPath: /opt/app-root/src
+    extraFiles:
+      configMaps:
+        - name: catalog-info
+          mountPath: /opt/app-root/src/catalog-info.yaml
+          files:
+            - key: catalog-info.yaml
+              path: catalog-info.yaml
+    extraEnvs:
+      secrets:
+        - name: secrets-rhdh
+    replicas: 1
+    route:
+      enabled: true
+    dynamicPluginsConfigMapName: dynamic-plugins-rhdh
+  database:
+    enableLocalDb: true
