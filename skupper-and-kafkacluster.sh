@@ -4,8 +4,8 @@
 # Description: This script deploys the skupper to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-04-06
-# Last Modified: 2025-04-19
-# Version: 1.0
+# Last Modified: 2025-07-16
+# Version: 1.3
 #
 # Usage:
 #   ./skupper-<<site>>.sh setup           - To setup the skupper and kafkacluster.
@@ -64,7 +64,7 @@ deploy() {
 
     # Skupper 初期化
     oc apply -f openshift/skupper-operator.yaml -n "$NAMESPACE"
-    oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+    
     sleep 60
     
     read -p "どのサイトを構築しますか？(A/B/C): " SITE_CONFREM
@@ -100,7 +100,7 @@ deploy() {
         skupper connector create external-shop-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
 
         # KafkaClusterの再作成
-        oc apply -f openshift/shop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-a-site.yaml -n "$NAMESPACE"
@@ -138,7 +138,7 @@ deploy() {
         skupper connector create external-shop-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         
         # KafkaClusterの再作成
-        oc apply -f openshift/shop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-b-site.yaml -n "$NAMESPACE"
@@ -178,7 +178,7 @@ deploy() {
 
                 
         # KafkaClusterの再作成
-        oc apply -f openshift/shop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"

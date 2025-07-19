@@ -8,7 +8,10 @@ data:
   STREAM_URL: "http://localhost:8080/dashboard/stream"
   LOYALTY_STREAM_URL: "http://localhost:8080/dashboard/loyaltystream"
   CORS_ORIGINS: "http://localhost:8080"
+  REWARD_STREAM_URL: "http://localhost:8080/dashboard/rewards/stream"
+
   STORE_ID: "TOKYO"
   PGSQL_URL: "jdbc:postgresql://droneshopdb-ha:5432/droneshopdb?currentSchema=droneshop"
   QUARKUS_LOG_LEVEL: "INFO"
   QUARKUSDRONESHOP_LOG_LEVEL: "INFO"
+  JAVA_OPTS_APPEND: "-Dquarkus.profile=prod"

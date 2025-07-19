@@ -4,8 +4,8 @@
 # Description: This script sets up the application pipeline.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2025-04-18
-# Version: 1.2
+# Last Modified: 2025-07-16
+# Version: 1.3
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
@@ -75,6 +75,7 @@ deploy() {
     # 共通設定（共通タスクの作成）
     oc apply -f openshift/buildah-clustertask.yaml -n  $CICD_NAMESPACE
     oc apply -f openshift/openshift-client-clustertask.yaml -n  $CICD_NAMESPACE
+    oc apply -f openshift/tekton-configmap.yaml -n  $CICD_NAMESPACE
     oc adm policy add-scc-to-user privileged -z pipeline -n  $CICD_NAMESPACE
     
     cd ../tekton-pipelines
@@ -100,12 +101,12 @@ deploy() {
         case $opt in
             "qdca10"|"qdca10pro"|"counter"|"web"|"inventory"|"reword"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
                 echo "実行中: $opt"
-                kustomize build "quarkusdroneshop-$opt" | oc create -f -
+                kustomize build "quarkusdroneshop-$opt" | oc apply -f -
                 ;;
             "all")
                 for d in qdca10 qdca10pro counter web inventory reword homeofficebackend homeoffice-ui customermocker; do
                     echo "実行中: $d"
-                    kustomize build "quarkusdroneshop-$d" | oc create -f -
+                    kustomize build "quarkusdroneshop-$d" | oc apply -f -
                 done
                 ;;
             "cancel")
