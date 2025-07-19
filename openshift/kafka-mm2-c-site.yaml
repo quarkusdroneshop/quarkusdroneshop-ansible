@@ -34,7 +34,7 @@ spec:
   mirrors:
     - sourceCluster: "shop-asite"
       targetCluster: "shop-csite"
-      topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
+      topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true

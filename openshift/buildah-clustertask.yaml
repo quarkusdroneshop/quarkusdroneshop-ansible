@@ -22,21 +22,3 @@ spec:
       type: string
   workspaces:
     - name: source
-#---
-#apiVersion: security.openshift.io/v1
-#kind: SecurityContextConstraints
-#metadata:
-#  name: privileged
-#allowPrivilegedContainer: true
-#allowHostDirVolumePlugin: true
-#allowHostIPC: true
-#allowHostNetwork: true
-#allowHostPID: true
-#allowHostPorts: true
-#allowPrivilegedEscalation: true
-#runAsUser:
-#  type: RunAsAny
-#volumes:
-#  - '*'
-#seLinuxContext:
-#  type: RunAsAny
