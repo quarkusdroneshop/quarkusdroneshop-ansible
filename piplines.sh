@@ -4,8 +4,8 @@
 # Description: This script sets up the application pipeline.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2025-07-16
-# Version: 1.3
+# Last Modified: 2025-07-21
+# Version: 1.4
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
@@ -59,7 +59,7 @@ fi
 
 deploy() {
 
-    echo "セットアップ開始..."
+    echo "デプロイの開始..."
     # オペレータのインストール
     # プロジェクトが存在するか確認
     if oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then

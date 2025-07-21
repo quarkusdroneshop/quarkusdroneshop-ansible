@@ -4,7 +4,7 @@
 # Description: This script sets up the application pipeline.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2025-04-18
+# Last Modified: 2025-07-21
 # Version: 1.2
 #
 # Usage:
@@ -13,16 +13,13 @@
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
-#   - The kustomize command is installed and configureds
-#   - The tektoncd-cli command is installed and configureds
 #   - figlet is installed and configured
 #   - User is logged into OpenShift
 #   - The Test was conducted on MacOS
 #
 # =============================================================================
 
-CICD_NAMESPACE="quarkusdroneshop-cicd"
-DEMO_NAMESPACE="quarkusdroneshop-demo"
+RHDH_NAMESPACE="quarkusdroneshop-rhdh"
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 DOMAIN_TOKEN=$(oc whoami -t)
 
@@ -59,21 +56,8 @@ fi
 
 deploy() {
 
-    echo "セットアップ開始..."
-    # オペレータのインストール
-    # プロジェクトが存在するか確認
-    if oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then
-      read -p "Operatorのインストールを先に実行してください。実行を続けますか？ (y/N): " answer
-      if [[ "$answer" =~ ^[Nn]$ ]]; then
-          echo -e "${RED}処理を中断します。${RESET}"
-          exit 1
-      fi
-    else
-      oc new-project $CICD_NAMESPACE
-    fi
-
-    # 共通設定（共通タスクの作成）
-    oc new-project quarkusdroneshop-rhdh
+    echo "デプロイの開始..."
+    # 共通設定）
     oc apply -f openshift/developer-hub.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/app-config-rhdh.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/secrets-rhdh.yaml -n quarkusdroneshop-rhdh
@@ -82,36 +66,28 @@ deploy() {
 
 }
 
-democonfig() {
-
-    # CongfigMapの作成と
-    oc apply -f openshift/droneshop-configmap.yaml -n $DEMO_NAMESPACE                         ## A/B/C用サイト
-    oc policy add-role-to-user admin system:serviceaccount:quarkusdroneshop-cicd:pipeline -n $DEMO_NAMESPACE
-
-}
-
 setup() {
     
     # Piplineオペレータの作成
-    oc new-project $CICD_NAMESPACE
-    oc apply -f openshift/openshift-pipline.yaml
-    sleep 30
+    oc new-project $RHDH_NAMESPACE
+    oc apply -f openshift/developer-hub-operator.yaml -n rhdh-operator
+    sleep 40
 
 }
 
 cleanup() {
     
     echo "クリーンナップ開始..."
-    ## 全アプリのPipline削除
-    for pvc in $(oc get pvc -n "$CICD_NAMESPACE" -o name); do
-        oc patch "$pvc" -n "$CICD_NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}'
-    done
+    
     ## 共通タスクの削除
-    oc delete task push-app    
-    oc delete task git-clone
-    oc delete task mave
+    oc delete -f openshift/developer-hub.yaml -n quarkusdroneshop-rhdh   
+    oc delete -f openshift/app-config-rhdh.yaml -n quarkusdroneshop-rhdh
+    oc delete -f openshift/secrets-rhdh.yaml -n quarkusdroneshop-rhdh
+    oc delete -f openshift/dynamic-plugins-rhdh.yaml -n quarkusdroneshop-rhdh
+    oc delete -f openshift/catalog-info.yaml -n quarkusdroneshop-rhdh
+    
     ## CICDプロジェクトの削除
-    oc delete project $CICD_NAMESPACE
+    oc delete project $RHDH_NAMESPACE
 
 }
 
@@ -122,15 +98,12 @@ case "$1" in
     deploy)
         deploy
         ;;
-    democonfig)
-        democonfig
-        ;;
     cleanup)
         cleanup
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|democonfig|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|cleanup}${RESET}"
         exit 1
         ;;
 esac
