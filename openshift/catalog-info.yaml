@@ -15,4 +15,17 @@ data:
       profile:
         displayName: Noriaki Mushino
         email: nmushino@redhat.com
-      memberOf: []
+      memberOf:
+        - admin
+
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Group
+    metadata:
+      name: admin
+    spec:
+      type: root
+      profile:
+        displayName: Administrators
+        email: nmushino@redhat.com
+      children: []

@@ -99,8 +99,8 @@ acm_reponame_local: quarkusdroneshop-gitops
 reponame: tekton-pipelines
 acm_reponame: quarkusdroneshop-gitops
 # tekton pipelines repo for applications
-repo_url: https://github.com/nmushino/tekton-pipelines.git
-acm_repo_url: https://github.com/nmushino/quarkusdroneshop-gitops.git
+repo_url: https://github.com/quarkusdroneshop/tekton-pipelines.git
+acm_repo_url: https://github.com/quarkusdroneshop/quarkusdroneshop-gitops.git
 
 # OpenShift Storage
 odf_version: "stable-4.12" 

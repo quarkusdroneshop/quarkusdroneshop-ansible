@@ -1,0 +1,30 @@
+{
+    "title": "DroneShop Developer Hub",
+    "subtitle": "あなたの開発を加速します 🚀",
+    "labels": [
+      {
+        "label": "クラスタ",
+        "value": "A-cluster"
+      },
+      {
+        "label": "環境",
+        "value": "本番"
+      }
+    ],
+    "panels": [
+      {
+        "title": "ようこそ！",
+        "body": "DroneShopの開発ポータルへようこそ。以下からカタログを確認したり、新しいサービスを作成できます。"
+      },
+      {
+        "title": "カタログを見る",
+        "url": "/catalog",
+        "body": "登録されたサービスやシステムを一覧できます。"
+      },
+      {
+        "title": "新しいコンポーネントの作成",
+        "url": "/create",
+        "body": "スキャフォールディングテンプレートから新しいサービスを作成します。"
+      }
+    ]
+  }

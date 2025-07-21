@@ -12,7 +12,7 @@ metadata:
     - url: https://nginx-sample-blog.apps.cluster-8sffx.8sffx.sandbox2156.opentlc.com
       title: Application Web Site
       icon: dashboard
-    - url: https://github.com/nmushino/quarkusdroneshop-web.git
+    - url: https://github.com/quarkusdroneshop/quarkusdroneshop-web.git
       title: App Repository
       icon: github
   annotations:

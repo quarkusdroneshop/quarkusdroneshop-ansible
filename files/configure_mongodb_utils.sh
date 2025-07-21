@@ -18,12 +18,12 @@ curl -OL https://fastdl.mongodb.org/tools/db/mongodb-database-tools-rhel80-x86_6
   && rpm -ivh mongodb-database-tools-rhel80-x86_64-100.1.1.rpm \
   && rm -rf mongodb-database-tools-rhel80-x86_64-100.1.1.rpm
 
-curl -OL https://raw.githubusercontent.com/nmushino/quarkusdroneshop-ansible/refs/heads/master/files/sample_mongo_data.json \
+curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/master/files/sample_mongo_data.json \
   && mkdir -p /data/  \
   && mv sample_mongo_data.json /data/
 
-curl -OL https://raw.githubusercontent.com/nmushino/quarkusdroneshop-ansible/refs/heads/master/files/load_database.sh \
+curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/master/files/load_database.sh \
   && chmod +x load_database.sh && mv load_database.sh /bin/load_database
 
-curl -OL https://raw.githubusercontent.com/nmushino/quarkusdroneshop-ansible/refs/heads/master/files/configure_mongodb_user.sh \
+curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/master/files/configure_mongodb_user.sh \
   && chmod +x configure_mongodb_user.sh && mv configure_mongodb_user.sh /bin/configure_mongodb_user

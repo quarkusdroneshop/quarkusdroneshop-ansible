@@ -104,15 +104,15 @@ deploy() {
     oc apply -f openshift/droneshop-configmap.yaml
 
     # Counter App
-    oc new-app ubi8/openjdk-17~https://github.com/nmushino/quarkusdroneshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-17~https://github.com/quarkusdroneshop/quarkusdroneshop-counter.git --name=counter --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/counter-development.yaml -n "$NAMESPACE"
 
     # Inventory App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-inventory.git --name=inventory --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/quarkusdroneshop/quarkusdroneshop-inventory.git --name=inventory --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/inventory-development.yaml -n "$NAMESPACE"
 
     # Web App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-web.git --name=web --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/quarkusdroneshop/quarkusdroneshop-web.git --name=web --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/web-development.yaml -n "$NAMESPACE"
     oc expose deployment web --port=8080 --name=quarkusdroneshop-web -n "$NAMESPACE"
     oc expose svc quarkusdroneshop-web --name=quarkusdroneshop-web -n "$NAMESPACE"
@@ -126,26 +126,26 @@ deploy() {
     oc patch configmap droneshop-config -n "$NAMESPACE" -p "{\"data\":{\"STREAM_URL\":\"http://$STREAM_URL\"}}"
 
     # QDCA10Pro App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-qdca10pro.git --name=QDCA10Pro --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/quarkusdroneshop/quarkusdroneshop-qdca10pro.git --name=QDCA10Pro --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/QDCA10Pro-development.yaml -n "$NAMESPACE"
 
     # QDCA10 App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-qdca10.git --name=QDCA10 --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/quarkusdroneshop/quarkusdroneshop-qdca10.git --name=QDCA10 --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/QDCA10-development.yaml -n "$NAMESPACE"
     
     # Homeoffice Backend App
-    oc new-app ubi8/openjdk-17~https://github.com/nmushino/homeoffice-backend.git --name=homeoffice-backend --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-17~https://github.com/quarkusdroneshop/homeoffice-backend.git --name=homeoffice-backend --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/homeoffice-backend-development.yaml -n "$NAMESPACE"
     oc expose deployment homeoffice-backend --port=8080 --name=homeoffice-backend -n "$NAMESPACE"
     oc expose svc homeoffice-backend --name=homeoffice-backend -n "$NAMESPACE"
 
     # Homeoffice UI App
-    oc new-app ubi8/nodejs-20~https://github.com/nmushino/quarkusdroneshop-homeoffice-ui.git --name=homeoffice-ui --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/nodejs-20~https://github.com/quarkusdroneshop/quarkusdroneshop-homeoffice-ui.git --name=homeoffice-ui --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc expose deployment homeoffice-ui --port=8080 --name=homeoffice-ui -n "$NAMESPACE"
     oc expose svc homeoffice-ui --name=homeoffice-ui -n "$NAMESPACE"
 
     # Customermocker App
-    oc new-app ubi8/openjdk-11~https://github.com/nmushino/quarkusdroneshop-customermocker.git --name=customermocker --allow-missing-images --strategy=source -n "$NAMESPACE"
+    oc new-app ubi8/openjdk-11~https://github.com/quarkusdroneshop/quarkusdroneshop-customermocker.git --name=customermocker --allow-missing-images --strategy=source -n "$NAMESPACE"
     oc apply -f openshift/customermocker-development.yaml -n "$NAMESPACE"
     oc expose deployment customermocker --port=8080 --name=quarkusdroneshop-customermocker -n "$NAMESPACE"
     oc expose svc quarkusdroneshop-customermocker --name=quarkusdroneshop-customermocker -n "$NAMESPACE"

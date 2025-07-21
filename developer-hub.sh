@@ -56,13 +56,23 @@ fi
 
 deploy() {
 
+
+    DOMAIN_URL=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
+    DOMAIN_APIURL=$(oc whoami --show-server)
+
+    # シークレットの文字列置換
+    sed -i '' -E "s|https://backstage-developer-hub-quarkusdroneshop-rhdh\.[^[:space:]\"]*|https://backstage-developer-hub-quarkusdroneshop-rhdh.${DOMAIN_URL}|g" openshift/secrets-rhdh.yaml
+    sed -i '' -E "s|openshift-gitops-server-openshift-gitops\.[^[:space:]\"]*|openshift-gitops-server-openshift-gitops.${DOMAIN_URL}|g" openshift/secrets-rhdh.yaml
+    sed -i '' -E "s|https://api\.cluster-[^:]+:6443|${DOMAIN_APIURL}|g" openshift/secrets-rhdh.yaml
+
     echo "デプロイの開始..."
-    # 共通設定）
+    # 共通設定
     oc apply -f openshift/developer-hub.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/app-config-rhdh.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/secrets-rhdh.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/dynamic-plugins-rhdh.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/catalog-info.yaml -n quarkusdroneshop-rhdh
+    oc apply -f openshift/k8-plugin-sa.yaml -n quarkusdroneshop-rhdh
 
 }
 
@@ -85,6 +95,7 @@ cleanup() {
     oc delete -f openshift/secrets-rhdh.yaml -n quarkusdroneshop-rhdh
     oc delete -f openshift/dynamic-plugins-rhdh.yaml -n quarkusdroneshop-rhdh
     oc delete -f openshift/catalog-info.yaml -n quarkusdroneshop-rhdh
+    oc delete -f openshift/k8s-plugin-sa.yaml -n quarkusdroneshop-rhdh
     
     ## CICDプロジェクトの削除
     oc delete project $RHDH_NAMESPACE

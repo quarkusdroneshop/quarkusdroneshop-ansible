@@ -9,49 +9,58 @@ data:
   app-config-rhdh.yaml: |
     app:
       title: Red Hat Developer Hub
-      baseUrl: ${BASE_URL}
+      baseUrl: "${BASE_URL}"
+
     backend:
       auth:
         externalAccess:
-        - type: legacy
-          options:
-            secret: "${BACKEND_SECRET}"
-            subject: legacy-default-config
-      baseUrl: ${BASE_URL}
+          - type: legacy
+            options:
+              secret: "${BACKEND_SECRET}"
+              subject: legacy-default-config
+      baseUrl: "${BASE_URL}"
       cors:
-        origin: ${BASE_URL}
+        origin: "${BASE_URL}"
+
     auth:
       environment: production
       providers:
         github:
           production:
-            clientId: ${AUTH_GITHUB_CLIENT_ID}
-            clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+            clientId: "${AUTH_GITHUB_CLIENT_ID}"
+            clientSecret: "${AUTH_GITHUB_CLIENT_SECRET}"
             signIn:
               resolver:
                 type: email
                 options:
                   emailMatchingUserEntityAnnotation: backstage.io/email
                   dangerouslyAllowSignInWithoutUserInCatalog: true
+
     integrations:
       github:
-        - host: ${GITHUB_HOST_DOMAIN}
+        - host: github.com
           apps:
-            - appId: ${AUTH_GITHUB_APP_ID}
-              clientId: ${AUTH_GITHUB_CLIENT_ID}
-              clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
-              webhookUrl: ${GITHUB_WEBHOOK_URL}
-              webhookSecret: ${GITHUB_WEBHOOK_SECRET}
+            - appId: "${AUTH_GITHUB_APP_ID}"
+              clientId: "${AUTH_GITHUB_CLIENT_ID}"
+              clientSecret: "${AUTH_GITHUB_CLIENT_SECRET}"
+              webhookUrl: "${GITHUB_WEBHOOK_URL}"
+              webhookSecret: "${GITHUB_WEBHOOK_SECRET}"
               privateKey: |
                 ${GITHUB_PRIVATE_KEY_FILE}
+          token: ${AUTH_GITHUB_CLIENT_TOKEN}
+
     signInPage: github
+
     catalog:
+      ui:
+        create:
+          enabled: true
       providers:
         githubOrg:
-          githubUrl: https://${GITHUB_HOST_DOMAIN}
+          githubUrl: "https://${GITHUB_HOST_DOMAIN}"
           orgs:
-            - ${GITHUB_ORGANIZATION}
-          token: ${GITHUB_TOKEN}
+            - "${GITHUB_ORGANIZATION}"
+          token: "${GITHUB_TOKEN}"
           schedule:
             frequency: PT60S
             initialDelay: PT30S
@@ -63,11 +72,136 @@ data:
             - allow:
                 - User
         - type: url
-          target: https://github.com/nmushino/quarkusdroneshop-ansible/blob/master/openshift/counter-development.yaml
+          target: "https://github.com/quarkusdroneshop/developerhub-skeleton/blob/main/reward/template.yaml"
           rules:
-            allow:
-              - Component
-              - Template
-              - User
+            - allow:
+                - Template
+          schedule:
+            frequency: PT60S
+            initialDelay: PT30S
+            timeout: PT120S
+
     featureFlags:
       scaffolder: true
+
+    scaffolder:
+      defaultAuthor: "user:default/nmushino"
+      github:
+        visibility: public
+
+    enabled:
+      kubernetes: true
+      argocd: true
+
+    kubernetes:
+      clusterLocatorMethods:
+        - type: config
+          clusters:
+            - authProvider: serviceAccount
+              name: "${K8S_CLUSTER_NAME}"
+              serviceAccountToken: "${K8S_CLUSTER_TOKEN}"
+              url: "${K8S_CLUSTER_URL}"
+              skipTLSVerify: true
+      customResources:
+        - apiVersion: v1
+          group: route.openshift.io
+          plural: routes
+      serviceLocatorMethod:
+        type: singleTenant
+
+    argocd:
+      appLocatorMethods:
+        - type: config
+          instances:
+            - name: main
+              url: "${ARGOCD_INSTANCE_URL}"
+              username: "${ARGOCD_USERNAME}"
+              password: "${ARGOCD_PASSWORD}"
+
+    proxy:
+      '/argocd/api':
+        target: "${ARGOCD_INSTANCE_URL}/api/v1/"
+        changeOrigin: true
+        secure: false
+        headers:
+          Cookie:
+            $env: "${ARGOCD_AUTH_TOKEN}"
+
+      '/developer-hub':
+        target: https://raw.githubusercontent.com
+        pathRewrite:
+          '^/api/proxy/developer-hub': /example-org/droneshop-config/main/homepage/homepage-data.json
+        changeOrigin: true
+        secure: true
+
+    permission:
+      enabled: true
+      rbac:
+        admin:
+          - "user:default/nmushino"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog-info
+  namespace: quarkusdroneshop-rhdh
+data:
+  catalog-info.yaml: |
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: System
+    metadata:
+      name: a-cluster
+      description: DroneShopのフロントクラスタ
+    spec:
+      owner: team-a
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: System
+    metadata:
+      name: b-cluster
+      description: DroneShopのフロントサービスクラスタ
+    spec:
+      owner: team-b
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: System
+    metadata:
+      name: c-cluster
+      description: DroneShopのバックヤードクラスタ
+    spec:
+      owner: team-c
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Group
+    metadata:
+      name: team-a
+    spec:
+      type: team
+      profile:
+        displayName: Team A
+        email: team-a@example.com
+      children: []
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Group
+    metadata:
+      name: team-b
+    spec:
+      type: team
+      profile:
+        displayName: Team B
+        email: team-b@example.com
+      children: []
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Group
+    metadata:
+      name: team-c
+    spec:
+      type: team
+      profile:
+        displayName: Team C
+        email: team-c@example.com
+      children: []

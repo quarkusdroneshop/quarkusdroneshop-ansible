@@ -7,18 +7,39 @@ metadata:
     rhdh.redhat.com/backstage-name: developer-hub
 data:
   dynamic-plugins.yaml: |
-    dynamicPlugins:
-      - package: '@backstage/plugin-scaffolder-backend-module-cookiecutter'
-      - package: '@backstage/plugin-scaffolder'
-      - package: '@backstage/plugin-scaffolder-backend'
     includes:
       - 'dynamic-plugins.default.yaml'
     plugins:
+    # GitHub Plugins
       - package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-org-dynamic
         disabled: false
+      - package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
+        disabled: false
+    # Kubernetes Plugins
+      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
+        disabled: false
+      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
+        disabled: false
+    # OpenShift Plugins
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
+        disabled: false
+    # ArgoCD Plugins
+      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-argo-cd-backend-dynamic
+        disabled: false
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-redhat-argocd
+        disabled: false
+      - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-argocd-dynamic
+        disabled: false
+    # Component
       - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
+        disabled: false
+
+    # Disploy
+      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-homepage
+        disabled: false
+      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-homepage-react
         disabled: false
