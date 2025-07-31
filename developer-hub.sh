@@ -56,17 +56,16 @@ fi
 
 deploy() {
 
-
     DOMAIN_URL=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
     DOMAIN_APIURL=$(oc whoami --show-server)
 
-    # シークレットの文字列置換
+    # シークレットの文字列を実行環境クラスタ名に置換
     sed -i '' -E "s|https://backstage-developer-hub-quarkusdroneshop-rhdh\.[^[:space:]\"]*|https://backstage-developer-hub-quarkusdroneshop-rhdh.${DOMAIN_URL}|g" openshift/secrets-rhdh.yaml
-    sed -i '' -E "s|openshift-gitops-server-openshift-gitops\.[^[:space:]\"]*|openshift-gitops-server-openshift-gitops.${DOMAIN_URL}|g" openshift/secrets-rhdh.yaml
+    sed -i '' -E "s|https://openshift-gitops-server-openshift-gitops\.[^[:space:]\"]*|https://openshift-gitops-server-openshift-gitops.${DOMAIN_URL}|g" openshift/secrets-rhdh.yaml
     sed -i '' -E "s|https://api\.cluster-[^:]+:6443|${DOMAIN_APIURL}|g" openshift/secrets-rhdh.yaml
 
     echo "デプロイの開始..."
-    # 共通設定
+    # 各種設定
     oc apply -f openshift/developer-hub.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/app-config-rhdh.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/secrets-rhdh.yaml -n quarkusdroneshop-rhdh
@@ -76,12 +75,33 @@ deploy() {
 
 }
 
+custom() {
+    #REGISTRY="image-registry-openshift-image-registry.apps.cluster-2x987.2x987.sandbox1936.opentlc.com"                                                                       ✘ 1 
+    #PROJECT="quarkusdroneshop-rhdh"
+    #IMAGE_NAME="developer-hub"
+    #TAG="latest"
+    
+    #oc new-build --name=developer-hub --binary --strategy=docker -n quarkusdroneshop-rhdh
+    #oc create route edge --service=image-registry -n openshift-image-registry
+    #oc registry login
+    #REGISTRY_HOST=$(oc get route -n openshift-image-registry image-registry -o jsonpath='{.spec.host}')
+    #FULL_IMAGE="${REGISTRY_HOST}/quarkusdroneshop-rhdh/developer-hub:latest -n quarkusdroneshop-rhdh"
+    #docker build -t "${FULL_IMAGE}" .
+    #docker push "${FULL_IMAGE}"
+    #podman build --no-cache -f Containerfile -t backstage-plugin . 
+    #cd backstage
+    #yarn tsc
+    #yarn build
+    #oc start-build developer-hub --from-dir=. --follow
+
+}
+
 setup() {
     
     # Piplineオペレータの作成
     oc new-project $RHDH_NAMESPACE
-    oc apply -f openshift/developer-hub-operator.yaml -n rhdh-operator
     sleep 40
+    oc apply -f openshift/developer-hub-operator.yaml -n rhdh-operator
 
 }
 
@@ -103,18 +123,18 @@ cleanup() {
 }
 
 case "$1" in
-    setup)
-        setup
-        ;;
     deploy)
         deploy
+        ;;
+    custom)
+        custom
         ;;
     cleanup)
         cleanup
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {deploy|custom|cleanup}${RESET}"
         exit 1
         ;;
 esac

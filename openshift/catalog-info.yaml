@@ -17,15 +17,86 @@ data:
         email: nmushino@redhat.com
       memberOf:
         - admin
-
     ---
     apiVersion: backstage.io/v1alpha1
     kind: Group
     metadata:
       name: admin
     spec:
-      type: root
+        type: root
+        profile:
+          displayName: Administrators
+          email: nmushino@redhat.com
+        children: []
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: System
+    metadata:
+      name: a-cluster
+      description: DroneShopのフロントクラスタ
+    spec:
+      owner: team-a
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: System
+    metadata:
+      name: b-cluster
+      description: DroneShopのフロントサービスクラスタ
+    spec:
+      owner: team-b
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: System
+    metadata:
+      name: c-cluster
+      description: DroneShopのバックヤードクラスタ
+    spec:
+      owner: team-c
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Group
+    metadata:
+      name: team-a
+    spec:
+      type: team
       profile:
-        displayName: Administrators
-        email: nmushino@redhat.com
+        displayName: Team A
+        email: team-a@example.com
       children: []
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Group
+    metadata:
+      name: team-b
+    spec:
+      type: team
+      profile:
+        displayName: Team B
+        email: team-b@example.com
+      children: []
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Group
+    metadata:
+      name: team-c
+    spec:
+      type: team
+      profile:
+        displayName: Team C
+        email: team-c@example.com
+      children: []
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Component
+    metadata:
+      name: quarkusdroneshop-reward
+      description: DroneShop Reward Service
+      annotations:
+        backstage.io/kubernetes-id: quarkusdroneshop-reward
+        tektonci.io/pipeline: quarkusdroneshop-reward
+        tekton.dev/type: pipeline
+    spec:
+      type: service
+      lifecycle: production
+      owner: team-b
+      system: b-cluster

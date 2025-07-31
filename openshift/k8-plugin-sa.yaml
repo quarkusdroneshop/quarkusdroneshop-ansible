@@ -69,6 +69,19 @@ roleRef:
   kind: ClusterRole
   name: rhdh-k8s-plugin
 subjects:
-- kind: ServiceAccount
-  name: rhdh-k8s-plugin
-  namespace: rhdh
+  - kind: ServiceAccount
+    name: rhdh-k8s-plugin
+    namespace: quarkusdroneshop-rhdh
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: scaffolder-tekton-access
+subjects:
+  - kind: ServiceAccount
+    name: backstage
+    namespace: quarkusdroneshop-rhdh
+roleRef:
+  kind: ClusterRole
+  name: tekton-pipelines-admin
+  apiGroup: rbac.authorization.k8s.io

@@ -9,37 +9,37 @@ data:
   dynamic-plugins.yaml: |
     includes:
       - 'dynamic-plugins.default.yaml'
+      # - package: '@redhat/backstage-plugin-tekton'
+      #   disabled: false
+
     plugins:
-    # GitHub Plugins
+      # RBAC
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-rbac
+        disabled: false
+
+      # GitHub Plugins
       - package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-org-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
         disabled: false
-    # Kubernetes Plugins
+
+      # Kubernetes Plugins
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
         disabled: false
-    # OpenShift Plugins
+
+      # OpenShift Plugins
       - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
         disabled: false
-    # ArgoCD Plugins
+
+      # ArgoCD Plugins
       - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-argo-cd-backend-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-community-plugin-redhat-argocd
         disabled: false
       - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-argocd-dynamic
         disabled: false
-    # Component
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
-        disabled: false
-      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
-        disabled: false
-      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
-        disabled: false
 
-    # Disploy
-      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-homepage
-        disabled: false
-      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-homepage-react
-        disabled: false
+      # - package: ./dynamic-plugins/dist/redhat-backstage-plugin-tekton
+      #   disabled: false

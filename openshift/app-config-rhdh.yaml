@@ -6,48 +6,42 @@ metadata:
   annotations:
     rhdh.redhat.com/backstage-name: developer-hub
 data:
-  app-config-rhdh.yaml: |
+  app-config.yaml: |
     app:
       title: Red Hat Developer Hub
-      baseUrl: "${BASE_URL}"
+      baseUrl: ${BASE_URL}
 
     backend:
       auth:
         externalAccess:
-          - type: legacy
-            options:
-              secret: "${BACKEND_SECRET}"
-              subject: legacy-default-config
-      baseUrl: "${BASE_URL}"
+        - type: legacy
+          options:
+            secret: "${BACKEND_SECRET}"
+            subject: legacy-default-config
+      baseUrl: ${BASE_URL}
       cors:
-        origin: "${BASE_URL}"
+        origin: ${BASE_URL}
 
     auth:
       environment: production
+      token: ${AUTH_GITHUB_CLIENT_TOKEN}
       providers:
         github:
           production:
-            clientId: "${AUTH_GITHUB_CLIENT_ID}"
-            clientSecret: "${AUTH_GITHUB_CLIENT_SECRET}"
-            signIn:
-              resolver:
-                type: email
-                options:
-                  emailMatchingUserEntityAnnotation: backstage.io/email
-                  dangerouslyAllowSignInWithoutUserInCatalog: true
+            clientId: ${AUTH_GITHUB_CLIENT_ID}
+            clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
 
     integrations:
       github:
-        - host: github.com
+        - host: ${GITHUB_HOST_DOMAIN}
           apps:
-            - appId: "${AUTH_GITHUB_APP_ID}"
-              clientId: "${AUTH_GITHUB_CLIENT_ID}"
-              clientSecret: "${AUTH_GITHUB_CLIENT_SECRET}"
-              webhookUrl: "${GITHUB_WEBHOOK_URL}"
-              webhookSecret: "${GITHUB_WEBHOOK_SECRET}"
+            - appId: ${AUTH_GITHUB_APP_ID}
+              clientId: ${AUTH_GITHUB_CLIENT_ID}
+              clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+              webhookUrl: ${GITHUB_WEBHOOK_URL}
+              webhookSecret: ${GITHUB_WEBHOOK_SECRET}
               privateKey: |
                 ${GITHUB_PRIVATE_KEY_FILE}
-          token: ${AUTH_GITHUB_CLIENT_TOKEN}
 
     signInPage: github
 
@@ -69,13 +63,11 @@ data:
         - type: file
           target: /opt/app-root/src/catalog-info.yaml
           rules:
-            - allow:
-                - User
+            - allow: [User, Group]
         - type: url
           target: "https://github.com/quarkusdroneshop/developerhub-skeleton/blob/main/reward/template.yaml"
           rules:
-            - allow:
-                - Template
+            - allow: [Template]
           schedule:
             frequency: PT60S
             initialDelay: PT30S
@@ -85,13 +77,16 @@ data:
       scaffolder: true
 
     scaffolder:
-      defaultAuthor: "user:default/nmushino"
+      defaultAuthor:
+        name: Noriaki Mushino
+        email: nmushino@redhat.com
       github:
         visibility: public
 
     enabled:
       kubernetes: true
       argocd: true
+      tekton: true
 
     kubernetes:
       clusterLocatorMethods:
@@ -106,6 +101,18 @@ data:
         - apiVersion: v1
           group: route.openshift.io
           plural: routes
+        - apiVersion: tekton.dev/v1beta1
+          group: tekton.dev
+          plural: pipelineruns
+        - apiVersion: tekton.dev/v1beta1
+          group: tekton.dev
+          plural: pipelines
+        - apiVersion: tekton.dev/v1beta1
+          group: tekton.dev
+          plural: taskruns
+        - apiVersion: tekton.dev/v1beta1
+          group: tekton.dev
+          plural: tasks
       serviceLocatorMethod:
         type: singleTenant
 
@@ -127,81 +134,23 @@ data:
           Cookie:
             $env: "${ARGOCD_AUTH_TOKEN}"
 
-      '/developer-hub':
-        target: https://raw.githubusercontent.com
-        pathRewrite:
-          '^/api/proxy/developer-hub': /example-org/droneshop-config/main/homepage/homepage-data.json
-        changeOrigin: true
-        secure: true
-
     permission:
-      enabled: true
       rbac:
         admin:
-          - "user:default/nmushino"
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: catalog-info
-  namespace: quarkusdroneshop-rhdh
-data:
-  catalog-info.yaml: |
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: System
-    metadata:
-      name: a-cluster
-      description: DroneShopのフロントクラスタ
-    spec:
-      owner: team-a
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: System
-    metadata:
-      name: b-cluster
-      description: DroneShopのフロントサービスクラスタ
-    spec:
-      owner: team-b
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: System
-    metadata:
-      name: c-cluster
-      description: DroneShopのバックヤードクラスタ
-    spec:
-      owner: team-c
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: Group
-    metadata:
-      name: team-a
-    spec:
-      type: team
-      profile:
-        displayName: Team A
-        email: team-a@example.com
-      children: []
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: Group
-    metadata:
-      name: team-b
-    spec:
-      type: team
-      profile:
-        displayName: Team B
-        email: team-b@example.com
-      children: []
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: Group
-    metadata:
-      name: team-c
-    spec:
-      type: team
-      profile:
-        displayName: Team C
-        email: team-c@example.com
-      children: []
+          users:
+            - name: user:default:nmushino
+        pluginsWithPermission:
+          - catalog
+          - scaffolder
+          - permission
+          - auth
+          - techdocs
+          - kubernetes
+          - catalog-import
+          - search
+          - cost-insights
+          - api-docs
+          - lighthouse
+          - catalog-graph
+          - github-actions
+          - tekton
