@@ -93,7 +93,35 @@ custom() {
     #yarn tsc
     #yarn build
     #oc start-build developer-hub --from-dir=. --follow
+    # cd backstage
 
+    # # 依存インストール、型チェック、ビルド
+    # yarn install
+    # yarn tsc
+    # yarn build
+
+    # # s2i用のディレクトリを作成して成果物と必要ファイルをコピー
+    # rm -rf s2i-dist && mkdir s2i-dist
+    # cp -r packages/app/dist/* s2i-dist/
+    # cp scripts/rhdh-openshift-setup/quick-start-rhdh.sh s2i-dist/run.sh
+    # cp package.json s2i-dist/
+
+    # # run.shに実行権限付与
+    # chmod +x s2i-dist/run.sh
+
+    # # OpenShift上の古いリソースを削除
+    # oc delete all -l app=developer-hub -n quarkusdroneshop-rhdh
+
+    # # 新規ビルド設定（nodejsイメージストリームは指定バージョンに合わせてください）
+    # oc new-build --name=developer-hub --strategy=source --binary=true --image-stream=nodejs --to=developer-hub:latest -n quarkusdroneshop-rhdh
+
+    # # ビルド開始。--from-dirでs2i-distを指定
+    # oc start-build developer-hub --from-dir=./s2i-dist --follow -n quarkusdroneshop-rhdh
+
+    # oc apply -f openshift/custom-developer-hub.yaml -n quarkusdroneshop-rhdh
+    cd .rhdh/docker
+    oc new-build --name=developer-hub --strategy=docker --binary=true --to=developer-hub:latest -n quarkusdroneshop-rhdh
+    oc start-build developer-hub --from-dir=. --follow -n quarkusdroneshop-rhdh
 }
 
 setup() {
@@ -123,6 +151,9 @@ cleanup() {
 }
 
 case "$1" in
+    setup)
+        setup
+        ;;
     deploy)
         deploy
         ;;
@@ -134,7 +165,7 @@ case "$1" in
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {deploy|custom|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|custom|cleanup}${RESET}"
         exit 1
         ;;
 esac

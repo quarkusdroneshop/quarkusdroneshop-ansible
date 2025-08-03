@@ -9,8 +9,6 @@ data:
   dynamic-plugins.yaml: |
     includes:
       - 'dynamic-plugins.default.yaml'
-      # - package: '@redhat/backstage-plugin-tekton'
-      #   disabled: false
 
     plugins:
       # RBAC
@@ -33,13 +31,14 @@ data:
       - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
         disabled: false
 
-      # ArgoCD Plugins
-      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-argo-cd-backend-dynamic
-        disabled: false
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-redhat-argocd
-        disabled: false
-      - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-argocd-dynamic
+      # Tekton Plugins
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-tekton
         disabled: false
 
-      # - package: ./dynamic-plugins/dist/redhat-backstage-plugin-tekton
-      #   disabled: false
+    pluginConfigs:
+      scaffolder:
+        actions:
+          '@backstage/plugin-scaffolder-backend-module-kubernetes:createResource':
+            disabled: false
+          '@backstage/plugin-scaffolder-backend-module-tekton:createPipelinerun':
+            disabled: false

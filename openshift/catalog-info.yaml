@@ -23,11 +23,11 @@ data:
     metadata:
       name: admin
     spec:
-        type: root
-        profile:
-          displayName: Administrators
-          email: nmushino@redhat.com
-        children: []
+      type: root
+      profile:
+        displayName: Administrators
+        email: nmushino@redhat.com
+      children: []
     ---
     apiVersion: backstage.io/v1alpha1
     kind: System
