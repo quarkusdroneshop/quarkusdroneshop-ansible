@@ -1,0 +1,33 @@
+global:
+  database:
+    host: mysql
+    port: 3306
+    username: openmetadata_user
+    password: openmetadata_password
+    database: openmetadata_db
+  opensearch:
+    host: opensearch
+    port: 9200
+
+openmetadata:
+  config:
+    authorizer:
+      className: "org.openmetadata.service.security.DefaultAuthorizer"
+
+ingestion:
+  enabled: true
+
+mysql:
+  enabled: true
+  auth:
+    rootPassword: rootpassword
+    database: openmetadata_db
+    username: openmetadata_user
+    password: openmetadata_password
+
+opensearch:
+  enabled: true
+  opensearchJavaOpts: "-Xms512m -Xmx512m"
+  extraEnvVars:
+    - name: DISABLE_SECURITY_PLUGIN
+      value: "true"

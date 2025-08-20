@@ -173,6 +173,7 @@ openmetadata() {
     oc adm policy add-scc-to-user anyuid -z default -n "$OPENMETADATASPACE"
     oc adm policy add-scc-to-user anyuid -z deployer -n "$OPENMETADATASPACE"
     oc adm policy add-scc-to-user anyuid -z mysql -n "$OPENMETADATASPACE"
+    oc adm policy add-scc-to-user anyuid -z openmetadata -n "$OPENMETADATASPACE"
 
     # OpenMetadataの依存Podの作成
     helm repo add open-metadata https://helm.open-metadata.org
@@ -196,8 +197,11 @@ openmetadata() {
     oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-namespace=openmetadata -n "$OPENMETADATASPACE"
     
     # OpenMetadataの作成
-    #helm install openmetadata open-metadata/openmetadata -n "$OPENMETADATASPACE" -f ./openshift/values-openmetadata.yaml
-    helm install openmetadata open-metadata/openmetadata -n "$OPENMETADATASPACE"
+    helm install openmetadata open-metadata/openmetadata -n "$OPENMETADATASPACE" -f ./openshift/values-openmetadata.yaml
+    # helm install openmetadata open-metadata/openmetadata \
+    #     -n "$OPENMETADATASPACE" \
+    #     --set extraEnvs[0].name=JAVA_OPTS \
+    #     --set extraEnvs[0].value="-Xlog:gc*:file=/tmp/openmetadata-gc.log:time,tags:filecount=10,filesize=102400"
     oc expose svc openmetadata -n "$OPENMETADATASPACE"
 
     #helm repo add minio https://charts.min.io/

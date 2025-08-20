@@ -73,8 +73,10 @@ deploy() {
     fi
 
     # 共通設定（共通タスクの作成）
-    oc apply -f openshift/buildah-clustertask.yaml -n  $CICD_NAMESPACE
-    oc apply -f openshift/openshift-client-clustertask.yaml -n  $CICD_NAMESPACE
+
+
+    #oc apply -f openshift/buildah-clustertask.yaml -n  $CICD_NAMESPACE
+    #oc apply -f openshift/openshift-client-clustertask.yaml -n  $CICD_NAMESPACE
     oc apply -f openshift/tekton-configmap.yaml -n  $CICD_NAMESPACE
     oc adm policy add-scc-to-user privileged -z pipeline -n  $CICD_NAMESPACE
     
@@ -141,6 +143,8 @@ setup() {
     oc new-project $CICD_NAMESPACE
     oc apply -f openshift/openshift-pipline.yaml
     sleep 30
+    oc delete tektonconfig config -n  $CICD_NAMESPACE
+    oc apply -f openshift/tektonconfig.yaml -n  $CICD_NAMESPACE
 
 }
 
