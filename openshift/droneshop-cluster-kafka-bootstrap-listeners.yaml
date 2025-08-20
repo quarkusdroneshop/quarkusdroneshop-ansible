@@ -30,7 +30,7 @@ spec:
         tls: true
       - name: external
         port: 9094
-        type: loadbalancer
+        type: route
         tls: false
   entityOperator:
     topicOperator: {}

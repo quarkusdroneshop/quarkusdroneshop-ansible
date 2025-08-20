@@ -5,7 +5,7 @@
 # Author: Noriaki Mushino
 # Date Created: 2025-05-25
 # Last Modified: 2025-07-19
-# Version: 1.0
+# Version: 1.3
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured

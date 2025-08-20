@@ -1,9 +1,18 @@
 #!/bin/bash
-
-
-# オフライントークンの発行先
-#https://access.redhat.com/management/api
-
+# =============================================================================
+# Script Name: delete-project.sh
+# Description: オフライントークンの発行先
+# Author: Noriaki Mushino
+# Date Created: 2025-05-25
+# Last Modified: 2025-07-19
+# Version: 1.3
+#
+# Prerequisites:
+#   - OpenShift CLI (oc) is installed and configured
+#   - User is logged into OpenShift
+#
+# https://access.redhat.com/management/api
+# =============================================================================
 
 REFRESH_TOKEN="$1"  # 第1引数で refresh_token を受け取る
 

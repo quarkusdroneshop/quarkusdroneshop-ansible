@@ -4,8 +4,8 @@
 # Description: This script is for deleteing to Project.
 # Author: Noriaki Mushino
 # Date Created: 2025-05-25
-# Last Modified: 2025-05-25
-# Version: 1.0
+# Last Modified: 2025-08-20
+# Version: 1.2
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
