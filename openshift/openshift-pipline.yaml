@@ -18,11 +18,11 @@ spec:
   name: openshift-pipelines-operator-rh
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  installMode: AllNamespaces
 ---
 apiVersion: operator.tekton.dev/v1alpha1
 kind: TektonConfig
 metadata:
   name: config
+  namespace: openshift-operators
 spec:
   profile: all

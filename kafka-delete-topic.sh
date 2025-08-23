@@ -15,7 +15,7 @@
 # 注意: ログイン後、対象ドメインのすべてのTopicを消します。
 
 NAMESPACE="quarkusdroneshop-demo"
-KAFKA_POD=$(oc get pod -n "$NAMESPACE" -l strimzi.io/kind=Kafka -o jsonpath='{.items[0].metadata.name}')
+KAFKA_POD=$(oc get pod -n "$NAMESPACE" -l strimzi.io/kind=Kafka -o jsonpath='{.items[1].metadata.name}')
 BOOTSTRAP_SERVER="shop-cluster-kafka-bootstrap:9092"                                    ## ローカルKafka
 A_PATTERN="^shop-asite.*"
 B_PATTERN="^shop-bsite.*"
@@ -52,10 +52,10 @@ oc exec -n "$NAMESPACE" -it "$KAFKA_POD" -- bash -c "
     /opt/kafka/bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVER --delete --topic \"\$topic\"
   done
 "
-## Kafka Pod 内でトピックリストを取得し、残りのTopicをすべて削除する
-#oc exec -n "$NAMESPACE" -it "$KAFKA_POD" -- bash -c "
-#  for topic in $(/opt/kafka/bin/kafka-topics.sh --bootstrap-server '"$BOOTSTRAP_SERVER"' --list); do
-#    echo "Deleting topic: " $topic
-#    /opt/kafka/bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVER --delete --topic "$topic"
-#  done
-#"
+# Kafka Pod 内でトピックリストを取得し、残りのTopicをすべて削除する
+oc exec -n "$NAMESPACE" -it "$KAFKA_POD" -- bash -c "
+ for topic in $(/opt/kafka/bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVER --list | while read topic; do
+   echo "Deleting topic: " $topic
+   /opt/kafka/bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVER --delete --topic "$topic"
+ done
+"

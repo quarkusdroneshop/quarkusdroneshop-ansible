@@ -84,21 +84,20 @@ spec:
   runPolicy: Serial
   source:
     dockerfile: |-
-      FROM fedora:latest
+      FROM registry.redhat.io/openshift4/ose-cli:latest
+      USER 0
       RUN yum install -y nc wget curl postgresql
-      RUN curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz \
-        && tar -xvf openshift-client-linux.tar.gz -C /usr/local/bin \
-        && chmod +x /usr/local/bin/oc \
-        && rm openshift-client-linux.tar.gz
-      RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
-      RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_custom.sh && chmod +x init_postgres_custom.sh && mv init_postgres_custom.sh /bin/init_postgres_custom.sh
+      RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
+        && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
+      RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_custom.sh \
+        && chmod +x init_postgres_custom.sh && mv init_postgres_custom.sh /bin/init_postgres_custom.sh
       CMD ["sleep", "10000"]
     type: Dockerfile
   strategy:
     dockerStrategy:
       from:
-        kind: ImageStreamTag
-        name: fedora:latest
+        kind: DockerImage
+        name: registry.redhat.io/openshift4/ose-cli:latest
     type: Docker
   successfulBuildsHistoryLimit: 5
   triggers:

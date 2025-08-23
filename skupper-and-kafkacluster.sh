@@ -103,7 +103,7 @@ deploy() {
         oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
-        oc apply -f openshift/kafka-mm2-a-site.yaml -n "$NAMESPACE"
+        #oc apply -f openshift/kafka-mm2-a-site.yaml -n "$NAMESPACE"
 
 
     elif [ "$SITE_CONFREM" = "B" ]; then
@@ -141,7 +141,7 @@ deploy() {
         oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
-        oc apply -f openshift/kafka-mm2-b-site.yaml -n "$NAMESPACE"
+        #oc apply -f openshift/kafka-mm2-b-site.yaml -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "C" ]; then
 
@@ -181,7 +181,7 @@ deploy() {
         oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
-        oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"
+        #oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"
 
     fi
 
