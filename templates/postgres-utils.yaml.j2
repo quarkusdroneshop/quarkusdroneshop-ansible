@@ -87,9 +87,8 @@ spec:
       FROM registry.redhat.io/openshift4/ose-cli:latest
       USER 0
       # nc, wget, curl, psql client を導入
-      RUN yum -y module enable postgresql:12 \
-      && yum -y install nc wget curl postgresql \
-      && yum clean all
+      RUN yum -y install nc wget curl postgresql && \
+          yum clean all
       # init scripts
       RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
         && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
