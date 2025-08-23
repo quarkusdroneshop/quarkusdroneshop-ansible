@@ -86,7 +86,11 @@ spec:
     dockerfile: |-
       FROM registry.redhat.io/openshift4/ose-cli:latest
       USER 0
-      RUN yum -y install nc wget curl postgresql12 && yum clean all
+      # dnf-utils を入れて repo を扱えるようにする
+      RUN yum -y install nc wget curl dnf-utils && \
+          yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
+          yum -y install postgresql && \
+          yum clean all
       # init scripts
       RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
         && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
