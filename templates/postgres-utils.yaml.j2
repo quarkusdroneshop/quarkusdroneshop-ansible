@@ -89,8 +89,7 @@ spec:
       RUN dnf -y install wget curl dnf-utils && \
           dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
           dnf -y module disable postgresql && \
-          dnf -y makecache && \
-          dnf -y install postgresql15 && \
+          dnf -y install postgresql15 postgresql15-server postgresql15-contrib && \
           dnf clean all
       RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
         && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
