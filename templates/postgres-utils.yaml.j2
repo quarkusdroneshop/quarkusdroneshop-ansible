@@ -84,12 +84,12 @@ spec:
   runPolicy: Serial
   source:
     dockerfile: |-
-      FROM registry.redhat.io/openshift4/ose-cli:latest
+      FROM registry.redhat.io/openshift4/ose-cli
       USER 0
-      RUN yum -y install postgresql15 \
-          postgresql15-server \
-          postgresql15-contrib \
-          --disablerepo="*" --enablerepo="pgdg15" && \
+      RUN yum -y install wget curl dnf-utils && \
+          yum -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
+          yum -y module disable postgresql && \
+          yum -y install postgresql15 postgresql15-server postgresql15-contrib && \
           yum clean all
       RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
         && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
