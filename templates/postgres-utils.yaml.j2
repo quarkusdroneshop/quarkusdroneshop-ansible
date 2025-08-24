@@ -85,7 +85,6 @@ spec:
   source:
     dockerfile: |-
       FROM fedora:latest
-      USER 0
       RUN dnf -y install postgresql
       CMD ["sleep", "10000"]
       RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
