@@ -86,10 +86,14 @@ spec:
     dockerfile: |-
       FROM registry.redhat.io/openshift4/ose-cli:latest
       USER 0
-      # dnf-utils を入れて repo を扱えるようにする
+      # ツール類
       RUN yum -y install nc wget curl dnf-utils && \
-          yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-          yum -y install postgresql && \
+          # PGDG repository 追加
+          yum -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
+          # RHEL8/UBI8 は標準の postgresql module を無効化しないと競合する
+          yum -y module disable postgresql && \
+          # PostgreSQL 15 クライアントのみインストール
+          yum -y install postgresql15 && \
           yum clean all
       # init scripts
       RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
