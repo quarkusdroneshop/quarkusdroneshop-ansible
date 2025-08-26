@@ -84,11 +84,8 @@ spec:
   runPolicy: Serial
   source:
     dockerfile: |-
-      FROM registry.redhat.io/openshift4/ose-cli
+      FROM registry.redhat.io/rhel10/postgresql-16@sha256:e018d238666d08100eead266bc2cb72799243327232760ad55db2844bc72200c
       USER 0
-      RUN dnf -y list available postgresql* | grep postgresql \
-      && dnf -y install postgresql13 \
-      && dnf clean all
       CMD ["sleep", "10000"]
       RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
         && chmod +x init_postgres_db.sh && mv init_postgres_db.sh /bin/init_postgres_db.sh
