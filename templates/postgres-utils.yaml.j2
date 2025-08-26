@@ -86,7 +86,8 @@ spec:
     dockerfile: |-
       FROM registry.redhat.io/openshift4/ose-cli
       USER 0
-      RUN dnf -y install postgresql \
+      RUN dnf -y list available postgresql* | grep postgresql \
+      && dnf -y install postgresql13 \
       && dnf clean all
       CMD ["sleep", "10000"]
       RUN curl -OL https://raw.githubusercontent.com/quarkusdroneshop/quarkusdroneshop-ansible/refs/heads/"{{ branch }}"/files/init_postgres_db.sh \
