@@ -10,7 +10,7 @@ delete_deployment: false
 amqchannel: stable
 amqstartingCSV: amq-streams.v3.0.0-9
 consolechannel: alpha
-consolestartingCSV: amq-streams-console.v3.0.0-7
+consolestartingCSV: amq-streams-console.v3.1.0-6
 mongodbstartingCSV: mongodb-enterprise.v1.32.0
 crunchystartingCSV: postgresoperator.v5.8.2
 config_location: "/tmp/"
