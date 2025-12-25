@@ -12,7 +12,7 @@ amqstartingCSV: amqstreams.v3.1.0-6
 consolechannel: stable
 consolestartingCSV: amq-streams-console.v3.1.0-4
 mongodbstartingCSV: mongodb-enterprise.v1.32.0
-crunchystartingCSV: postgresoperator.v5.8.2
+crunchystartingCSV: postgresoperator.v5.8.3
 config_location: "/tmp/"
 kafka_cluster_name: shop-cluster
 domain: ocp4.example.com
@@ -62,7 +62,7 @@ pgadmin_setup_password: postgres
 
 # picurio Registry information
 registry_channel: 2.x
-registry_starting_csv: service-registry-operator.v2.6.13-r1
+registry_starting_csv: service-registry-operator.2.6.13-r2+0.1765811602.p
 
 # Store ID
 storeid: TOKYO
