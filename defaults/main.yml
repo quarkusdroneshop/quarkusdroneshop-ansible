@@ -62,7 +62,7 @@ pgadmin_setup_password: postgres
 
 # Apicurio Registry information
 registry_channel: 2.x
-registry_starting_csv: service-registry-operator.v2.6.13-r2+0.1765811602.p
+registry_starting_csv: service-registry-operator.v2.6.13-r2+0.1763986602.p
 
 # Store ID
 storeid: TOKYO
