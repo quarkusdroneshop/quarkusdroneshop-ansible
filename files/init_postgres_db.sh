@@ -1,8 +1,7 @@
 #!/bin/bash
 
 ### droneshopadminで実行する
-export PGPASSWORD=$(oc get secret droneshopdb-pguser-droneshopadmin -n quarkusdroneshop-demo -o jsonpath='{.data.password}' | base64 -d)
-export PGHOSTNAME=$(oc get secret droneshopdb-pguser-droneshopadmin -n quarkusdroneshop-demo -o jsonpath='{.data.host}' | base64 -d)
+export PGHOSTNAME=droneshopdb-primary.quarkusdroneshop-demo.svc
 
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA IF NOT EXISTS droneshop;"
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA droneshop AUTHORIZATION droneshopadmin;"
