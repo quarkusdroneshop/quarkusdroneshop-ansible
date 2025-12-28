@@ -127,7 +127,7 @@
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
     -- env PGPASSWORD=$(
-      {{ oc_location }} get secret dron eshopdb-pguser-droneshopadmin
+      {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
       -n {{ project_namespace }}
       -o jsonpath='{.data.password}' | base64 -d
     )
@@ -145,7 +145,7 @@
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
     -- env PGPASSWORD=$(
-      {{ oc_location }} get secret dron eshopdb-pguser-droneshopadmin
+      {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
       -n {{ project_namespace }}
       -o jsonpath='{.data.password}' | base64 -d
     )
