@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ### droneshopadminで実行する
-export PGHOSTNAME=droneshopdb-primary.quarkusdroneshop-demo.svc
+export PGHOSTNAME="droneshopdb-primary.quarkusdroneshop-demo.svc"
 
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA IF NOT EXISTS droneshop;"
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA droneshop AUTHORIZATION droneshopadmin;"
