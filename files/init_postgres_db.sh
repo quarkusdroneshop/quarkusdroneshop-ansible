@@ -2,6 +2,7 @@
 
 ### droneshopadminで実行する
 export PGHOSTNAME="droneshopdb-primary.quarkusdroneshop-demo.svc"
+export PGPASSWORD="${PGPASSWORD}"
 export PGPORT="5432"
 export PGUSER="droneshopadmin"
 export PGDATABASE="droneshopdb"

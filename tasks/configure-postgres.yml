@@ -105,7 +105,7 @@
     - acm-workload
     - helm
 
-- name: Saving  postgres-utilites Pod name
+- name: Saving Postgres-utilites Pod name
   set_fact:
     postgres_utils_pod: "{{ get_podname.stdout }}"
   when: not delete_deployment|bool
@@ -114,8 +114,15 @@
     - acm-workload
     - helm
 
-- name:  Create and load postgres database
-  command: "{{ oc_location }}  exec {{ postgres_utils_pod }} -n {{ project_namespace }}  -- /bin/init_postgres_db.sh"
+- name: Create and load postgres database
+  command: >
+    {{ oc_location }} exec {{ postgres_utils_pod }}
+    -n {{ project_namespace }}
+    -- env PGPASSWORD={{ lookup('pipe',
+      oc_location ~ ' get secret droneshopdb-pguser-droneshopadmin -n ' ~ project_namespace ~
+      ' -o jsonpath="{.data.password}" | base64 -d'
+    ) }}
+    /bin/init_postgres_db.sh
   when: not delete_deployment|bool
   tags: 
     - postgres
