@@ -116,7 +116,7 @@
 
 - name: Check if postgres admin secret exists
   command: >
-    {{ oc_location }} get secret dron eshopdb-pguser-droneshopadmin
+    {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
     -n {{ project_namespace }}
   register: pguser_secret_check
   failed_when: false
@@ -134,6 +134,7 @@
     /bin/init_postgres_db.sh
   when:
     - not delete_deployment|bool
+    - pguser_secret_check is defined
     - pguser_secret_check.rc == 0
   tags:
     - postgres
