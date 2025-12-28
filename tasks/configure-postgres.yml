@@ -118,10 +118,11 @@
   command: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD={{ lookup('pipe',
-      oc_location ~ ' get secret droneshopdb-pguser-droneshopadmin -n ' ~ project_namespace ~
-      ' -o jsonpath="{.data.password}" | base64 -d'
-    ) }}
+    -- env PGPASSWORD=$(
+      {{ oc_location }} get secret dron eshopdb-pguser-droneshopadmin
+      -n {{ project_namespace }}
+      -o jsonpath='{.data.password}' | base64 -d
+    )
     /bin/init_postgres_db.sh
   when: not delete_deployment|bool
   tags: 
@@ -133,10 +134,11 @@
   command: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD={{ lookup('pipe',
-      oc_location ~ ' get secret droneshopdb-pguser-droneshopadmin -n ' ~ project_namespace ~
-      ' -o jsonpath="{.data.password}" | base64 -d'
-    ) }}
+    -- env PGPASSWORD=$(
+      {{ oc_location }} get secret dron eshopdb-pguser-droneshopadmin
+      -n {{ project_namespace }}
+      -o jsonpath='{.data.password}' | base64 -d
+    )
     /bin/init_postgres_custom.sh
   when: not delete_deployment|bool
   tags: 
