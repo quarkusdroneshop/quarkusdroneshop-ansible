@@ -93,12 +93,11 @@ spec:
         && chmod +x init_postgres_custom.sh && mv init_postgres_custom.sh /bin/init_postgres_custom.sh
       CMD ["sleep", "10000"]
     type: Dockerfile
-  strategy:
-    dockerStrategy:
-      from:
-        kind: DockerImage
-        name: registry.redhat.io/openshift4/ose-cli:latest
-    type: Docker
+    strategy:
+      dockerStrategy:
+        from:
+          kind: DockerImage
+          name: registry.redhat.io/rhel10/postgresql-16
   successfulBuildsHistoryLimit: 5
   triggers:
   - github:
