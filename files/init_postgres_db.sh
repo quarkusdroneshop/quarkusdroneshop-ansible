@@ -2,6 +2,17 @@
 
 ### droneshopadminで実行する
 export PGHOSTNAME="droneshopdb-primary.quarkusdroneshop-demo.svc"
+export PGPORT="5432"
+export PGUSER="droneshopadmin"
+export PGDATABASE="droneshopdb"
+
+echo "Waiting for PostgreSQL to become available..."
+
+until pg_isready -h "$PGHOSTNAME" -p "$PGPORT" -U "$PGUSER"; do
+  sleep 2
+done
+
+echo "PostgreSQL is ready"
 
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA IF NOT EXISTS droneshop;"
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA droneshop AUTHORIZATION droneshopadmin;"
