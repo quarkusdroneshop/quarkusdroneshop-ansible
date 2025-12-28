@@ -133,7 +133,6 @@
     )
     /bin/init_postgres_db.sh
   when:
-    - not delete_deployment|bool
     - pguser_secret_check is defined
     - pguser_secret_check.rc == 0
   tags:
