@@ -27,12 +27,28 @@ data:
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
         disabled: false
 
+      # Kubernetes Scaffolder Actions
+      - package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-kubernetes-dynamic
+        disabled: false
+
       # OpenShift Plugins
       - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
         disabled: false
 
+      # ArgoCD Plugins
+      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-argo-cd-backend-dynamic
+        disabled: false
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-redhat-argocd
+        disabled: false
+      - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-argocd-dynamic
+        disabled: false
+
       # Tekton Plugins
       - package: ./dynamic-plugins/dist/backstage-community-plugin-tekton
+        disabled: false
+
+      # Tekton Backend (Janus IDP)
+      - package: ./dynamic-plugins/dist/backstage-plugin-tekton-backend-dynamic
         disabled: false
 
     pluginConfigs:

@@ -85,18 +85,3 @@ data:
         displayName: Team C
         email: team-c@example.com
       children: []
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: Component
-    metadata:
-      name: quarkusdroneshop-reward
-      description: DroneShop Reward Service
-      annotations:
-        backstage.io/kubernetes-id: quarkusdroneshop-reward
-        tektonci.io/pipeline: quarkusdroneshop-reward
-        tekton.dev/type: pipeline
-    spec:
-      type: service
-      lifecycle: production
-      owner: team-b
-      system: b-cluster

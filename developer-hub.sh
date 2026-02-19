@@ -73,6 +73,10 @@ deploy() {
     oc apply -f openshift/catalog-info.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/k8-plugin-sa.yaml -n quarkusdroneshop-rhdh
 
+    #
+    # OpenShift GitOpsもインストールの必要がある
+    oc adm policy add-cluster-role-to-user cluster-admin -z openshift-gitops-argocd-application-controller -n openshift-gitops
+
 }
 
 custom() {
@@ -169,3 +173,18 @@ case "$1" in
         exit 1
         ;;
 esac
+
+
+oc create serviceaccount rhdh-reader -n quarkusdroneshop-demo
+oc adm policy add-cluster-role-to-user cluster-reader \
+  -z rhdh-reader -n quarkusdroneshop-demo
+
+oc create token rhdh-reader -n quarkusdroneshop-demo
+
+oc create secret generic fmv9p-cluster \
+  -n quarkusdroneshop-rhdh \
+  --from-literal=name=fmv9p \
+  --from-literal=url=https://api.cluster-fmv9p.fmv9p.sandbox1518.opentlc.com:6443 \
+  --from-literal=token=<ここにtoken>
+
+oc rollout restart deployment backstage -n quarkusdroneshop-rhdh
