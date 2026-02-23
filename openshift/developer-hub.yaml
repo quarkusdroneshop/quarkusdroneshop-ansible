@@ -5,10 +5,17 @@ metadata:
   namespace: quarkusdroneshop-rhdh
 spec:
   application:
+    image: image-registry.openshift-image-registry.svc:5000/quarkusdroneshop-rhdh/rhdh-hub-custom:latest
+    replicas: 1
+
+    route:
+      enabled: true
+
     appConfig:
       configMaps:
         - name: app-config
       mountPath: /opt/app-root/src
+
     extraFiles:
       configMaps:
         - name: catalog-info
@@ -16,12 +23,13 @@ spec:
           files:
             - key: catalog-info.yaml
               path: catalog-info.yaml
+
     extraEnvs:
       secrets:
         - name: secrets-rhdh
-    replicas: 1
-    route:
-      enabled: true
+
+    # ⭐ ここが重要（dynamic plugin 使用）
     dynamicPluginsConfigMapName: dynamic-plugins-rhdh
+
   database:
     enableLocalDb: true

@@ -1,0 +1,53 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: reward-template
+  namespace: quarkusdroneshop-cicd
+spec:
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: reward-run-
+      spec:
+        pipelineRef:
+          name: build-and-push-quarkusdroneshop-reward
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: reward-binding
+  namespace: quarkusdroneshop-cicd
+spec:
+  params:
+    - name: gitUrl
+      value: $(body.gitUrl)
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: reward-listener
+  namespace: quarkusdroneshop-cicd
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    - name: github-push
+      bindings:
+        - ref: reward-binding
+      template:
+        ref: reward-template
+      interceptors:
+        - ref:
+            name: cel
+          params:
+            - name: filter
+              value: body.ref == 'refs/heads/main'

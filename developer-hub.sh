@@ -73,13 +73,24 @@ deploy() {
     oc apply -f openshift/catalog-info.yaml -n quarkusdroneshop-rhdh
     oc apply -f openshift/k8-plugin-sa.yaml -n quarkusdroneshop-rhdh
 
-    #
+    # CICD設定
+    oc apply -f openshift/developer-hub-cicd.yaml -n quarkusdroneshop-cicd
+    oc expose svc el-reward-listener -n quarkusdroneshop-cicd
+    
+    oc adm policy add-cluster-role-to-user edit \
+    -z rhdh-k8s-plugin \
+    -n quarkusdroneshop-rhd
+
+    oc adm policy add-cluster-role-to-user view \
+    -z rhdh-k8s-plugin \
+    -n quarkusdroneshop-rhdh
+
     # OpenShift GitOpsもインストールの必要がある
-    oc adm policy add-cluster-role-to-user cluster-admin -z openshift-gitops-argocd-application-controller -n openshift-gitops
+    #oc adm policy add-cluster-role-to-user cluster-admin -z openshift-gitops-argocd-application-controller -n openshift-gitops
 
 }
 
-custom() {
+customimage() {
     #REGISTRY="image-registry-openshift-image-registry.apps.cluster-2x987.2x987.sandbox1936.opentlc.com"                                                                       ✘ 1 
     #PROJECT="quarkusdroneshop-rhdh"
     #IMAGE_NAME="developer-hub"
@@ -123,9 +134,57 @@ custom() {
     # oc start-build developer-hub --from-dir=./s2i-dist --follow -n quarkusdroneshop-rhdh
 
     # oc apply -f openshift/custom-developer-hub.yaml -n quarkusdroneshop-rhdh
-    cd .rhdh/docker
-    oc new-build --name=developer-hub --strategy=docker --binary=true --to=developer-hub:latest -n quarkusdroneshop-rhdh
-    oc start-build developer-hub --from-dir=. --follow -n quarkusdroneshop-rhdh
+    # cd .rhdh/docker
+    # oc new-build --name=developer-hub --strategy=docker --binary=true --to=developer-hub:latest -n quarkusdroneshop-rhdh
+    # oc start-build developer-hub --from-dir=. --follow -n quarkusdroneshop-rhdh
+
+    # oc create secret generic redhat-pull-secret \
+    # --from-file=.dockerconfigjson=~/Downloads/pull-secret.json \
+    # --type=kubernetes.io/dockerconfigjson \
+    # -n quarkusdroneshop-rhdh
+
+    # oc secrets link builder redhat-pull-secret --for=pull -n quarkusdroneshop-rhdh
+
+    oc delete buildconfig rhdh-hub-custom --ignore-not-found
+    oc delete imagestream rhdh-hub-custom --ignore-not-found
+
+    oc delete secret redhat-pull-secret --ignore-not-found
+    oc create secret generic redhat-pull-secret \
+        --from-file=.dockerconfigjson=/Users/nmushino/.docker/config.json \
+        --type=kubernetes.io/dockerconfigjson \
+        -n quarkusdroneshop-rhdh
+    # oc secrets link builder redhat-pull-secret --for=pull -n quarkusdroneshop-rhdh
+
+    oc project quarkusdroneshop-rhdh
+
+    oc secrets link default redhat-pull-secret --for=pull
+    oc secrets link builder redhat-pull-secret --for=pull
+
+    oc import-image rhdh-hub-rhel9:1.8.3 \
+        --from=registry.redhat.io/rhdh/rhdh-hub-rhel9:1.8.3 \
+        --confirm
+    # podman pull registry.redhat.io/rhdh/rhdh-hub-rhel9:1.8
+    # oc project quarkusdroneshop-rhdh
+    # REGISTRY=$(oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}')
+    # podman tag registry.redhat.io/rhdh/rhdh-hub-rhel9:latest \
+    #     $REGISTRY/quarkusdroneshop-rhdh/rhdh-hub-custom:latest
+    # podman push $REGISTRY/quarkusdroneshop-rhdh/rhdh-hub-custom:latest
+
+    oc new-build \
+    --name=rhdh-hub-custom \
+    --binary \
+    --strategy=docker \
+    --to=rhdh-hub-custom:latest
+
+    oc patch bc rhdh-hub-custom \
+    -p '{"spec":{"strategy":{"dockerStrategy":{"dockerfilePath":"dockerfile-rhdh"}}}}'
+
+    oc start-build rhdh-hub-custom --from-dir=../developerhub-skeleton/developerhub --follow
+
+    # # Build イメージをタグ付け
+    #docker build -f files/dockerfile-rhdh -t image-registry.openshift-image-registry.svc:5000/quarkusdroneshop-rhdh/rhdh-hub-custom:latest --push .
+    #docker push image-registry.openshift-image-registry.svc:5000/quarkusdroneshop-rhdh/rhdh-hub-custom:latest
+
 }
 
 setup() {
@@ -161,30 +220,30 @@ case "$1" in
     deploy)
         deploy
         ;;
-    custom)
-        custom
+    customimage)
+        customimage
         ;;
     cleanup)
         cleanup
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|custom|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|customimage|cleanup}${RESET}"
         exit 1
         ;;
 esac
 
 
-oc create serviceaccount rhdh-reader -n quarkusdroneshop-demo
-oc adm policy add-cluster-role-to-user cluster-reader \
-  -z rhdh-reader -n quarkusdroneshop-demo
+# oc create serviceaccount rhdh-reader -n quarkusdroneshop-demo
+# oc adm policy add-cluster-role-to-user cluster-reader \
+#   -z rhdh-reader -n quarkusdroneshop-demo
 
-oc create token rhdh-reader -n quarkusdroneshop-demo
+# oc create token rhdh-reader -n quarkusdroneshop-demo
 
-oc create secret generic fmv9p-cluster \
-  -n quarkusdroneshop-rhdh \
-  --from-literal=name=fmv9p \
-  --from-literal=url=https://api.cluster-fmv9p.fmv9p.sandbox1518.opentlc.com:6443 \
-  --from-literal=token=<ここにtoken>
+# oc create secret generic fmv9p-cluster \
+#   -n quarkusdroneshop-rhdh \
+#   --from-literal=name=fmv9p \
+#   --from-literal=url=https://api.cluster-fmv9p.fmv9p.sandbox1518.opentlc.com:6443 \
+#   --from-literal=token=<ここにtoken>
 
-oc rollout restart deployment backstage -n quarkusdroneshop-rhdh
+# oc rollout restart deployment backstage -n quarkusdroneshop-rhdh

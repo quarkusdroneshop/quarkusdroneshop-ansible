@@ -1,5 +1,5 @@
-kind: ConfigMap
 apiVersion: v1
+kind: ConfigMap
 metadata:
   name: dynamic-plugins-rhdh
   namespace: quarkusdroneshop-rhdh
@@ -8,53 +8,41 @@ metadata:
 data:
   dynamic-plugins.yaml: |
     includes:
-      - 'dynamic-plugins.default.yaml'
+      - dynamic-plugins.default.yaml
 
     plugins:
-      # RBAC
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-rbac
-        disabled: false
-
-      # GitHub Plugins
+      # ===== GitHub =====
       - package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-org-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
         disabled: false
 
-      # Kubernetes Plugins
+      # ===== HTTP Request (Scaffolder) =====
+      - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
+        disabled: false
+        pluginConfig:
+          dynamicPlugins:
+            backend:
+              - package: roadiehq-scaffolder-backend-module-http-request-dynamic
+
+      # ===== Kubernetes =====
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
         disabled: false
 
-      # Kubernetes Scaffolder Actions
-      - package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-kubernetes-dynamic
-        disabled: false
-
-      # OpenShift Plugins
+      # ===== OpenShift Topology =====
       - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
         disabled: false
 
-      # ArgoCD Plugins
+      # ===== Tekton =====
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-tekton
+        disabled: false
+
+      # ===== ArgoCD =====
       - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-argo-cd-backend-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-community-plugin-redhat-argocd
         disabled: false
       - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-argocd-dynamic
         disabled: false
-
-      # Tekton Plugins
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-tekton
-        disabled: false
-
-      # Tekton Backend (Janus IDP)
-      - package: ./dynamic-plugins/dist/backstage-plugin-tekton-backend-dynamic
-        disabled: false
-
-    pluginConfigs:
-      scaffolder:
-        actions:
-          '@backstage/plugin-scaffolder-backend-module-kubernetes:createResource':
-            disabled: false
-          '@backstage/plugin-scaffolder-backend-module-tekton:createPipelinerun':
-            disabled: false
