@@ -77,6 +77,10 @@ data:
     featureFlags:
       scaffolder: true
 
+    dynamicPlugins:
+      backend:
+        roadiehq-scaffolder-backend-module-http-request-dynamic: {}
+
     scaffolder:
       defaultAuthor:
         name: Noriaki Mushino
@@ -132,6 +136,11 @@ data:
         headers:
           Cookie:
             $env: "${ARGOCD_AUTH_TOKEN}"
+      '/tekton-trigger':
+        target: 'http://el-backstage-listener.quarkusdroneshop-cicd.svc.cluster.local:8080'
+        changeOrigin: true
+        headers:
+          Authorization: ""
 
     permission:
       rbac:
