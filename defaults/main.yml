@@ -12,7 +12,7 @@ amqstartingCSV: amqstreams.v3.2.0-13
 consolechannel: stable
 consolestartingCSV: amq-streams-console.v3.2.0-10
 mongodbstartingCSV: mongodb-enterprise.v1.32.0
-crunchystartingCSV: postgresoperator.v5.8.6
+crunchystartingCSV: postgresoperator.v5.8.7
 config_location: "/tmp/"
 kafka_cluster_name: shop-cluster
 domain: ocp4.example.com
