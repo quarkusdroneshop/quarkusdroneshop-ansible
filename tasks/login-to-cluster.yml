@@ -27,7 +27,7 @@
 - name: set oc location ubuntu 
   set_fact:
     oc_location: /usr/bin/oc
-  when: aansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Ubuntu'
   tags: always
 
 - name: login as super user with token on OpenShift 4
