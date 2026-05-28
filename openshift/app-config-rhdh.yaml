@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: app-config
+  name: app-config-rhdh
   namespace: quarkusdroneshop-rhdh
   annotations:
     rhdh.redhat.com/backstage-name: developer-hub
 data:
-  app-config.yaml: |
+  app-config-rhdh.yaml: |
     app:
       title: Red Hat Developer Hub
       baseUrl: ${BASE_URL}
@@ -14,10 +14,10 @@ data:
     backend:
       auth:
         externalAccess:
-        - type: legacy
-          options:
-            secret: "${BACKEND_SECRET}"
-            subject: legacy-default-config
+          - type: legacy
+            options:
+              secret: "${BACKEND_SECRET}"
+              subject: legacy-default-config
       baseUrl: ${BASE_URL}
       cors:
         origin: ${BASE_URL}
@@ -62,7 +62,7 @@ data:
             timeout: PT120S
       locations:
         - type: file
-          target: /opt/app-root/src/catalog-info.yaml
+          target: /opt/app-root/catalog/catalog-info.yaml
           rules:
             - allow: [User, Group]
         - type: url
@@ -76,10 +76,6 @@ data:
 
     featureFlags:
       scaffolder: true
-
-    dynamicPlugins:
-      backend:
-        roadiehq-scaffolder-backend-module-http-request-dynamic: {}
 
     scaffolder:
       defaultAuthor:
@@ -119,6 +115,9 @@ data:
       serviceLocatorMethod:
         type: singleTenant
        
+    tekton:
+      defaultNamespace: "quarkusdroneshop-cicd"
+
     argocd:
       appLocatorMethods:
         - type: config
@@ -137,10 +136,15 @@ data:
           Cookie:
             $env: "${ARGOCD_AUTH_TOKEN}"
       '/tekton-trigger':
-        target: 'http://el-backstage-listener.quarkusdroneshop-cicd.svc.cluster.local:8080'
+        target: 'https://el-reward-listener-quarkusdroneshop-cicd.apps.cluster-mczlk.mczlk.sandbox3568.opentlc.com'
+        allowedMethods: ['POST']
         changeOrigin: true
+        secure: false
         headers:
-          Authorization: ""
+          Authorization: 'Bearer ${TEKTON_LISTENER_TOKEN}' # Listener 認証トークン
+        pathRewrite:
+          '^/tekton-trigger$': '/'
+          '^/tekton-trigger/': '/'
 
     permission:
       rbac:

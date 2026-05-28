@@ -1,15 +1,15 @@
 #!/bin/bash
 # =============================================================================
-# Script Name: pipline.sh
-# Description: This script sets up the application pipeline.
+# Script Name: developer-hub.sh
+# Description: This script sets up the developer-hub image and application skeleton.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2025-07-21
-# Version: 1.2
+# Last Modified: 2026-03-07
+# Version: 1.5
 #
 # Usage:
-#   ./deploy.sh setup           - To setup the environment.
-#   ./deploy.sh cleanup         - To delete the application.
+#   ./developer-hub.sh setup           - To setup the environment.
+#   ./developer-hub.sh cleanup         - To delete the application.
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -56,6 +56,8 @@ fi
 
 deploy() {
 
+    oc project $RHDH_NAMESPACE
+
     DOMAIN_URL=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
     DOMAIN_APIURL=$(oc whoami --show-server)
 
@@ -66,27 +68,24 @@ deploy() {
 
     echo "デプロイの開始..."
     # 各種設定
-    oc apply -f openshift/developer-hub.yaml -n quarkusdroneshop-rhdh
-    oc apply -f openshift/app-config-rhdh.yaml -n quarkusdroneshop-rhdh
-    oc apply -f openshift/secrets-rhdh.yaml -n quarkusdroneshop-rhdh
-    oc apply -f openshift/dynamic-plugins-rhdh.yaml -n quarkusdroneshop-rhdh
-    oc apply -f openshift/catalog-info.yaml -n quarkusdroneshop-rhdh
-    oc apply -f openshift/k8-plugin-sa.yaml -n quarkusdroneshop-rhdh
+    oc apply -f openshift/developer-hub.yaml -n $RHDH_NAMESPACE
+    oc apply -f openshift/app-config-rhdh.yaml -n $RHDH_NAMESPACE
+    oc apply -f openshift/secrets-rhdh.yaml -n $RHDH_NAMESPACE
+    oc apply -f openshift/dynamic-plugins-rhdh.yaml -n $RHDH_NAMESPACE
+    oc apply -f openshift/catalog-info.yaml -n $RHDH_NAMESPACE
+    oc apply -f openshift/k8-plugin-sa.yaml -n $RHDH_NAMESPACE
 
     # CICD設定
-    oc apply -f openshift/developer-hub-cicd.yaml -n quarkusdroneshop-cicd
-    oc expose svc el-reward-listener -n quarkusdroneshop-cicd
+    # oc apply -f openshift/developer-hub-cicd.yaml -n quarkusdroneshop-cicd
+    # oc expose svc el-reward-listener -n quarkusdroneshop-cicd
     
     oc adm policy add-cluster-role-to-user edit \
     -z rhdh-k8s-plugin \
-    -n quarkusdroneshop-rhd
+    -n $RHDH_NAMESPACE
 
     oc adm policy add-cluster-role-to-user view \
     -z rhdh-k8s-plugin \
-    -n quarkusdroneshop-rhdh
-
-    # OpenShift GitOpsもインストールの必要がある
-    #oc adm policy add-cluster-role-to-user cluster-admin -z openshift-gitops-argocd-application-controller -n openshift-gitops
+    -n $RHDH_NAMESPACE
 
 }
 
@@ -95,95 +94,55 @@ customimage() {
     #PROJECT="quarkusdroneshop-rhdh"
     #IMAGE_NAME="developer-hub"
     #TAG="latest"
-    
-    #oc new-build --name=developer-hub --binary --strategy=docker -n quarkusdroneshop-rhdh
-    #oc create route edge --service=image-registry -n openshift-image-registry
-    #oc registry login
-    #REGISTRY_HOST=$(oc get route -n openshift-image-registry image-registry -o jsonpath='{.spec.host}')
-    #FULL_IMAGE="${REGISTRY_HOST}/quarkusdroneshop-rhdh/developer-hub:latest -n quarkusdroneshop-rhdh"
-    #docker build -t "${FULL_IMAGE}" .
-    #docker push "${FULL_IMAGE}"
-    #podman build --no-cache -f Containerfile -t backstage-plugin . 
-    #cd backstage
-    #yarn tsc
-    #yarn build
-    #oc start-build developer-hub --from-dir=. --follow
-    # cd backstage
 
-    # # 依存インストール、型チェック、ビルド
-    # yarn install
-    # yarn tsc
-    # yarn build
+    oc project $RHDH_NAMESPACE
 
-    # # s2i用のディレクトリを作成して成果物と必要ファイルをコピー
-    # rm -rf s2i-dist && mkdir s2i-dist
-    # cp -r packages/app/dist/* s2i-dist/
-    # cp scripts/rhdh-openshift-setup/quick-start-rhdh.sh s2i-dist/run.sh
-    # cp package.json s2i-dist/
-
-    # # run.shに実行権限付与
-    # chmod +x s2i-dist/run.sh
-
-    # # OpenShift上の古いリソースを削除
-    # oc delete all -l app=developer-hub -n quarkusdroneshop-rhdh
-
-    # # 新規ビルド設定（nodejsイメージストリームは指定バージョンに合わせてください）
-    # oc new-build --name=developer-hub --strategy=source --binary=true --image-stream=nodejs --to=developer-hub:latest -n quarkusdroneshop-rhdh
-
-    # # ビルド開始。--from-dirでs2i-distを指定
-    # oc start-build developer-hub --from-dir=./s2i-dist --follow -n quarkusdroneshop-rhdh
-
-    # oc apply -f openshift/custom-developer-hub.yaml -n quarkusdroneshop-rhdh
-    # cd .rhdh/docker
-    # oc new-build --name=developer-hub --strategy=docker --binary=true --to=developer-hub:latest -n quarkusdroneshop-rhdh
-    # oc start-build developer-hub --from-dir=. --follow -n quarkusdroneshop-rhdh
-
-    # oc create secret generic redhat-pull-secret \
-    # --from-file=.dockerconfigjson=~/Downloads/pull-secret.json \
-    # --type=kubernetes.io/dockerconfigjson \
-    # -n quarkusdroneshop-rhdh
-
-    # oc secrets link builder redhat-pull-secret --for=pull -n quarkusdroneshop-rhdh
-
+    # OpenShift上の古いリソースを削除
     oc delete buildconfig rhdh-hub-custom --ignore-not-found
     oc delete imagestream rhdh-hub-custom --ignore-not-found
+    # oc delete secret redhat-pull-secret --ignore-not-found
+    # oc delete secret dynamic-plugins-registry-auth -n $RHDH_NAMESPACE
 
-    oc delete secret redhat-pull-secret --ignore-not-found
+    # Scopioの認証情報をセットする
     oc create secret generic redhat-pull-secret \
-        --from-file=.dockerconfigjson=/Users/nmushino/.docker/config.json \
-        --type=kubernetes.io/dockerconfigjson \
-        -n quarkusdroneshop-rhdh
-    # oc secrets link builder redhat-pull-secret --for=pull -n quarkusdroneshop-rhdh
+    --from-file=.dockerconfigjson=$HOME/.docker/config.json \
+    --type=kubernetes.io/dockerconfigjson \
+    -n $RHDH_NAMESPACE \
+    --dry-run=client -o yaml | oc apply -f -
 
-    oc project quarkusdroneshop-rhdh
+    # oc create secret generic dynamic-plugins-registry-auth \
+    # --from-file=config.json=$HOME/.docker/config.json \
+    # --type=kubernetes.io/dockerconfigjson \
+    # -n $RHDH_NAMESPACE
 
+    # Podに認証情報をリンクする
     oc secrets link default redhat-pull-secret --for=pull
     oc secrets link builder redhat-pull-secret --for=pull
 
-    oc import-image rhdh-hub-rhel9:1.8.3 \
-        --from=registry.redhat.io/rhdh/rhdh-hub-rhel9:1.8.3 \
-        --confirm
-    # podman pull registry.redhat.io/rhdh/rhdh-hub-rhel9:1.8
-    # oc project quarkusdroneshop-rhdh
-    # REGISTRY=$(oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}')
-    # podman tag registry.redhat.io/rhdh/rhdh-hub-rhel9:latest \
-    #     $REGISTRY/quarkusdroneshop-rhdh/rhdh-hub-custom:latest
-    # podman push $REGISTRY/quarkusdroneshop-rhdh/rhdh-hub-custom:latest
+    oc policy add-role-to-user edit \
+        system:serviceaccount:quarkusdroneshop-rhdh:$(oc get deploy backstage-developer-hub -n quarkusdroneshop-rhdh -o jsonpath='{.spec.template.spec.serviceAccountName}') \
+        -n quarkusdroneshop-cicd
 
+    # RHDHのイメージを取得する
+    oc get is rhdh-hub-rhel9 >/dev/null 2>&1 || \
+    oc import-image rhdh-hub-rhel9:1.9 \
+    --from=registry.redhat.io/rhdh/rhdh-hub-rhel9:1.9 \
+    --confirm
+
+    # 新規ビルド設定
     oc new-build \
-    --name=rhdh-hub-custom \
-    --binary \
-    --strategy=docker \
-    --to=rhdh-hub-custom:latest
+        --name=rhdh-hub-custom \
+        --binary \
+        --strategy=docker \
+        --to=rhdh-hub-custom:latest
 
+    # ビルドファイルを指定
     oc patch bc rhdh-hub-custom \
-    -p '{"spec":{"strategy":{"dockerStrategy":{"dockerfilePath":"dockerfile-rhdh"}}}}'
+    -p '{"spec":{"strategy":{"dockerStrategy":{"dockerfilePath":"dockerfile-rhdh","noCache":true}}}}'
 
-    oc start-build rhdh-hub-custom --from-dir=../developerhub-skeleton/developerhub --follow
-
-    # # Build イメージをタグ付け
-    #docker build -f files/dockerfile-rhdh -t image-registry.openshift-image-registry.svc:5000/quarkusdroneshop-rhdh/rhdh-hub-custom:latest --push .
-    #docker push image-registry.openshift-image-registry.svc:5000/quarkusdroneshop-rhdh/rhdh-hub-custom:latest
+    # ビルド開始
+    cd ../developerhub-skeleton/developerhub
+    oc start-build rhdh-hub-custom --from-dir=. --follow
 
 }
 
@@ -201,12 +160,12 @@ cleanup() {
     echo "クリーンナップ開始..."
     
     ## 共通タスクの削除
-    oc delete -f openshift/developer-hub.yaml -n quarkusdroneshop-rhdh   
-    oc delete -f openshift/app-config-rhdh.yaml -n quarkusdroneshop-rhdh
-    oc delete -f openshift/secrets-rhdh.yaml -n quarkusdroneshop-rhdh
-    oc delete -f openshift/dynamic-plugins-rhdh.yaml -n quarkusdroneshop-rhdh
-    oc delete -f openshift/catalog-info.yaml -n quarkusdroneshop-rhdh
-    oc delete -f openshift/k8s-plugin-sa.yaml -n quarkusdroneshop-rhdh
+    oc delete -f openshift/developer-hub.yaml -n $RHDH_NAMESPACE  
+    oc delete -f openshift/app-config-rhdh.yaml -n $RHDH_NAMESPACE
+    oc delete -f openshift/secrets-rhdh.yaml -n $RHDH_NAMESPACE
+    oc delete -f openshift/dynamic-plugins-rhdh.yaml -n $RHDH_NAMESPACE
+    oc delete -f openshift/catalog-info.yaml -n $RHDH_NAMESPACE
+    oc delete -f openshift/k8s-plugin-sa.yaml -n $RHDH_NAMESPACE
     
     ## CICDプロジェクトの削除
     oc delete project $RHDH_NAMESPACE
@@ -232,18 +191,3 @@ case "$1" in
         exit 1
         ;;
 esac
-
-
-# oc create serviceaccount rhdh-reader -n quarkusdroneshop-demo
-# oc adm policy add-cluster-role-to-user cluster-reader \
-#   -z rhdh-reader -n quarkusdroneshop-demo
-
-# oc create token rhdh-reader -n quarkusdroneshop-demo
-
-# oc create secret generic fmv9p-cluster \
-#   -n quarkusdroneshop-rhdh \
-#   --from-literal=name=fmv9p \
-#   --from-literal=url=https://api.cluster-fmv9p.fmv9p.sandbox1518.opentlc.com:6443 \
-#   --from-literal=token=<ここにtoken>
-
-# oc rollout restart deployment backstage -n quarkusdroneshop-rhdh

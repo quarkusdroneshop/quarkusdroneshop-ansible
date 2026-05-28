@@ -66,11 +66,17 @@ setup() {
 
     # OCPのセットアップ、共通ミドルのセットアップ
     echo "セットアップ開始..."
+
+    # プロジェクトの作成
+    oc new-project "$NAMESPACE"
+
     # default ServiceAccount へ権限の追加
     oc adm policy add-scc-to-user anyuid system:serviceaccount:"$NAMESPACE":default
+
     # Podman イメージの作成とOperatorのインストール
     podman build --no-cache -t "$NAMESPACE" . 
     podman run --platform linux/amd64 -it --env-file=./$ENV_FILE "$NAMESPACE"
+
     # PostgreSQLCluster へ権限の追加
     oc adm policy add-scc-to-user anyuid -z droneshopdb-instance -n "$NAMESPACE"
     oc adm policy add-scc-to-user privileged -z default -n "$NAMESPACE"

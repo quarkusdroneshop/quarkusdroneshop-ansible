@@ -12,6 +12,7 @@
 #   - User is logged into OpenShift
 #
 # https://access.redhat.com/management/api
+# 
 # =============================================================================
 
 REFRESH_TOKEN="$1"  # 第1引数で refresh_token を受け取る

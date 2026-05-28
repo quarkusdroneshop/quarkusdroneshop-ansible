@@ -5,44 +5,59 @@ metadata:
   namespace: quarkusdroneshop-rhdh
   annotations:
     rhdh.redhat.com/backstage-name: developer-hub
+
 data:
   dynamic-plugins.yaml: |
     includes:
       - dynamic-plugins.default.yaml
 
     plugins:
-      # ===== GitHub =====
+
+       # GitHub Plugins
       - package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-org-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
         disabled: false
 
-      # ===== HTTP Request (Scaffolder) =====
-      - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
-        disabled: false
-        pluginConfig:
-          dynamicPlugins:
-            backend:
-              - package: roadiehq-scaffolder-backend-module-http-request-dynamic
-
-      # ===== Kubernetes =====
+      # Kubernetes Plugins
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
         disabled: false
 
-      # ===== OpenShift Topology =====
+      # OpenShift Plugins
       - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
         disabled: false
 
-      # ===== Tekton =====
+      # Topology
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
+        disabled: false
+
+      # Tekton
       - package: ./dynamic-plugins/dist/backstage-community-plugin-tekton
         disabled: false
 
-      # ===== ArgoCD =====
+      # ArgoCD Plugins
       - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-argo-cd-backend-dynamic
         disabled: false
       - package: ./dynamic-plugins/dist/backstage-community-plugin-redhat-argocd
         disabled: false
       - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-argocd-dynamic
         disabled: false
+
+      # Custom Plugin
+      - package: ./dynamic-plugins/dist/kubernetes-scaffolder-module/dist-dynamic
+        disabled: false
+      
+
+    # #   # ===== Roadie Utils (追加) =====
+    # #   - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-utils-dynamic
+    # #     disabled: false
+
+    # #   # ===== Scaffolder HTTP (追加) =====
+    # #   - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
+    # #     disabled: false
+
+    # #   # - package: ./dynamic-plugins/dist/kubernetes-scaffolder-module
+    # #   #   disabled: false
+
