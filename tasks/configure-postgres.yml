@@ -126,37 +126,34 @@
     - acm-workload
     - helm
 
+- name: Get postgres password
+  shell: >
+    {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
+    -n {{ project_namespace }}
+    -o jsonpath='{.data.password}' | base64 -d
+  register: postgres_password
+  changed_when: false
+  failed_when: false
+
 - name: Create and load postgres database
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD=$(
-      {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
-      -n {{ project_namespace }}
-      -o jsonpath='{.data.password}' | base64 -d
-    )
+    -- env PGPASSWORD={{ postgres_password.stdout }}
     /bin/init_postgres_db.sh
-  when:
-    - pguser_secret_check is defined
-    - pguser_secret_check.rc == 0
+  when: postgres_password.rc == 0
   tags:
     - postgres
     - acm-workload
     - helm
 
-- name: Load shared_preload_libraries
+- name: Create and load postgres custom database
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD=$(
-      {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
-      -n {{ project_namespace }}
-      -o jsonpath='{.data.password}' | base64 -d
-    )
+    -- env PGPASSWORD={{ postgres_password.stdout }}
     /bin/init_postgres_custom.sh
-  when:
-    - pguser_secret_check is defined
-    - pguser_secret_check.rc == 0
+  when: postgres_password.rc == 0
   tags:
     - postgres
     - acm-workload
