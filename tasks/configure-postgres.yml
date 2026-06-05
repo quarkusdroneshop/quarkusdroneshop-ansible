@@ -132,33 +132,27 @@
     pg_password_raw: >-
       {{ (pguser_secret_check.stdout | from_json).data.password | b64decode }}
 
-- name: Create and load postgres database
+- name: Init postgres DB
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
     -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_db.sh
-  when: 
+  when:
     - pg_password_raw is defined
-    - pguser_secret_check.stdout | length > 0
-  tags:
-    - postgres
-    - acm-workload
-    - helm
+    - pg_password_raw | length > 0
+  no_log: true
 
-- name: Create and load postgres database
+- name: Init custom DB
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
     -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_custom.sh
-  when: 
+  when:
     - pg_password_raw is defined
-    - pguser_secret_check.stdout | length > 0
-  tags:
-    - postgres
-    - acm-workload
-    - helm
+    - pg_password_raw | length > 0
+  no_log: true
 
 - name: Deploy pgadmin
   command: "{{ oc_location }}  create -f {{ config_location }}/pgadmin.yaml"
