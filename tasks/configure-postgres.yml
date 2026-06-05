@@ -130,7 +130,11 @@
 - name: Extract postgres password
   set_fact:
     pg_password_raw: >-
-      {{ (pguser_secret_check.stdout | from_json).data.password | b64decode }}
+      {{ (pguser_secret_check.stdout | from_json).data['password'] | b64decode }}
+  when:
+    - pguser_secret_check.rc == 0
+    - pguser_secret_check.stdout is defined
+    - pguser_secret_check.stdout | length > 0
 
 - name: Init postgres DB
   shell: >
