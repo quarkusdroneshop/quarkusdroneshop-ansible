@@ -182,7 +182,9 @@
     - postgres
     - acm-workload
     - helm
-#- name: Delete pgadmin
-#  command: "{{ oc_location }}  delete -f {{ config_location }}/pgadmin.yaml"
-#  ignore_errors: yes
-#  when: delete_deployment|bool
+
+- name: Delete pgadmin
+  command: "{{ oc_location }}  delete -f {{ config_location }}/pgadmin.yaml"
+  ignore_errors: yes
+  when: delete_deployment|bool
+  

@@ -120,54 +120,14 @@
     - acm-workload
     - helm
 
-- name: Check if postgres admin secret exists
-  command: >
-    {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
-    -n {{ project_namespace }}
-  register: pguser_secret_check
-  failed_when: false
-  changed_when: false
-
-- name: Create and load postgres database
-  command: >
-    {{ oc_location }} exec {{ postgres_utils_pod }}
-    -n {{ project_namespace }}
-    -- env PGPASSWORD=$(
-      {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
-      -n {{ project_namespace }}
-      -o jsonpath='{.data.password}' | base64 -d
-    )
-    /bin/init_postgres_db.sh
-  when:
-    - pguser_secret_check is defined
-    - pguser_secret_check.rc == 0
-  tags:
-    - postgres
-    - acm-workload
-    - helm
-
-- name:  Load shared_preload_libraries
-  command: >
-    {{ oc_location }} exec {{ postgres_utils_pod }}
-    -n {{ project_namespace }}
-    -- env PGPASSWORD=$(
-      {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
-      -n {{ project_namespace }}
-      -o jsonpath='{.data.password}' | base64 -d
-    )
-    /bin/init_postgres_custom.sh
-  when:
-    - pguser_secret_check is defined
-    - pguser_secret_check.rc == 0
-  tags:
-    - postgres
-    - acm-workload
-    - helm
-
-- name: Deploy pgadmin
-  command: "{{ oc_location }}  create -f {{ config_location }}/pgadmin.yaml"
-  ignore_errors: yes
+- name: Get postgress password
+  set_fact:
+    postgres_password: '{{ original_secret| b64decode }}'
   when: not delete_deployment|bool
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
 
 - name: Delete Crunchy Postgres database instance 
   kubernetes.core.k8s:
