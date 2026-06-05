@@ -114,19 +114,25 @@
     - acm-workload
     - helm
 
-- name: Get postgres password
+- name: Get postgres password (robust)
   command: >
     {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
     -n {{ project_namespace }}
-    -o jsonpath='{.data.password}'
-  register: pg_secret_b64
+    -o json
+  register: pg_secret_json
   failed_when: false
   changed_when: false
 
-- name: Decode password
+- name: Extract password safely
   set_fact:
-    pg_password_raw: "{{ pg_secret_b64.stdout | b64decode }}"
-  when: pg_secret_b64.rc == 0
+    pg_password_raw: >-
+      {{
+        (pg_secret_json.stdout | from_json).data.password | b64decode
+      }}
+  when:
+    - pg_secret_json.rc == 0
+    - pg_secret_json.stdout is defined
+    - pg_secret_json.stdout | length > 0
 
 - name: Init DB
   command: >
