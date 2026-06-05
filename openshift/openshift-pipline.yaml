@@ -23,6 +23,6 @@ apiVersion: operator.tekton.dev/v1alpha1
 kind: TektonConfig
 metadata:
   name: config
-  namespace: openshift-operators
 spec:
   profile: all
+  targetNamespace: openshift-pipelines
