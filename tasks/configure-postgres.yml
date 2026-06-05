@@ -133,7 +133,6 @@
     -o jsonpath='{.data.password}' | base64 -d
   register: pg_password_raw
   changed_when: false
-  failed_when: false
 
 - name: Create and load postgres database
   shell: >
