@@ -118,6 +118,7 @@
   command: >
     {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
     -n {{ project_namespace }}
+    -o json
   register: pguser_secret_check
   failed_when: false
   changed_when: false
