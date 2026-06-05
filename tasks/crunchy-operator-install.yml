@@ -4,59 +4,29 @@
     namespace: "{{ project_namespace }}"
     definition: "{{ lookup('template', 'crunchy-postgres-sub.yaml.j2') }}"
   when: not delete_deployment|bool
-  tags:
+  tags: 
     - postgres
     - acm-workload
     - helm
 
-# Wait CSV
-- name: Wait for Crunchy Postgres CSV to succeed
-  shell: |
-    oc get csv {{ crunchystartingCSV }} \
-      -n {{ project_namespace }} \
-      -o jsonpath='{.status.phase}'
-  register: csv_status
-  retries: 30
-  delay: 20
-  until: csv_status.stdout == "Succeeded"
-  changed_when: false
-  when: not delete_deployment|bool
-  tags:
-    - postgres
-    - acm-workload
-    - helm
+# wait for Postgres to be ready
+- name: Wait for Crunchy Postgres operator pod to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: "{{ project_namespace }}"
+    label_selectors:
+      - metadata.name={{ crunchystartingCSV }}
+    register: r_pgo_crd
+    retries: 20
+    delay: 60
+    until: r_pgo_crd.resources | list | length == 1
+    when: not delete_deployment|bool
+    tags: 
+      - postgres
+      - acm-workload
+      - helm
 
-# Wait CRD registration
-- name: Wait for PostgresCluster CRD to exist
-  shell: |
-    oc get crd postgresclusters.postgres-operator.crunchydata.com
-  register: crunchy_crd
-  retries: 30
-  delay: 10
-  until: crunchy_crd.rc == 0
-  changed_when: false
-  when: not delete_deployment|bool
-  tags:
-    - postgres
-    - acm-workload
-    - helm
-
-# wait API registration
-- name: Wait for PostgresCluster API to be available
-  shell: |
-    oc api-resources | grep postgresclusters
-  register: crunchy_api
-  retries: 30
-  delay: 10
-  until: crunchy_api.rc == 0
-  changed_when: false
-  when: not delete_deployment|bool
-  tags:
-    - postgres
-    - acm-workload
-    - helm
-
-- name: Create Crunchy Postgres database instance
+- name: Create Crunchy Postgres database instance 
   kubernetes.core.k8s:
     state: present
     namespace: "{{ project_namespace }}"
@@ -68,7 +38,7 @@
     - acm-workload
     - helm
 
-- name: Get a list of all PostgresCluster resources
+- name: Get a list of all pods from any namespace
   kubernetes.core.k8s_info:
     api_version: postgres-operator.crunchydata.com/v1beta1
     kind: PostgresCluster
@@ -112,3 +82,138 @@
     - postgres
     - acm-workload
     - helm
+
+- name: Create Crunchy PGAdmin instance 
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ project_namespace }}"
+    apply: true
+    definition: "{{ lookup('template', 'pgadmin.yaml.j2') }}"
+  when: not delete_deployment|bool
+  tags:
+    - postgres
+    - acm-workload
+    - helm
+
+- name: retrieve pullsecret
+# Newer version of Ansible call this module k8s_info
+  kubernetes.core.k8s_info:
+    api: v1
+    kind: Secret
+    name: droneshopdb-pguser-droneshopadmin
+    namespace: "{{ project_namespace }}"
+  register: databasepassword
+  when: not delete_deployment|bool
+  tags:
+    - postgres
+    - acm-workload
+    - helm
+
+- name: Get the original cred secrets
+  set_fact:
+    original_secret: "{{ item.data.password }}"
+  with_items: "{{ databasepassword.resources }}"
+  when: not delete_deployment|bool
+  no_log: true
+  tags:
+    - postgres
+    - acm-workload
+    - helm
+
+- name: Check if postgres admin secret exists
+  command: >
+    {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
+    -n {{ project_namespace }}
+  register: pguser_secret_check
+  failed_when: false
+  changed_when: false
+
+- name: Create and load postgres database
+  command: >
+    {{ oc_location }} exec {{ postgres_utils_pod }}
+    -n {{ project_namespace }}
+    -- env PGPASSWORD=$(
+      {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
+      -n {{ project_namespace }}
+      -o jsonpath='{.data.password}' | base64 -d
+    )
+    /bin/init_postgres_db.sh
+  when:
+    - pguser_secret_check is defined
+    - pguser_secret_check.rc == 0
+  tags:
+    - postgres
+    - acm-workload
+    - helm
+
+- name:  Load shared_preload_libraries
+  command: >
+    {{ oc_location }} exec {{ postgres_utils_pod }}
+    -n {{ project_namespace }}
+    -- env PGPASSWORD=$(
+      {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
+      -n {{ project_namespace }}
+      -o jsonpath='{.data.password}' | base64 -d
+    )
+    /bin/init_postgres_custom.sh
+  when:
+    - pguser_secret_check is defined
+    - pguser_secret_check.rc == 0
+  tags:
+    - postgres
+    - acm-workload
+    - helm
+
+- name: Deploy pgadmin
+  command: "{{ oc_location }}  create -f {{ config_location }}/pgadmin.yaml"
+  ignore_errors: yes
+  when: not delete_deployment|bool
+
+- name: Delete Crunchy Postgres database instance 
+  kubernetes.core.k8s:
+    state: absent
+    namespace: "{{ project_namespace }}"
+    definition: "{{ lookup('template', 'crunchy-postgres.yml.j2') }}"
+  ignore_errors: true
+  when: delete_deployment|bool
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
+
+- name: Remove an droneshopdb-repo-host
+  kubernetes.core.k8s:
+    state: absent
+    api_version: apps/v1
+    kind: StatefulSet
+    namespace: "{{ project_namespace }}"
+    name: droneshopdb-repo-host
+  ignore_errors: true
+  when:  delete_deployment|bool
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
+
+- name: delete Crunchy Postgres  crd
+  command: oc delete csv {{ crunchystartingCSV }} -n "{{ project_namespace }}"
+  ignore_errors: true
+  when:  delete_deployment|bool
+  tags:
+    - postgres
+    - acm-workload
+    - helm
+
+- name: Remove Crunchy Postgres for Kubernetes subscription
+  kubernetes.core.k8s:
+    state: absent
+    namespace: "openshift-operators"
+    definition: "{{ lookup('template', 'crunchy-postgres-sub.yaml.j2') }}"
+  ignore_errors: true
+  when:  delete_deployment|bool
+  tags:
+    - postgres
+    - acm-workload
+    - helm
+  
+
