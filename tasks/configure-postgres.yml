@@ -139,9 +139,9 @@
     -n {{ project_namespace }}
     -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_db.sh
-  when: 
+  when:
     - pg_password_raw is defined
-    - pguser_secret_check.stdout | length > 0
+    - pg_password_raw | length > 0
   tags:
     - postgres
     - acm-workload
@@ -153,9 +153,9 @@
     -n {{ project_namespace }}
     -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_custom.sh
-  when: 
+  when:
     - pg_password_raw is defined
-    - pguser_secret_check.stdout | length > 0
+    - pg_password_raw | length > 0
   tags:
     - postgres
     - acm-workload
