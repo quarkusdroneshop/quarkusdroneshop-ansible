@@ -121,9 +121,13 @@
   register: pguser_secret_check
   failed_when: false
   changed_when: false
+  tags:
+    - postgres
+    - acm-workload
+    - helm
 
 - name: Create and load postgres database
-  command: >
+  shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
     -- env PGPASSWORD=$(
@@ -140,8 +144,8 @@
     - acm-workload
     - helm
 
-- name:  Load shared_preload_libraries
-  command: >
+- name: Load shared_preload_libraries
+  shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
     -- env PGPASSWORD=$(
