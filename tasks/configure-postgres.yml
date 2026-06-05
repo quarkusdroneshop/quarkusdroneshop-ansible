@@ -114,30 +114,22 @@
     - acm-workload
     - helm
 
-- name: Check if postgres admin secret exists
-  command: >
-    {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
-    -n {{ project_namespace }}
-    -o json
-  register: pguser_secret_check
-  failed_when: false
-  changed_when: false
-  tags:
-    - postgres
-    - acm-workload
-    - helm
-
-- name: Extract password safely
+- name: Check postgres password from secret (robust)
   set_fact:
     pg_password_raw: >-
       {{
-        (pguser_secret_check.stdout | from_json).data.password
-        | default('')
-        | b64decode
+        (
+          (pguser_secret_check.stdout | default('{}') | from_json)
+          .get('data', {})
+          .get('password')
+        ) | default('')
       }}
-  when:
-    - pguser_secret_check.rc == 0
-    - (pguser_secret_check.stdout | from_json).data.password is defined
+  when: pguser_secret_check.rc == 0
+
+- name: Decode password
+  set_fact:
+    pg_password_raw: "{{ pg_password_raw | b64decode }}"
+  when: pg_password_raw | length > 0
 
 - name: Create and load postgres database
   shell: >
@@ -188,8 +180,9 @@
     - acm-workload
     - helm
 
-#- name: Delete pgadmin
-#  command: "{{ oc_location }}  delete -f {{ config_location }}/pgadmin.yaml"
-#  ignore_errors: yes
-#  when: delete_deployment|bool
+- name: Delete pgadmin
+  command: "{{ oc_location }}  delete -f {{ config_location }}/pgadmin.yaml"
+  ignore_errors: yes
+
+  when: delete_deployment|bool
   
