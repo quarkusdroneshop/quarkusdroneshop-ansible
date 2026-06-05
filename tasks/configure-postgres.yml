@@ -127,14 +127,19 @@
     - acm-workload
     - helm
 
+- name: Extract postgres password
+  set_fact:
+    pg_password_raw: >-
+      {{ (pguser_secret_check.stdout | from_json).data.password | b64decode }}
+
 - name: Create and load postgres database
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD={{ pguser_secret_check.stdout }}
+    -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_db.sh
-  when:
-    - pguser_secret_check is defined
+  when: 
+    - pg_password_raw is defined
     - pguser_secret_check.stdout | length > 0
   tags:
     - postgres
@@ -145,10 +150,10 @@
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD={{ pguser_secret_check.stdout }}
-    /bin/init_postgres_db.sh
-  when:
-    - pguser_secret_check is defined
+    -- env PGPASSWORD={{ pg_password_raw }}
+    /bin/init_postgres_custom.sh
+  when: 
+    - pg_password_raw is defined
     - pguser_secret_check.stdout | length > 0
   tags:
     - postgres
