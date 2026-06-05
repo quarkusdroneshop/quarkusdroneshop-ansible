@@ -126,23 +126,15 @@
     - acm-workload
     - helm
 
-- name: Get postgres password
-  shell: >
-    {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
-    -n {{ project_namespace }}
-    -o jsonpath='{.data.password}' | base64 -d
-  register: pg_password_raw
-  changed_when: false
-
 - name: Create and load postgres database
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD={{ pg_password_raw.stdout }}
+    -- env PGPASSWORD={{ pguser_secret_check.stdout }}
     /bin/init_postgres_db.sh
   when:
-    - pg_password_raw is defined
-    - pg_password_raw.stdout | length > 0
+    - pguser_secret_check is defined
+    - pguser_secret_check.stdout | length > 0
   tags:
     - postgres
     - acm-workload
@@ -152,11 +144,11 @@
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD={{ pg_password_raw.stdout }}
+    -- env PGPASSWORD={{ pguser_secret_check.stdout }}
     /bin/init_postgres_db.sh
   when:
-    - pg_password_raw is defined
-    - pg_password_raw.stdout | length > 0
+    - pguser_secret_check is defined
+    - pguser_secret_check.stdout | length > 0
   tags:
     - postgres
     - acm-workload
