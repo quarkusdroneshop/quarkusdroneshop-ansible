@@ -131,7 +131,7 @@
     {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
     -n {{ project_namespace }}
     -o jsonpath='{.data.password}' | base64 -d
-  register: postgres_password
+  register: pg_password_raw
   changed_when: false
   failed_when: false
 
@@ -139,21 +139,25 @@
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD={{ postgres_password.stdout }}
+    -- env PGPASSWORD={{ pg_password_raw.stdout }}
     /bin/init_postgres_db.sh
-  when: postgres_password.stdout is defined
+  when:
+    - pg_password_raw is defined
+    - pg_password_raw.stdout | length > 0
   tags:
     - postgres
     - acm-workload
     - helm
 
-- name: Create and load postgres custom database
+- name: Create and load postgres database
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
-    -- env PGPASSWORD={{ postgres_password.stdout }}
-    /bin/init_postgres_custom.sh
-  when: postgres_password.stdout is defined
+    -- env PGPASSWORD={{ pg_password_raw.stdout }}
+    /bin/init_postgres_db.sh
+  when:
+    - pg_password_raw is defined
+    - pg_password_raw.stdout | length > 0
   tags:
     - postgres
     - acm-workload
