@@ -127,10 +127,11 @@
     - acm-workload
     - helm
 
-- name: Extract postgres password
+- name: Extract postgres password (safe)
   set_fact:
     pg_password_raw: >-
-      {{ (pguser_secret_check.stdout | from_json).data.password | b64decode }}
+      {{ pguser_secret_check.stdout | from_json | json_query('data.password') | b64decode }}
+  when: pguser_secret_check.rc == 0
 
 - name: Create and load postgres database
   shell: >
@@ -146,7 +147,7 @@
     - acm-workload
     - helm
 
-- name: Create and load postgres database
+- name: Create and load custom database
   shell: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
