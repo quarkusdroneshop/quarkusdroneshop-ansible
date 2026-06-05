@@ -141,7 +141,7 @@
     -n {{ project_namespace }}
     -- env PGPASSWORD={{ postgres_password.stdout }}
     /bin/init_postgres_db.sh
-  when: postgres_password.rc == 0
+  when: postgres_password.stdout is defined
   tags:
     - postgres
     - acm-workload
@@ -153,7 +153,7 @@
     -n {{ project_namespace }}
     -- env PGPASSWORD={{ postgres_password.stdout }}
     /bin/init_postgres_custom.sh
-  when: postgres_password.rc == 0
+  when: postgres_password.stdout is defined
   tags:
     - postgres
     - acm-workload
@@ -183,6 +183,7 @@
     - postgres
     - acm-workload
     - helm
+
 #- name: Delete pgadmin
 #  command: "{{ oc_location }}  delete -f {{ config_location }}/pgadmin.yaml"
 #  ignore_errors: yes
