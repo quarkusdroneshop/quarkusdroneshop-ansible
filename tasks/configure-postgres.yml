@@ -122,6 +122,10 @@
   register: pg_secret_json
   failed_when: false
   changed_when: false
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
 
 - name: Extract password safely
   set_fact:
@@ -133,6 +137,10 @@
     - pg_secret_json.rc == 0
     - pg_secret_json.stdout is defined
     - pg_secret_json.stdout | length > 0
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
 
 - name: Init DB
   command: >
@@ -141,6 +149,10 @@
     -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_db.sh
   when: pg_password_raw | default('') | length > 0
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
 
 - name: Init DB
   command: >
@@ -149,11 +161,19 @@
     -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_custom.sh
   when: pg_password_raw | default('') | length > 0
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
 
 - name: Deploy pgadmin
   command: "{{ oc_location }}  create -f {{ config_location }}/pgadmin.yaml"
   ignore_errors: yes
   when: not delete_deployment|bool
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
 
 - name: Waiting for pgadmin to deploy
   shell: |
@@ -165,6 +185,10 @@
   delay: 25
   args:
     executable: /bin/bash
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
 
 - name: Delete Postgres utils
   command: "{{ oc_location }}  delete -f {{ config_location }}/postgres-utils.yaml"
