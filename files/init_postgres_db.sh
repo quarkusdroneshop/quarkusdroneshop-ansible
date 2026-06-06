@@ -18,7 +18,7 @@ echo "PostgreSQL is ready"
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA IF NOT EXISTS droneshop;"
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "CREATE SCHEMA droneshop AUTHORIZATION droneshopadmin;"
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "alter table if exists droneshop.LineItems
-    drop constraint if exists FK6fhxopytha3nnbpbfmpiv4xgn;"
+drop constraint if exists FK6fhxopytha3nnbpbfmpiv4xgn;"
 psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "drop table if exists droneshop.LineItems cascade;
 drop table if exists droneshop.Orders cascade;
 drop table if exists droneshop.OutboxEvent cascade;"

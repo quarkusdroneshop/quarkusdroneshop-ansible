@@ -142,7 +142,7 @@
     - acm-workload
     - helm
 
-- name: Init DB
+- name: Init Postgres DB
   command: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
@@ -154,7 +154,7 @@
     - acm-workload
     - helm
 
-- name: Init DB
+- name: Init Custom DB
   command: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
