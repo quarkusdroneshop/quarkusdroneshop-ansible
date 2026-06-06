@@ -4,39 +4,25 @@ metadata:
   name: pgadmin4
   namespace: {{ project_namespace }}
 spec:
-  initContainers:
-    - name: fix-permissions
-      image: busybox
-      command: ["sh", "-c", "chown -R 5050:5050 /var/lib/pgadmin"]
-      volumeMounts:
-        - name: data
-          mountPath: /var/lib/pgadmin
-      securityContext:
-        runAsUser: 0
-  securityContext:
-    runAsUser: 5050
-    fsGroup: 5050
   dataVolumeClaimSpec:
     accessModes:
       - ReadWriteOnce
     resources:
       requests:
         storage: 1Gi
+
   users:
     - username: {{ pgadmin_setup_email }}
       role: User
       passwordRef:
         name: pgadmin4-secret
         key: password
+
   serverGroups:
-    - name: Crunchy Postgres for Kubernetes
+    - name: droneshopdb
       postgresClusterSelector:
         matchLabels:
           postgres-operator.crunchydata.com/cluster: droneshopdb
-#  config:
-#    configDatabaseURI:
-#      name: droneshopdb-pguser-droneshopadmin
-#      key: uri
 ---
 apiVersion: v1
 kind: Secret
@@ -46,31 +32,3 @@ metadata:
 type: Opaque
 stringData:
   password: {{ pgadmin_default_password }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: pgadmin4
-  namespace: {{ project_namespace }}
-spec:
-  selector:
-    postgres-operator.crunchydata.com/role: pgadmin
-  ports:
-    - port: 80
-      targetPort: 5050
-      protocol: TCP
-      name: http
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: pgadmin4
-  namespace: {{ project_namespace }}
-spec:
-  to:
-    kind: Service
-    name: pgadmin4
-  port:
-    targetPort: http
-  tls:
-    termination: edge

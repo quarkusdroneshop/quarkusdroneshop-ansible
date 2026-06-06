@@ -195,7 +195,7 @@
     - helm
 
 - name: Deploy pgadmin
-  command: "{{ oc_location }} apply -f {{ config_location }}pgadmin.yaml"
+  command: "{{ oc_location }} apply -f {{ config_location }}/pgadmin.yaml"
   ignore_errors: yes
   when: not delete_deployment|bool
   tags: 
@@ -228,7 +228,7 @@
     - helm
 
 - name: Delete pgadmin
-  command: "{{ oc_location }}  delete -f {{ config_location }}/pgadmin.yaml"
+  command: "{{ oc_location }}  delete -f {{ config_location }}pgadmin.yaml"
   ignore_errors: yes
   when: delete_deployment|bool
   
