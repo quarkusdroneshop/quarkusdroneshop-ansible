@@ -114,7 +114,7 @@
     - acm-workload
     - helm
 
-- name: Get postgres password (robust)
+- name: Get droneshopadmin password (robust)
   command: >
     {{ oc_location }} get secret droneshopdb-pguser-droneshopadmin
     -n {{ project_namespace }}
@@ -149,6 +149,34 @@
     -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_db.sh
   when: pg_password_raw | default('') | length > 0
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
+
+- name: Get postgres password (robust)
+  command: >
+    {{ oc_location }} get secret droneshopdb-pguser-postgres
+    -n {{ project_namespace }}
+    -o json
+  register: pg_secret_json
+  failed_when: false
+  changed_when: false
+  tags: 
+    - postgres
+    - acm-workload
+    - helm
+
+- name: Extract password safely
+  set_fact:
+    pg_password_raw: >-
+      {{
+        (pg_secret_json.stdout | from_json).data.password | b64decode
+      }}
+  when:
+    - pg_secret_json.rc == 0
+    - pg_secret_json.stdout is defined
+    - pg_secret_json.stdout | length > 0
   tags: 
     - postgres
     - acm-workload
