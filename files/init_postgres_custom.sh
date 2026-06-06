@@ -2,7 +2,7 @@
 
 ### openmetadataで必要となるため、管理者権限で実行する
 export PGHOSTNAME="droneshopdb-primary.quarkusdroneshop-demo.svc"
-export PGPASSWORD="postgres"
+export PGPASSWORD="${PGPASSWORD}"
 export PGPORT="5432"
 export PGUSER="postgres"
 

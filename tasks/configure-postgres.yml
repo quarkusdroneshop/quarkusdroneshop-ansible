@@ -142,7 +142,7 @@
     - acm-workload
     - helm
 
-- name: Init Postgres DB
+- name: Init DroneshopAdmin DB
   command: >
     {{ oc_location }} exec {{ postgres_utils_pod }}
     -n {{ project_namespace }}
@@ -189,15 +189,6 @@
     -- env PGPASSWORD={{ pg_password_raw }}
     /bin/init_postgres_custom.sh
   when: pg_password_raw | default('') | length > 0
-  tags: 
-    - postgres
-    - acm-workload
-    - helm
-
-- name: Deploy pgadmin
-  command: "{{ oc_location }}  create -f {{ config_location }}/pgadmin.yaml"
-  ignore_errors: yes
-  when: not delete_deployment|bool
   tags: 
     - postgres
     - acm-workload
