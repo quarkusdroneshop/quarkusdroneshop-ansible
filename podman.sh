@@ -1,3 +1,25 @@
+#!/bin/bash
+# =============================================================================
+# Script Name: podman.sh
+# Description: This script is for Maintenance shell for local startup.
+# Author: Noriaki Mushino
+# Date Created: 2025-03-26
+# Last Modified: 2026-06-06
+# Version: 1.0
+#
+# Prerequisites:
+#   - OpenShift CLI (oc) is installed and configured
+#   - User is logged into OpenShift
+#
+# =============================================================================
+
+NAMESPACE="quarkusdroneshop-demo"
+
+echo "###################################"
+echo "このシェルはメンテナンスシェルです"
+echo "###################################"
+echo
+
 podman network create kafka-net
 
 podman run -d --name kafka --network kafka-net \

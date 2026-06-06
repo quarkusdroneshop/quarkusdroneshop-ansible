@@ -4,12 +4,11 @@
 # Description: This script deploys the application to OpenShift and verifies the setup.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-26
-# Last Modified: 2025-06-04
-# Version: 1.13
+# Last Modified: 2026-06-06
+# Version: 1.134
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
-#   ./deploy.sh deploy          - To deploy the all application.
 #   ./deploy.sh openmetadata    - To deploy the openmetadata application.
 #   ./deploy.sh cleanup         - To delete the application.
 #

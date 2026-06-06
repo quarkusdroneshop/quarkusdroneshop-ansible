@@ -74,7 +74,6 @@ deploy() {
 
     # 共通設定（共通タスクの作成）
 
-
     #oc apply -f openshift/buildah-clustertask.yaml -n  $CICD_NAMESPACE
     #oc apply -f openshift/openshift-client-clustertask.yaml -n  $CICD_NAMESPACE
     oc apply -f openshift/tekton-configmap.yaml -n  $CICD_NAMESPACE
