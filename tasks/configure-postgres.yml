@@ -195,13 +195,9 @@
     - helm
 
 - name: Deploy pgadmin
-  command: "{{ oc_location }} apply -f {{ config_location }}/pgadmin.yaml"
+  command: "{{ oc_location }}  create -f {{ config_location }}/pgadmin.yaml"
   ignore_errors: yes
   when: not delete_deployment|bool
-  tags: 
-    - postgres
-    - acm-workload
-    - helm
 
 - name: Waiting for pgadmin to deploy
   shell: |
@@ -213,10 +209,6 @@
   delay: 25
   args:
     executable: /bin/bash
-  tags: 
-    - postgres
-    - acm-workload
-    - helm
 
 - name: Delete Postgres utils
   command: "{{ oc_location }}  delete -f {{ config_location }}/postgres-utils.yaml"
