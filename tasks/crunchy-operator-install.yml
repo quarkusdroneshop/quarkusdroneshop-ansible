@@ -10,21 +10,18 @@
     - helm
 
 # wait for Postgres to be ready
-- name: Wait for Crunchy Postgres operator pod to be ready
+- name: Wait for Crunchy CSV to succeed
   kubernetes.core.k8s_info:
-    kind: Pod
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
     namespace: "{{ project_namespace }}"
-    label_selectors:
-      - metadata.name={{ crunchystartingCSV }}
-    register: r_pgo_crd
-    retries: 20
-    delay: 60
-    until: r_pgo_crd.resources | list | length == 1
-    when: not delete_deployment|bool
-    tags: 
-      - postgres
-      - acm-workload
-      - helm
+    name: "{{ crunchystartingCSV }}"
+  register: csv_status
+  retries: 30
+  delay: 20
+  until:
+    - csv_status.resources | length > 0
+    - csv_status.resources[0].status.phase == "Succeeded"
 
 - name: Create Crunchy Postgres database instance 
   kubernetes.core.k8s:
