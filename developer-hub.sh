@@ -12,6 +12,7 @@
 #   ./developer-hub.sh deploy          - To deploy the application.
 #   ./developer-hub.sh keycloak        - To setup Keycloak realm/client/user for RHDH.
 #   ./developer-hub.sh retoken         - Reissuing a GitHub token.
+#   ./developer-hub.sh setup-target-token <domain> [ns] - Create persistent SA token for target cluster.
 #   ./developer-hub.sh cleanup         - To delete the application.
 #   ./developer-hub.sh customimage     - The creation of a customised RHDH image.
 #   ./developer-hub.sh resetcustombuild - Reset and rebuild the custom RHDH image from scratch.
@@ -608,6 +609,90 @@ retoken() {
     echo -e "${GREEN}GitHub Token の更新完了${RESET}"
 }
 
+setup_target_token() {
+    local TARGET_DOMAIN="${2:-}"
+    local TARGET_NAMESPACE="${3:-quarkusdroneshop-cicd}"
+    local SA_NAME="rhdh-proxy"
+    local SECRET_NAME="rhdh-proxy-token"
+
+    if [ -z "$TARGET_DOMAIN" ]; then
+        echo -e "${RED}使用方法: $0 setup-target-token <cluster-domain> [namespace]${RESET}" >&2
+        echo -e "${YELLOW}例: $0 setup-target-token ocp.mnlq9.sandbox1332.opentlc.com quarkusdroneshop-cicd${RESET}" >&2
+        exit 1
+    fi
+
+    local TARGET_API="https://api.${TARGET_DOMAIN}:6443"
+    echo -e "${BLUE}ターゲットクラスターにログイン: ${TARGET_API}${RESET}"
+    oc login "$TARGET_API" -u admin
+
+    echo -e "${BLUE}ServiceAccount ${SA_NAME} を作成中...${RESET}"
+    oc create serviceaccount "$SA_NAME" -n "$TARGET_NAMESPACE" 2>/dev/null \
+        && echo -e "${GREEN}ServiceAccount 作成済み${RESET}" \
+        || echo -e "${YELLOW}ServiceAccount はすでに存在します${RESET}"
+
+    echo -e "${BLUE}cluster-admin 権限を付与中...${RESET}"
+    oc adm policy add-cluster-role-to-user cluster-admin \
+        -z "$SA_NAME" -n "$TARGET_NAMESPACE"
+
+    echo -e "${BLUE}永続トークン Secret を作成中...${RESET}"
+    oc apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${SECRET_NAME}
+  namespace: ${TARGET_NAMESPACE}
+  annotations:
+    kubernetes.io/service-account.name: ${SA_NAME}
+type: kubernetes.io/service-account-token
+EOF
+
+    echo -e "${BLUE}トークンが生成されるまで待機中...${RESET}"
+    for i in $(seq 1 20); do
+        TOKEN=$(oc get secret "$SECRET_NAME" -n "$TARGET_NAMESPACE" \
+            -o jsonpath='{.data.token}' 2>/dev/null | base64 -d 2>/dev/null)
+        if [ -n "$TOKEN" ]; then
+            break
+        fi
+        sleep 2
+    done
+
+    if [ -z "$TOKEN" ]; then
+        echo -e "${RED}トークンの取得に失敗しました${RESET}" >&2
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}========================================${RESET}"
+    echo -e "${GREEN}トークン取得成功${RESET}"
+    echo -e "${GREEN}========================================${RESET}"
+    echo -e "${YELLOW}TARGET_K8S_CLUSTER_URL: ${TARGET_API}${RESET}"
+    echo -e "${YELLOW}TARGET_K8S_CLUSTER_TOKEN: ${TOKEN}${RESET}"
+    echo ""
+
+    # secrets-rhdh.yaml を自動更新するか確認
+    read -rp "secrets-rhdh.yaml を自動更新して RHDH に適用しますか？ [y/N]: " APPLY
+    if [[ "$APPLY" =~ ^[Yy]$ ]]; then
+        sed -i.bak \
+            -e "s|TARGET_K8S_CLUSTER_URL: \"[^\"]*\"|TARGET_K8S_CLUSTER_URL: \"${TARGET_API}\"|" \
+            -e "s|TARGET_K8S_CLUSTER_TOKEN: \"[^\"]*\"|TARGET_K8S_CLUSTER_TOKEN: \"${TOKEN}\"|" \
+            "$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
+        rm -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml.bak"
+
+        # RHDHクラスターに戻って適用
+        local RHDH_API
+        RHDH_API=$(grep 'K8S_CLUSTER_URL' "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" \
+            | grep -v TARGET | sed 's/.*"\(https[^"]*\)".*/\1/')
+        echo -e "${BLUE}RHDHクラスター (${RHDH_API}) に切り替えて適用中...${RESET}"
+        oc login "$RHDH_API" -u admin 2>/dev/null || true
+        oc apply -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
+        oc rollout restart deployment/backstage-developer-hub -n "$RHDH_NAMESPACE"
+        oc rollout status deployment/backstage-developer-hub -n "$RHDH_NAMESPACE" --timeout=300s
+        echo -e "${GREEN}RHDH への適用完了${RESET}"
+    else
+        echo -e "${YELLOW}手動で secrets-rhdh.yaml を更新してください${RESET}"
+    fi
+}
+
 cleanup() {
 
     echo -e "${BLUE}クリーンナップ開始...${RESET}"
@@ -648,12 +733,16 @@ case "$1" in
     resetcustombuild)
         resetcustombuild
         ;;
+    setup-target-token)
+        setup_target_token "$@"
+        ;;
     cleanup)
         cleanup
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|customimage|resetcustombuild|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|setup-target-token|customimage|resetcustombuild|cleanup}${RESET}"
+        echo -e "${YELLOW}  setup-target-token <cluster-domain> [namespace]  ターゲットクラスターの永続トークンを作成${RESET}"
         exit 1
         ;;
 esac
