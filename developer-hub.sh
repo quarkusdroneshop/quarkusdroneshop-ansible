@@ -12,7 +12,7 @@
 #   ./developer-hub.sh deploy          - To deploy the application.
 #   ./developer-hub.sh keycloak        - To setup Keycloak realm/client/user for RHDH.
 #   ./developer-hub.sh retoken         - Reissuing a GitHub token.
-#   ./developer-hub.sh setup-target-token <domain> [ns] - Create persistent SA token for target cluster.
+#   ./developer-hub.sh target-token <domain> [ns] - Create persistent SA token for target cluster.
 #   ./developer-hub.sh cleanup         - To delete the application.
 #   ./developer-hub.sh customimage     - The creation of a customised RHDH image.
 #   ./developer-hub.sh resetcustombuild - Reset and rebuild the custom RHDH image from scratch.
@@ -609,15 +609,15 @@ retoken() {
     echo -e "${GREEN}GitHub Token の更新完了${RESET}"
 }
 
-setup_target_token() {
+target_token() {
     local TARGET_DOMAIN="${2:-}"
     local TARGET_NAMESPACE="${3:-quarkusdroneshop-cicd}"
     local SA_NAME="rhdh-proxy"
     local SECRET_NAME="rhdh-proxy-token"
 
     if [ -z "$TARGET_DOMAIN" ]; then
-        echo -e "${RED}使用方法: $0 setup-target-token <cluster-domain> [namespace]${RESET}" >&2
-        echo -e "${YELLOW}例: $0 setup-target-token ocp.mnlq9.sandbox1332.opentlc.com quarkusdroneshop-cicd${RESET}" >&2
+        echo -e "${RED}使用方法: $0 target-token <cluster-domain> [namespace]${RESET}" >&2
+        echo -e "${YELLOW}例: $0 target-token ocp.mnlq9.sandbox1332.opentlc.com quarkusdroneshop-cicd${RESET}" >&2
         exit 1
     fi
 
@@ -733,16 +733,16 @@ case "$1" in
     resetcustombuild)
         resetcustombuild
         ;;
-    setup-target-token)
-        setup_target_token "$@"
+    target-token)
+        target_token "$@"
         ;;
     cleanup)
         cleanup
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|setup-target-token|customimage|resetcustombuild|cleanup}${RESET}"
-        echo -e "${YELLOW}  setup-target-token <cluster-domain> [namespace]  ターゲットクラスターの永続トークンを作成${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|target-token|customimage|resetcustombuild|cleanup}${RESET}"
+        echo -e "${YELLOW}  target-token <cluster-domain> [namespace]  ターゲットクラスターの永続トークンを作成${RESET}"
         exit 1
         ;;
 esac
