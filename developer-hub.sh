@@ -684,10 +684,11 @@ EOF
             | grep -v TARGET | sed 's/.*"\(https[^"]*\)".*/\1/')
         echo -e "${BLUE}RHDHクラスター (${RHDH_API}) に切り替えて適用中...${RESET}"
         oc login "$RHDH_API" -u admin 2>/dev/null || true
-        oc apply -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
+        oc patch secret secrets-rhdh -n "$RHDH_NAMESPACE" \
+            --type=merge \
+            -p "{\"stringData\":{\"TARGET_K8S_CLUSTER_URL\":\"${TARGET_API}\",\"TARGET_K8S_CLUSTER_TOKEN\":\"${TOKEN}\"}}"
         oc rollout restart deployment/backstage-developer-hub -n "$RHDH_NAMESPACE"
-        oc rollout status deployment/backstage-developer-hub -n "$RHDH_NAMESPACE" --timeout=300s
-        echo -e "${GREEN}RHDH への適用完了${RESET}"
+        echo -e "${GREEN}RHDH への適用完了（バックグラウンドで再起動中）${RESET}"
     else
         echo -e "${YELLOW}手動で secrets-rhdh.yaml を更新してください${RESET}"
     fi
