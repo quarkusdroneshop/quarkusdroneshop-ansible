@@ -75,6 +75,38 @@ deploy() {
 
     echo -e "${BLUE}デプロイの開始...${RESET}"
 
+    # 自クラスタードメインを自動検出してsecrets-rhdh.yamlとtemplate.yamlのデフォルトを更新
+    local CLUSTER_API_URL
+    CLUSTER_API_URL=$(oc whoami --show-server)
+    local CLUSTER_DOMAIN
+    CLUSTER_DOMAIN=$(echo "$CLUSTER_API_URL" | sed 's|https://api\.||' | sed 's|:6443||')
+    local APPS_DOMAIN="apps.${CLUSTER_DOMAIN}"
+    local RHDH_BASE_URL="https://backstage-developer-hub-${RHDH_NAMESPACE}.${APPS_DOMAIN}"
+
+    echo -e "${BLUE}クラスタードメイン: ${APPS_DOMAIN}${RESET}"
+
+    # secrets-rhdh.yaml の BASE_URL と AUTH_OIDC_METADATA_URL を現在のクラスタードメインで更新
+    sed -i.bak \
+        -e "s|BASE_URL: \"https://backstage-developer-hub-${RHDH_NAMESPACE}\.apps\.[^\"]*\"|BASE_URL: \"${RHDH_BASE_URL}\"|" \
+        -e "s|AUTH_OIDC_METADATA_URL: \"https://sso\.apps\.[^\"]*\"|AUTH_OIDC_METADATA_URL: \"https://sso.${APPS_DOMAIN}/realms/rhdh/.well-known/openid-configuration\"|" \
+        -e "s|K8S_CLUSTER_NAME: \"[^\"]*\"|K8S_CLUSTER_NAME: \"${CLUSTER_DOMAIN}\"|" \
+        -e "s|K8S_CLUSTER_URL: \"[^\"]*\"|K8S_CLUSTER_URL: \"${CLUSTER_API_URL}\"|" \
+        "$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
+    rm -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml.bak"
+
+    # template.yaml の clusterDomain デフォルト値を現在のクラスタードメインで更新
+    local TEMPLATE_YAML="$SCRIPT_DIR/../developerhub-skeleton/template.yaml"
+    if [ -f "$TEMPLATE_YAML" ]; then
+        sed -i.bak \
+            "s|default: apps\.ocp\.[^[:space:]]*\.opentlc\.com|default: ${APPS_DOMAIN}|" \
+            "$TEMPLATE_YAML"
+        rm -f "${TEMPLATE_YAML}.bak"
+        echo -e "${BLUE}template.yaml の clusterDomain デフォルトを ${APPS_DOMAIN} に更新しました${RESET}"
+        (cd "$(dirname "$TEMPLATE_YAML")" && git add template.yaml && \
+            git commit -m "Auto-update clusterDomain default to ${APPS_DOMAIN}" && \
+            git push origin main) || true
+    fi
+
     oc apply -f "$SCRIPT_DIR/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
     oc apply -f "$SCRIPT_DIR/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE"
     oc apply -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
