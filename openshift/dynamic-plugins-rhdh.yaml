@@ -30,7 +30,7 @@ data:
         disabled: false
 
       # OpenShift トポロジープラグイン
-      - package: './dynamic-plugins/dist/backstage-community-plugin-topology-dynamic'
+      - package: './dynamic-plugins/dist/backstage-community-plugin-topology'
         disabled: false
 
       - package: './dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic'
