@@ -71,6 +71,7 @@ data:
 
     auth:
       environment: production
+      dangerouslyAllowSignInWithoutUserInCatalog: true
 
       providers:
         oidc:
@@ -84,7 +85,6 @@ data:
               resolvers:
                 - resolver: emailMatchingUserEntityProfileEmail
                 - resolver: emailLocalPartMatchingUserEntityName
-                - resolver: dangerouslyAllowSignInWithoutUserInCatalog
       
       session:
         secret: ${BACKEND_SECRET}
