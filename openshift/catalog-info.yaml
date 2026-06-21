@@ -10,20 +10,32 @@ data:
     metadata:
       name: nmushino
       annotations:
+        keycloak.org/id: 58e6ed84-3563-4def-9537-cbe22a040f79
         backstage.io/email: nmushino@redhat.com
     spec:
       profile:
         displayName: Noriaki Mushino
         email: nmushino@redhat.com
       memberOf:
-        - admin
+        - admins
+    ---
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: User
+    metadata:
+      name: user1
+    spec:
+      profile:
+        displayName: User 1
+      memberOf:
+        - admins
     ---
     apiVersion: backstage.io/v1alpha1
     kind: Group
     metadata:
-      name: admin
+      name: admins
     spec:
-      type: root
+      type: team
       profile:
         displayName: Administrators
         email: nmushino@redhat.com
