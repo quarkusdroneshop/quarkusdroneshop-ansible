@@ -84,6 +84,7 @@ data:
               resolvers:
                 - resolver: emailMatchingUserEntityProfileEmail
                 - resolver: emailLocalPartMatchingUserEntityName
+                - resolver: dangerouslyAllowSignInWithoutUserInCatalog
       
       session:
         secret: ${BACKEND_SECRET}
