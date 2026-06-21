@@ -52,7 +52,7 @@ data:
                     mountPoint: entity.page.topology
 
       # Tekton CI プラグイン（CI タブでパイプライン状況表示）
-      - package: './dynamic-plugins/dist/backstage-community-plugin-tekton'
+      - package: 'oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-tekton:bs_1.49.4__3.37.0!backstage-community-plugin-tekton'
         disabled: false
         pluginConfig:
           dynamicPlugins:
