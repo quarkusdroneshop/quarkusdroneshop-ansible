@@ -163,6 +163,12 @@ data:
         - group: "tekton.dev"
           apiVersion: "v1beta1"
           plural: "tasks"
+        - group: "route.openshift.io"
+          apiVersion: "v1"
+          plural: "routes"
+        - group: "apps.openshift.io"
+          apiVersion: "v1"
+          plural: "deploymentconfigs"
 
       serviceLocatorMethod:
         type: singleTenant
@@ -199,6 +205,8 @@ data:
         target: "${TARGET_K8S_CLUSTER_URL}"
         changeOrigin: true
         secure: false
+        headers:
+          Authorization: 'Bearer ${TARGET_K8S_CLUSTER_TOKEN}'
 
     permission:
       rbac:

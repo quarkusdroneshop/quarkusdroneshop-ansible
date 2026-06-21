@@ -13,51 +13,26 @@ data:
 
     plugins:
 
-       # GitHub Plugins
-      - package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-org-dynamic
-        disabled: false
-      - package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
+      - package: './dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-dynamic'
         disabled: false
 
-      # Kubernetes Plugins
-      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
-        disabled: false
-      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
+      - package: './dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic'
         disabled: false
 
-      # OpenShift Plugins
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
+      - package: './dynamic-plugins/dist/backstage-community-plugin-scaffolder-backend-module-kubernetes-dynamic'
         disabled: false
 
-      # Topology
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
+      # Kubernetes プラグイン（クラスタートポロジー表示）
+      - package: './dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic'
         disabled: false
 
-      # Tekton
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-tekton
+      - package: './dynamic-plugins/dist/backstage-plugin-kubernetes'
         disabled: false
 
-      # ArgoCD Plugins
-      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-argo-cd-backend-dynamic
-        disabled: false
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-redhat-argocd
-        disabled: false
-      - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-argocd-dynamic
+      # OpenShift トポロジープラグイン
+      - package: './dynamic-plugins/dist/backstage-community-plugin-topology-dynamic'
         disabled: false
 
-      # Custom Plugin
-      - package: ./dynamic-plugins/dist/kubernetes-scaffolder-module/dist-dynamic
+      - package: './dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic'
         disabled: false
-      
-
-    # #   # ===== Roadie Utils (追加) =====
-    # #   - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-utils-dynamic
-    # #     disabled: false
-
-    # #   # ===== Scaffolder HTTP (追加) =====
-    # #   - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
-    # #     disabled: false
-
-    # #   # - package: ./dynamic-plugins/dist/kubernetes-scaffolder-module
-    # #   #   disabled: false
 
