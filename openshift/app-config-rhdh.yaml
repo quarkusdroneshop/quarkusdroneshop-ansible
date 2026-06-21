@@ -9,7 +9,7 @@ metadata:
 data:
   app-config-rhdh.yaml: |
     app:
-      title: Datamesh
+      title: RH Datamesh
       baseUrl: ${BASE_URL}
       branding:
         fullLogoWidth: 200
