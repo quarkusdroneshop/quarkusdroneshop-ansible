@@ -715,15 +715,11 @@ EOF
 system_token() {
     # 各システムクラスターの SA トークンを取得して secrets-rhdh.yaml を更新する
     # 使用方法: ./developer-hub.sh system-token
+    # クラスター URL はプロビジョニングごとに変わるため実行時に入力する
     local SA_NAME="rhdh-k8s-plugin"
     local SECRET_NAME="rhdh-k8s-plugin-sa-token"
     local CICD_NS="quarkusdroneshop-cicd"
     local SECRETS_FILE="$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
-
-    declare -A CLUSTERS
-    CLUSTERS["a-cluster"]="https://api.ocp.hnkwm.sandbox225.opentlc.com:6443"
-    CLUSTERS["b-cluster"]="https://api.ocp.mnlq9.sandbox1332.opentlc.com:6443"
-    CLUSTERS["c-cluster"]="https://api.ocp.49dgc.sandbox1447.opentlc.com:6443"
 
     declare -A CLUSTER_KEYS
     CLUSTER_KEYS["a-cluster"]="A"
@@ -733,10 +729,40 @@ system_token() {
     local RHDH_API
     RHDH_API=$(oc whoami --show-server)
 
+    # 各クラスタードメインを対話入力
+    echo -e "${YELLOW}クラスタードメインを入力してください（例: ocp.hnkwm.sandbox225.opentlc.com）${RESET}"
+    echo -e "${YELLOW}スキップする場合は Enter を押してください${RESET}"
+    echo ""
+
+    declare -A CLUSTER_DOMAINS
     for CLUSTER_NAME in a-cluster b-cluster c-cluster; do
-        local API_URL="${CLUSTERS[$CLUSTER_NAME]}"
+        local KEY="${CLUSTER_KEYS[$CLUSTER_NAME]}"
+        # 現在の設定値を secrets-rhdh.yaml から読み取ってデフォルト表示
+        local CURRENT_URL
+        CURRENT_URL=$(grep "K8S_CLUSTER_URL_${KEY}:" "$SECRETS_FILE" 2>/dev/null \
+            | sed 's/.*"https:\/\/api\.\([^"]*\):6443".*/\1/' || true)
+        read -rp "${CLUSTER_NAME} (システム${KEY}) のドメイン [${CURRENT_URL:-未設定}]: " INPUT_DOMAIN
+        if [ -n "$INPUT_DOMAIN" ]; then
+            CLUSTER_DOMAINS[$CLUSTER_NAME]="$INPUT_DOMAIN"
+        elif [ -n "$CURRENT_URL" ]; then
+            CLUSTER_DOMAINS[$CLUSTER_NAME]="$CURRENT_URL"
+            echo -e "${YELLOW}  → 現在の設定を使用: ${CURRENT_URL}${RESET}"
+        else
+            CLUSTER_DOMAINS[$CLUSTER_NAME]=""
+        fi
+    done
+    echo ""
+
+    for CLUSTER_NAME in a-cluster b-cluster c-cluster; do
+        local DOMAIN="${CLUSTER_DOMAINS[$CLUSTER_NAME]}"
         local KEY="${CLUSTER_KEYS[$CLUSTER_NAME]}"
 
+        if [ -z "$DOMAIN" ]; then
+            echo -e "${YELLOW}${CLUSTER_NAME}: ドメイン未指定のためスキップします${RESET}"
+            continue
+        fi
+
+        local API_URL="https://api.${DOMAIN}:6443"
         echo -e "${BLUE}=== ${CLUSTER_NAME} (${API_URL}) ===${RESET}"
         oc login "$API_URL" -u admin --insecure-skip-tls-verify 2>/dev/null || {
             echo -e "${RED}${CLUSTER_NAME} へのログインに失敗しました。スキップします${RESET}"
