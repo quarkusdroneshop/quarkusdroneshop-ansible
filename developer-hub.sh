@@ -852,8 +852,9 @@ case "$1" in
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|target-token|customimage|resetcustombuild|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|target-token|system-token|customimage|resetcustombuild|cleanup}${RESET}"
         echo -e "${YELLOW}  target-token <cluster-domain>  ターゲットクラスターの永続トークンを作成${RESET}"
+        echo -e "${YELLOW}  system-token                   a/b/c-cluster の SA トークンを取得して secrets を更新${RESET}"
         exit 1
         ;;
 esac
