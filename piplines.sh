@@ -60,6 +60,37 @@ fi
 deploy() {
 
     echo "デプロイの開始..."
+
+    # Tekton coschedule 無効化（未設定の場合のみ）
+    CURRENT_COSCHEDULE=$(oc get configmap feature-flags -n openshift-pipelines -o jsonpath='{.data.coschedule}' 2>/dev/null || echo "")
+    if [ "$CURRENT_COSCHEDULE" != "disabled" ]; then
+        echo -e "${BLUE}Tekton coschedule を無効化中...${RESET}"
+        oc patch tektonconfig config \
+            --type=merge \
+            -p '{"spec":{"pipeline":{"coschedule":"disabled"}}}'
+        sleep 5
+        echo -e "${GREEN}coschedule: disabled${RESET}"
+    fi
+
+    # OWASP Dependency-Check DB キャッシュ用 PVC 作成（存在しない場合のみ）
+    if ! oc get pvc dependency-check-db -n "$CICD_NAMESPACE" &>/dev/null; then
+        echo -e "${BLUE}dependency-check-db PVC を作成中...${RESET}"
+        oc apply -n "$CICD_NAMESPACE" -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dependency-check-db
+  namespace: ${CICD_NAMESPACE}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+EOF
+        echo -e "${GREEN}dependency-check-db PVC 作成完了${RESET}"
+    fi
+
     # オペレータのインストール
     # プロジェクトが存在するか確認
     if oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then
@@ -137,13 +168,38 @@ democonfig() {
 }
 
 setup() {
-    
+
     # Piplineオペレータの作成
     oc new-project $CICD_NAMESPACE
     oc apply -f openshift/openshift-pipline.yaml
     sleep 30
     oc delete tektonconfig config -n  $CICD_NAMESPACE
     oc apply -f openshift/tektonconfig.yaml -n  $CICD_NAMESPACE
+
+    # Tekton coschedule 無効化（複数PVCの並列マウントを許可）
+    echo -e "${BLUE}Tekton coschedule を無効化中...${RESET}"
+    oc patch tektonconfig config \
+        --type=merge \
+        -p '{"spec":{"pipeline":{"coschedule":"disabled"}}}'
+    sleep 5
+    echo -e "${GREEN}coschedule: $(oc get configmap feature-flags -n openshift-pipelines -o jsonpath='{.data.coschedule}')${RESET}"
+
+    # OWASP Dependency-Check DB キャッシュ用 PVC 作成
+    echo -e "${BLUE}dependency-check-db PVC を作成中...${RESET}"
+    oc apply -n "$CICD_NAMESPACE" -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dependency-check-db
+  namespace: ${CICD_NAMESPACE}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+EOF
+    echo -e "${GREEN}dependency-check-db PVC 作成完了${RESET}"
 
 }
 
