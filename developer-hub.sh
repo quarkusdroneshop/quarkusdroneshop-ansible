@@ -695,69 +695,43 @@ EOF
     fi
 }
 
-system_token() {
-    # 各システムクラスターの SA トークンを取得して secrets-rhdh.yaml を更新する
-    # 使用方法: ./developer-hub.sh system-token
-    # クラスター URL はプロビジョニングごとに変わるため実行時に入力する
+_system_token_one() {
+    # 1クラスター分のトークン取得処理（bash 3.x 互換）
+    local CLUSTER_NAME="$1"
+    local KEY="$2"
     local SA_NAME="rhdh-k8s-plugin"
     local SECRET_NAME="rhdh-k8s-plugin-sa-token"
     local CICD_NS="quarkusdroneshop-cicd"
     local SECRETS_FILE="$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
 
-    declare -A CLUSTER_KEYS
-    CLUSTER_KEYS["a-cluster"]="A"
-    CLUSTER_KEYS["b-cluster"]="B"
-    CLUSTER_KEYS["c-cluster"]="C"
+    # 現在の設定値をデフォルト表示
+    local CURRENT_URL
+    CURRENT_URL=$(grep "K8S_CLUSTER_URL_${KEY}:" "$SECRETS_FILE" 2>/dev/null \
+        | sed 's/.*"https:\/\/api\.\([^"]*\):6443".*/\1/' || true)
+    read -rp "${CLUSTER_NAME} (システム${KEY}) のドメイン [${CURRENT_URL:-未設定}]: " INPUT_DOMAIN
 
-    local RHDH_API
-    RHDH_API=$(oc whoami --show-server)
+    local DOMAIN
+    if [ -n "$INPUT_DOMAIN" ]; then
+        DOMAIN="$INPUT_DOMAIN"
+    elif [ -n "$CURRENT_URL" ]; then
+        DOMAIN="$CURRENT_URL"
+        echo -e "${YELLOW}  → 現在の設定を使用: ${CURRENT_URL}${RESET}"
+    else
+        echo -e "${YELLOW}${CLUSTER_NAME}: ドメイン未指定のためスキップします${RESET}"
+        return 0
+    fi
 
-    # 各クラスタードメインを対話入力
-    echo -e "${YELLOW}クラスタードメインを入力してください（例: ocp.hnkwm.sandbox225.opentlc.com）${RESET}"
-    echo -e "${YELLOW}スキップする場合は Enter を押してください${RESET}"
-    echo ""
+    local API_URL="https://api.${DOMAIN}:6443"
+    echo -e "${BLUE}=== ${CLUSTER_NAME} (${API_URL}) ===${RESET}"
+    oc login "$API_URL" -u admin --insecure-skip-tls-verify 2>/dev/null || {
+        echo -e "${RED}${CLUSTER_NAME} へのログインに失敗しました。スキップします${RESET}"
+        return 0
+    }
 
-    declare -A CLUSTER_DOMAINS
-    for CLUSTER_NAME in a-cluster b-cluster c-cluster; do
-        local KEY="${CLUSTER_KEYS[$CLUSTER_NAME]}"
-        # 現在の設定値を secrets-rhdh.yaml から読み取ってデフォルト表示
-        local CURRENT_URL
-        CURRENT_URL=$(grep "K8S_CLUSTER_URL_${KEY}:" "$SECRETS_FILE" 2>/dev/null \
-            | sed 's/.*"https:\/\/api\.\([^"]*\):6443".*/\1/' || true)
-        read -rp "${CLUSTER_NAME} (システム${KEY}) のドメイン [${CURRENT_URL:-未設定}]: " INPUT_DOMAIN
-        if [ -n "$INPUT_DOMAIN" ]; then
-            CLUSTER_DOMAINS[$CLUSTER_NAME]="$INPUT_DOMAIN"
-        elif [ -n "$CURRENT_URL" ]; then
-            CLUSTER_DOMAINS[$CLUSTER_NAME]="$CURRENT_URL"
-            echo -e "${YELLOW}  → 現在の設定を使用: ${CURRENT_URL}${RESET}"
-        else
-            CLUSTER_DOMAINS[$CLUSTER_NAME]=""
-        fi
-    done
-    echo ""
+    oc create serviceaccount "$SA_NAME" -n "$CICD_NS" 2>/dev/null || true
+    oc adm policy add-cluster-role-to-user cluster-admin -z "$SA_NAME" -n "$CICD_NS" 2>/dev/null || true
 
-    for CLUSTER_NAME in a-cluster b-cluster c-cluster; do
-        local DOMAIN="${CLUSTER_DOMAINS[$CLUSTER_NAME]}"
-        local KEY="${CLUSTER_KEYS[$CLUSTER_NAME]}"
-
-        if [ -z "$DOMAIN" ]; then
-            echo -e "${YELLOW}${CLUSTER_NAME}: ドメイン未指定のためスキップします${RESET}"
-            continue
-        fi
-
-        local API_URL="https://api.${DOMAIN}:6443"
-        echo -e "${BLUE}=== ${CLUSTER_NAME} (${API_URL}) ===${RESET}"
-        oc login "$API_URL" -u admin --insecure-skip-tls-verify 2>/dev/null || {
-            echo -e "${RED}${CLUSTER_NAME} へのログインに失敗しました。スキップします${RESET}"
-            continue
-        }
-
-        # SA 作成（存在しなければ）
-        oc create serviceaccount "$SA_NAME" -n "$CICD_NS" 2>/dev/null || true
-        oc adm policy add-cluster-role-to-user cluster-admin -z "$SA_NAME" -n "$CICD_NS" 2>/dev/null || true
-
-        # 永続トークン Secret 作成
-        oc apply -n "$CICD_NS" -f - <<EOF
+    oc apply -n "$CICD_NS" -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -768,32 +742,44 @@ metadata:
 type: kubernetes.io/service-account-token
 EOF
 
-        # トークン取得
-        local TOKEN=""
-        for i in $(seq 1 20); do
-            TOKEN=$(oc get secret "$SECRET_NAME" -n "$CICD_NS" \
-                -o jsonpath='{.data.token}' 2>/dev/null | base64 -d 2>/dev/null || true)
-            [ -n "$TOKEN" ] && break
-            sleep 2
-        done
-
-        if [ -z "$TOKEN" ]; then
-            echo -e "${RED}${CLUSTER_NAME} のトークン取得に失敗しました${RESET}"
-            continue
-        fi
-
-        echo -e "${GREEN}${CLUSTER_NAME} トークン取得成功${RESET}"
-
-        # secrets-rhdh.yaml 更新
-        sed -i.bak \
-            -e "s|K8S_CLUSTER_URL_${KEY}: \"[^\"]*\"|K8S_CLUSTER_URL_${KEY}: \"${API_URL}\"|" \
-            -e "s|K8S_CLUSTER_TOKEN_${KEY}: \"[^\"]*\"|K8S_CLUSTER_TOKEN_${KEY}: \"${TOKEN}\"|" \
-            "$SECRETS_FILE"
-        rm -f "${SECRETS_FILE}.bak"
-        echo -e "${GREEN}secrets-rhdh.yaml の ${CLUSTER_NAME} 設定を更新しました${RESET}"
+    local TOKEN=""
+    for i in $(seq 1 20); do
+        TOKEN=$(oc get secret "$SECRET_NAME" -n "$CICD_NS" \
+            -o jsonpath='{.data.token}' 2>/dev/null | base64 -d 2>/dev/null || true)
+        [ -n "$TOKEN" ] && break
+        sleep 2
     done
 
-    # RHDH クラスターに戻って適用
+    if [ -z "$TOKEN" ]; then
+        echo -e "${RED}${CLUSTER_NAME} のトークン取得に失敗しました${RESET}"
+        return 0
+    fi
+
+    echo -e "${GREEN}${CLUSTER_NAME} トークン取得成功${RESET}"
+    sed -i.bak \
+        -e "s|K8S_CLUSTER_URL_${KEY}: \"[^\"]*\"|K8S_CLUSTER_URL_${KEY}: \"${API_URL}\"|" \
+        -e "s|K8S_CLUSTER_TOKEN_${KEY}: \"[^\"]*\"|K8S_CLUSTER_TOKEN_${KEY}: \"${TOKEN}\"|" \
+        "$SECRETS_FILE"
+    rm -f "${SECRETS_FILE}.bak"
+    echo -e "${GREEN}secrets-rhdh.yaml の ${CLUSTER_NAME} 設定を更新しました${RESET}"
+}
+
+system_token() {
+    # 各システムクラスターの SA トークンを取得して secrets-rhdh.yaml を更新する
+    # クラスター URL はプロビジョニングごとに変わるため実行時に入力する
+    local SECRETS_FILE="$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
+    local RHDH_API
+    RHDH_API=$(oc whoami --show-server)
+
+    echo -e "${YELLOW}クラスタードメインを入力してください（例: ocp.hnkwm.sandbox225.opentlc.com）${RESET}"
+    echo -e "${YELLOW}スキップする場合は Enter を押してください${RESET}"
+    echo ""
+
+    _system_token_one "a-cluster" "A"
+    _system_token_one "b-cluster" "B"
+    _system_token_one "c-cluster" "C"
+
+    echo ""
     echo -e "${BLUE}RHDHクラスター (${RHDH_API}) に切り替えて適用中...${RESET}"
     oc login "$RHDH_API" -u admin --insecure-skip-tls-verify 2>/dev/null || true
     oc apply -f "$SECRETS_FILE" -n "$RHDH_NAMESPACE"
