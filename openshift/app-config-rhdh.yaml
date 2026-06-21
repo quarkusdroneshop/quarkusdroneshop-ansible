@@ -83,7 +83,8 @@ data:
 
             signIn:
               resolvers:
-                - resolver: preferredUsernameMatchingUserEntityName
+                - resolver: emailMatchingUserEntityProfileEmail
+                - resolver: emailLocalPartMatchingUserEntityName
       
       session:
         secret: ${BACKEND_SECRET}
