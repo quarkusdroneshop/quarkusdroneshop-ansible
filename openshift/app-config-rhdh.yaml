@@ -120,12 +120,11 @@ data:
             catalogPath: /catalog-info.yaml
             filters:
               branch: main
+              repository: >-
+                ^(quarkusdroneshop-web|quarkusdroneshop-counter|quarkusdroneshop-homeoffice|quarkusdroneshop-homeoffice-ui|quarkusdroneshop-inventory|quarkusdroneshop-qdca10|quarkusdroneshop-qdca10pro)$
             schedule:
-              frequency: { minutes: 1 }
+              frequency: { minutes: 30 }
               timeout: { minutes: 3 }
-      #       schedule:
-      #         frequency: { minutes: 1 }
-      #         timeout: { minutes: 3 }
 
     featureFlags:
       scaffolder: true
