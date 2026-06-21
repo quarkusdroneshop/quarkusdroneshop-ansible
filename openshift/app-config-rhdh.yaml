@@ -149,6 +149,21 @@ data:
               serviceAccountToken: "${K8S_CLUSTER_TOKEN}"
               url: "${K8S_CLUSTER_URL}"
               skipTLSVerify: true
+            - authProvider: serviceAccount
+              name: "a-cluster"
+              serviceAccountToken: "${K8S_CLUSTER_TOKEN_A}"
+              url: "${K8S_CLUSTER_URL_A}"
+              skipTLSVerify: true
+            - authProvider: serviceAccount
+              name: "b-cluster"
+              serviceAccountToken: "${K8S_CLUSTER_TOKEN_B}"
+              url: "${K8S_CLUSTER_URL_B}"
+              skipTLSVerify: true
+            - authProvider: serviceAccount
+              name: "c-cluster"
+              serviceAccountToken: "${K8S_CLUSTER_TOKEN_C}"
+              url: "${K8S_CLUSTER_URL_C}"
+              skipTLSVerify: true
 
       customResources:
         - group: "tekton.dev"

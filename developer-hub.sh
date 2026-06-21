@@ -13,6 +13,7 @@
 #   ./developer-hub.sh keycloak        - To setup Keycloak realm/client/user for RHDH.
 #   ./developer-hub.sh retoken         - Reissuing a GitHub token.
 #   ./developer-hub.sh target-token <domain> - Create persistent SA token for target cluster.
+#   ./developer-hub.sh system-token          - Create SA tokens for a/b/c-cluster and update secrets.
 #   ./developer-hub.sh cleanup         - To delete the application.
 #   ./developer-hub.sh customimage     - The creation of a customised RHDH image.
 #   ./developer-hub.sh resetcustombuild - Reset and rebuild the custom RHDH image from scratch.
@@ -95,16 +96,33 @@ deploy() {
         "$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
     rm -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml.bak"
 
-    # template.yaml の clusterDomain デフォルト値を現在のクラスタードメインで更新
+    # template.yaml の clusterDomain・created_at デフォルト値を更新
     local TEMPLATE_YAML="$SCRIPT_DIR/../developerhub-skeleton/template.yaml"
+    local TODAY
+    TODAY=$(date +%Y-%m-%d)
     if [ -f "$TEMPLATE_YAML" ]; then
         sed -i.bak \
-            "s|default: apps\.ocp\.[^[:space:]]*\.opentlc\.com|default: ${APPS_DOMAIN}|" \
+            -e "s|default: apps\.ocp\.[^[:space:]]*\.opentlc\.com|default: ${APPS_DOMAIN}|" \
             "$TEMPLATE_YAML"
+        # created_at の default 行を更新（存在すれば上書き、なければ追加しない）
+        python3 - "$TEMPLATE_YAML" "$TODAY" <<'PYEOF'
+import sys, re
+path, today = sys.argv[1], sys.argv[2]
+content = open(path).read()
+# ui:widget: date の直前の default: YYYY-MM-DD を置換、なければ ui:widget: date の前に追加
+if re.search(r'default: \d{4}-\d{2}-\d{2}', content):
+    content = re.sub(r'default: \d{4}-\d{2}-\d{2}', f'default: {today}', content)
+else:
+    content = content.replace(
+        "          ui:widget: date",
+        f"          default: {today}\n          ui:widget: date"
+    )
+open(path, 'w').write(content)
+PYEOF
         rm -f "${TEMPLATE_YAML}.bak"
-        echo -e "${BLUE}template.yaml の clusterDomain デフォルトを ${APPS_DOMAIN} に更新しました${RESET}"
+        echo -e "${BLUE}template.yaml の clusterDomain を ${APPS_DOMAIN}、created_at を ${TODAY} に更新しました${RESET}"
         (cd "$(dirname "$TEMPLATE_YAML")" && git add template.yaml && \
-            git commit -m "Auto-update clusterDomain default to ${APPS_DOMAIN}" && \
+            git commit -m "Auto-update clusterDomain=${APPS_DOMAIN}, created_at=${TODAY}" && \
             git push origin main) || true
     fi
 
@@ -549,7 +567,7 @@ spec:
             APP=${APP_NAME}
             NS=quarkusdroneshop-demo
             oc delete all -l app=\$APP -n \$NS || true
-            oc new-build --binary --name=\$APP --image-stream=java:openjdk-17-ubi8 -n \$NS
+            oc new-build --binary --name=\$APP --image-stream=ubi8-openjdk-21:1.18 -n \$NS
             oc start-build \$APP --from-dir=target/quarkus-app/ --follow -n \$NS
             oc new-app \$APP --name=\$APP --allow-missing-images -n \$NS
       workspaces:
@@ -694,6 +712,86 @@ EOF
     fi
 }
 
+system_token() {
+    # 各システムクラスターの SA トークンを取得して secrets-rhdh.yaml を更新する
+    # 使用方法: ./developer-hub.sh system-token
+    local SA_NAME="rhdh-k8s-plugin"
+    local SECRET_NAME="rhdh-k8s-plugin-sa-token"
+    local CICD_NS="quarkusdroneshop-cicd"
+    local SECRETS_FILE="$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
+
+    declare -A CLUSTERS
+    CLUSTERS["a-cluster"]="https://api.ocp.hnkwm.sandbox225.opentlc.com:6443"
+    CLUSTERS["b-cluster"]="https://api.ocp.mnlq9.sandbox1332.opentlc.com:6443"
+    CLUSTERS["c-cluster"]="https://api.ocp.49dgc.sandbox1447.opentlc.com:6443"
+
+    declare -A CLUSTER_KEYS
+    CLUSTER_KEYS["a-cluster"]="A"
+    CLUSTER_KEYS["b-cluster"]="B"
+    CLUSTER_KEYS["c-cluster"]="C"
+
+    local RHDH_API
+    RHDH_API=$(oc whoami --show-server)
+
+    for CLUSTER_NAME in a-cluster b-cluster c-cluster; do
+        local API_URL="${CLUSTERS[$CLUSTER_NAME]}"
+        local KEY="${CLUSTER_KEYS[$CLUSTER_NAME]}"
+
+        echo -e "${BLUE}=== ${CLUSTER_NAME} (${API_URL}) ===${RESET}"
+        oc login "$API_URL" -u admin --insecure-skip-tls-verify 2>/dev/null || {
+            echo -e "${RED}${CLUSTER_NAME} へのログインに失敗しました。スキップします${RESET}"
+            continue
+        }
+
+        # SA 作成（存在しなければ）
+        oc create serviceaccount "$SA_NAME" -n "$CICD_NS" 2>/dev/null || true
+        oc adm policy add-cluster-role-to-user cluster-admin -z "$SA_NAME" -n "$CICD_NS" 2>/dev/null || true
+
+        # 永続トークン Secret 作成
+        oc apply -n "$CICD_NS" -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${SECRET_NAME}
+  namespace: ${CICD_NS}
+  annotations:
+    kubernetes.io/service-account.name: ${SA_NAME}
+type: kubernetes.io/service-account-token
+EOF
+
+        # トークン取得
+        local TOKEN=""
+        for i in $(seq 1 20); do
+            TOKEN=$(oc get secret "$SECRET_NAME" -n "$CICD_NS" \
+                -o jsonpath='{.data.token}' 2>/dev/null | base64 -d 2>/dev/null || true)
+            [ -n "$TOKEN" ] && break
+            sleep 2
+        done
+
+        if [ -z "$TOKEN" ]; then
+            echo -e "${RED}${CLUSTER_NAME} のトークン取得に失敗しました${RESET}"
+            continue
+        fi
+
+        echo -e "${GREEN}${CLUSTER_NAME} トークン取得成功${RESET}"
+
+        # secrets-rhdh.yaml 更新
+        sed -i.bak \
+            -e "s|K8S_CLUSTER_URL_${KEY}: \"[^\"]*\"|K8S_CLUSTER_URL_${KEY}: \"${API_URL}\"|" \
+            -e "s|K8S_CLUSTER_TOKEN_${KEY}: \"[^\"]*\"|K8S_CLUSTER_TOKEN_${KEY}: \"${TOKEN}\"|" \
+            "$SECRETS_FILE"
+        rm -f "${SECRETS_FILE}.bak"
+        echo -e "${GREEN}secrets-rhdh.yaml の ${CLUSTER_NAME} 設定を更新しました${RESET}"
+    done
+
+    # RHDH クラスターに戻って適用
+    echo -e "${BLUE}RHDHクラスター (${RHDH_API}) に切り替えて適用中...${RESET}"
+    oc login "$RHDH_API" -u admin --insecure-skip-tls-verify 2>/dev/null || true
+    oc apply -f "$SECRETS_FILE" -n "$RHDH_NAMESPACE"
+    oc rollout restart deployment/backstage-developer-hub -n "$RHDH_NAMESPACE"
+    echo -e "${GREEN}全クラスターのトークン設定完了。RHDH を再起動しました${RESET}"
+}
+
 cleanup() {
 
     echo -e "${BLUE}クリーンナップ開始...${RESET}"
@@ -736,6 +834,9 @@ case "$1" in
         ;;
     target-token)
         target_token "$@"
+        ;;
+    system-token)
+        system_token
         ;;
     cleanup)
         cleanup
