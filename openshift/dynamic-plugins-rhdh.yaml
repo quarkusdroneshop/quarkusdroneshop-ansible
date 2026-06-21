@@ -51,6 +51,27 @@ data:
                     title: Topology
                     mountPoint: entity.page.topology
 
+      # Tekton CI プラグイン（CI タブでパイプライン状況表示）
+      - package: './dynamic-plugins/dist/backstage-community-plugin-tekton'
+        disabled: false
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              backstage-community-plugin-tekton:
+                mountPoints:
+                  - mountPoint: entity.page.ci/cards
+                    importName: TektonCI
+                    config:
+                      layout:
+                        gridColumn: "1 / -1"
+                      if:
+                        allOf:
+                          - hasAnnotation: tektonci.io/pipeline
+                entityTabs:
+                  - path: /ci
+                    title: CI
+                    mountPoint: entity.page.ci
+
       - package: './dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic'
         disabled: false
 
