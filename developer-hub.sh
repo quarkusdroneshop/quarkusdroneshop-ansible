@@ -96,33 +96,16 @@ deploy() {
         "$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
     rm -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml.bak"
 
-    # template.yaml の clusterDomain・created_at デフォルト値を更新
+    # template.yaml の clusterDomain デフォルト値を更新
     local TEMPLATE_YAML="$SCRIPT_DIR/../developerhub-skeleton/template.yaml"
-    local TODAY
-    TODAY=$(date +%Y-%m-%d)
     if [ -f "$TEMPLATE_YAML" ]; then
         sed -i.bak \
-            -e "s|default: apps\.ocp\.[^[:space:]]*\.opentlc\.com|default: ${APPS_DOMAIN}|" \
+            "s|default: apps\.ocp\.[^[:space:]]*\.opentlc\.com|default: ${APPS_DOMAIN}|" \
             "$TEMPLATE_YAML"
-        # created_at の default 行を更新（存在すれば上書き、なければ追加しない）
-        python3 - "$TEMPLATE_YAML" "$TODAY" <<'PYEOF'
-import sys, re
-path, today = sys.argv[1], sys.argv[2]
-content = open(path).read()
-# ui:widget: date の直前の default: YYYY-MM-DD を置換、なければ ui:widget: date の前に追加
-if re.search(r'default: \d{4}-\d{2}-\d{2}', content):
-    content = re.sub(r'default: \d{4}-\d{2}-\d{2}', f'default: {today}', content)
-else:
-    content = content.replace(
-        "          ui:widget: date",
-        f"          default: {today}\n          ui:widget: date"
-    )
-open(path, 'w').write(content)
-PYEOF
         rm -f "${TEMPLATE_YAML}.bak"
-        echo -e "${BLUE}template.yaml の clusterDomain を ${APPS_DOMAIN}、created_at を ${TODAY} に更新しました${RESET}"
+        echo -e "${BLUE}template.yaml の clusterDomain を ${APPS_DOMAIN} に更新しました${RESET}"
         (cd "$(dirname "$TEMPLATE_YAML")" && git add template.yaml && \
-            git commit -m "Auto-update clusterDomain=${APPS_DOMAIN}, created_at=${TODAY}" && \
+            git commit -m "Auto-update clusterDomain=${APPS_DOMAIN}" && \
             git push origin main) || true
     fi
 
