@@ -97,3 +97,133 @@ data:
         displayName: Team C
         email: team-c@example.com
       children: []
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-cluster-kafka
+      description: DroneShop Kafka クラスター
+    spec:
+      type: messaging
+      owner: user:default/nmushino
+      system: a-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: droneshopdb-postgresql
+      description: DroneShop PostgreSQL データベース
+    spec:
+      type: database
+      owner: user:default/nmushino
+      system: a-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-orders-in
+      description: "Kafka トピック: orders-in"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: a-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-web-updates
+      description: "Kafka トピック: web-updates"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: a-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-loyalty-updates
+      description: "Kafka トピック: loyalty-updates"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: a-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-asite-orders-in
+      description: "Kafka トピック: asite orders-in (MirrorMaker2)"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-bsite-orders-up
+      description: "Kafka トピック: bsite orders-up (MirrorMaker2)"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-asite-qdca10-in
+      description: "Kafka トピック: asite qdca10-in"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-asite-qdca10pro-in
+      description: "Kafka トピック: asite qdca10pro-in"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-asite-inventory-in
+      description: "Kafka トピック: asite inventory-in"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-asite-loyalty-updates
+      description: "Kafka トピック: asite loyalty-updates (MirrorMaker2)"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-rewards
+      description: "Kafka トピック: rewards"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-bsite-rewards
+      description: "Kafka トピック: bsite rewards (MirrorMaker2)"
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: a-cluster
