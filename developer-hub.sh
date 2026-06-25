@@ -4,8 +4,8 @@
 # Description: This script sets up the developer-hub image and application skeleton.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2026-06-21
-# Version: 2.0
+# Last Modified: 2026-06-24
+# Version: 2.1
 #
 # Usage:
 #   ./developer-hub.sh setup           - To setup the environment.
@@ -17,6 +17,7 @@
 #   ./developer-hub.sh cleanup         - To delete the application.
 #   ./developer-hub.sh customimage     - The creation of a customised RHDH image.
 #   ./developer-hub.sh resetcustombuild - Reset and rebuild the custom RHDH image from scratch.
+#   ./developer-hub.sh update-plugin    - Rebuild test-report plugin, update integrity hash, restart RHDH.
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -55,13 +56,15 @@ oc version
 
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 
-# ドメインの確認（トークンは表示しない）
+# ドメインの確認（update-plugin はドメイン確認不要のためスキップ）
 echo -e "${YELLOW}Domain Name: $DOMAIN_NAME${RESET}"
 echo -e "-------------------------------------------"
-read -rp "指定されたドメインで間違いないですか？(yes/no): " DOMAIN_CONFREM
-if [ "$DOMAIN_CONFREM" != "yes" ]; then
-    echo -e "${RED}処理を中断します。${RESET}"
-    exit 1
+if [ "${1:-}" != "update-plugin" ]; then
+    read -rp "指定されたドメインで間違いないですか？(yes/no): " DOMAIN_CONFREM
+    if [ "$DOMAIN_CONFREM" != "yes" ]; then
+        echo -e "${RED}処理を中断します。${RESET}"
+        exit 1
+    fi
 fi
 
 deploy() {
@@ -109,7 +112,11 @@ deploy() {
             git push origin main) || true
     fi
 
-    oc apply -f "$SCRIPT_DIR/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
+    if oc get backstage developer-hub -n "$RHDH_NAMESPACE" &>/dev/null; then
+        oc replace -f "$SCRIPT_DIR/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
+    else
+        oc apply -f "$SCRIPT_DIR/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
+    fi
     oc apply -f "$SCRIPT_DIR/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE"
     oc apply -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
     oc apply -f "$SCRIPT_DIR/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE"
@@ -475,7 +482,10 @@ pipeline() {
         || echo -e "${YELLOW}Project $NAMESPACE already exists.${RESET}"
 
     if [ -f "$PIPELINE_FILE" ]; then
-        oc apply -f "$PIPELINE_FILE" -n "$NAMESPACE"
+        sed "s/\${{ values.app_name }}/${APP_NAME}/g" "$PIPELINE_FILE" \
+            | oc delete -f - -n "$NAMESPACE" --ignore-not-found || true
+        sed "s/\${{ values.app_name }}/${APP_NAME}/g" "$PIPELINE_FILE" \
+            | oc create -f - -n "$NAMESPACE"
         echo -e "${GREEN}Pipeline applied from ${PIPELINE_FILE}${RESET}"
     else
         echo -e "${YELLOW}Pipeline file not found: ${PIPELINE_FILE}${RESET}"
@@ -529,12 +539,12 @@ spec:
       runAfter: [semgrep-scan]
       taskRef:
         kind: Task
-        name: maven-no-settings11
+        name: maven-no-settings21
       params:
         - name: CONTEXT_DIR
           value: .
         - name: GOALS
-          value: "clean package"
+          value: "clean verify -Dquarkus.package.jar.type=uber-jar"
       workspaces:
         - name: source
           workspace: shared-workspace
@@ -550,9 +560,12 @@ spec:
             APP=${APP_NAME}
             NS=quarkusdroneshop-demo
             oc delete all -l app=\$APP -n \$NS || true
-            oc new-build --binary --name=\$APP --image-stream=ubi8-openjdk-21:1.18 -n \$NS
-            oc start-build \$APP --from-dir=target/quarkus-app/ --follow -n \$NS
-            oc new-app \$APP --name=\$APP --allow-missing-images -n \$NS
+            oc delete bc/quarkusdroneshop-\$APP -n \$NS || true
+
+            RUNNER_JAR=\$(ls target/*-runner.jar | head -1)
+            oc new-build --binary --name=quarkusdroneshop-\$APP --docker-image=registry.access.redhat.com/ubi8/openjdk-21:1.20 -n \$NS
+            oc start-build quarkusdroneshop-\$APP --from-file="\$RUNNER_JAR" --follow -n \$NS
+            oc new-app quarkusdroneshop-\$APP --name=quarkusdroneshop-\$APP --allow-missing-images -n \$NS
       workspaces:
         - name: source
           workspace: shared-workspace
@@ -622,6 +635,10 @@ target_token() {
         exit 1
     fi
 
+    # ターゲットクラスターにログインする前に現在のRHDHクラスターのURLを保存
+    local RHDH_API
+    RHDH_API=$(oc whoami --show-server)
+
     local TARGET_API="https://api.${TARGET_DOMAIN}:6443"
     echo -e "${BLUE}ターゲットクラスターにログイン: ${TARGET_API}${RESET}"
     oc login "$TARGET_API" -u admin
@@ -680,9 +697,6 @@ EOF
         rm -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml.bak"
 
         # RHDHクラスターに戻って適用
-        local RHDH_API
-        RHDH_API=$(grep 'K8S_CLUSTER_URL' "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" \
-            | grep -v TARGET | sed 's/.*"\(https[^"]*\)".*/\1/')
         echo -e "${BLUE}RHDHクラスター (${RHDH_API}) に切り替えて適用中...${RESET}"
         oc login "$RHDH_API" -u admin 2>/dev/null || true
         oc patch secret secrets-rhdh -n "$RHDH_NAMESPACE" \
@@ -787,6 +801,128 @@ system_token() {
     echo -e "${GREEN}全クラスターのトークン設定完了。RHDH を再起動しました${RESET}"
 }
 
+update_plugin() {
+
+    oc project "$RHDH_NAMESPACE"
+
+    local dynamic_plugins_yaml="$SCRIPT_DIR/openshift/dynamic-plugins-rhdh.yaml"
+
+    echo -e "${BLUE}[1/5] プラグインをビルド中...${RESET}"
+    (
+        export NVM_DIR="$HOME/.nvm"
+        # shellcheck disable=SC1091
+        [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+        nvm use 22 2>/dev/null || true
+
+        local dh_dir="$SCRIPT_DIR/../developerhub-skeleton/developerhub"
+        cd "$dh_dir"
+
+        # test-report ビルド
+        mkdir -p dist-types/plugins/test-report
+        npx tsc -p plugins/test-report/tsconfig.json \
+            --declaration --emitDeclarationOnly \
+            --outDir dist-types/plugins/test-report \
+            --skipLibCheck 2>/dev/null || true
+        yarn workspace @internal/plugin-test-report build
+        cd "$dh_dir/plugins/test-report"
+        npx --yes @red-hat-developer-hub/cli@latest plugin export
+
+        # data-catalog ビルド
+        cd "$dh_dir"
+        mkdir -p dist-types/plugins/data-catalog
+        npx tsc -p plugins/data-catalog/tsconfig.json \
+            --declaration --emitDeclarationOnly \
+            --outDir dist-types/plugins/data-catalog \
+            --skipLibCheck 2>/dev/null || true
+        yarn workspace @internal/plugin-data-catalog build
+        cd "$dh_dir/plugins/data-catalog"
+        npx --yes @red-hat-developer-hub/cli@latest plugin export
+    )
+    echo -e "${GREEN}  → ビルド完了${RESET}"
+
+    echo -e "${BLUE}[2/5] カスタムイメージをビルド中...${RESET}"
+    local build_dir
+    build_dir="$(cd "$SCRIPT_DIR/../developerhub-skeleton/developerhub" && pwd)"
+    _stage_tarballs "$build_dir"
+    oc delete pod -A --field-selector=status.phase=Succeeded --ignore-not-found 2>/dev/null || true
+    local build_name
+    build_name=$(oc start-build rhdh-hub-custom --from-dir="$build_dir" -o name)
+    _cleanup_tarballs "$build_dir"
+    echo -e "${GREEN}  → ビルド開始: ${build_name}${RESET}"
+    oc wait --for=condition=complete "$build_name" -n "$RHDH_NAMESPACE" --timeout=1800s || \
+        { oc logs "$build_name" -n "$RHDH_NAMESPACE" --tail=20 2>/dev/null; exit 1; }
+    echo -e "${GREEN}  → イメージビルド完了${RESET}"
+
+    echo -e "${BLUE}[3/5] プラグインサーバーを適用・再起動してtgzを再生成中...${RESET}"
+    oc apply -f "$SCRIPT_DIR/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE"
+    oc rollout restart deployment/plugin-test-report-server -n "$RHDH_NAMESPACE"
+    oc rollout status deployment/plugin-test-report-server -n "$RHDH_NAMESPACE" --timeout=180s
+    local server_pod
+    server_pod=$(oc get pod -n "$RHDH_NAMESPACE" -l app=plugin-test-report-server \
+        --no-headers 2>/dev/null | grep "1/1.*Running" | grep -v Terminating | awk '{print $1}' | head -1)
+    [ -z "$server_pod" ] && echo -e "${RED}エラー: プラグインサーバーのポッドが見つかりません${RESET}" && exit 1
+    echo -e "${GREEN}  → プラグインサーバー起動: ${server_pod}${RESET}"
+
+    echo -e "${BLUE}[4/5] integrity ハッシュを計算中...${RESET}"
+    local hash_test_report hash_data_catalog
+    hash_test_report=$(oc exec -n "$RHDH_NAMESPACE" "$server_pod" -- sh -c \
+        'sha512sum /tarball/internal-plugin-test-report-dynamic-0.1.0.tgz | awk "{print \$1}" | xxd -r -p | base64 -w0')
+    hash_data_catalog=$(oc exec -n "$RHDH_NAMESPACE" "$server_pod" -- sh -c \
+        'sha512sum /tarball/internal-plugin-data-catalog-dynamic-0.1.0.tgz | awk "{print \$1}" | xxd -r -p | base64 -w0')
+    local integrity_test_report="sha512-${hash_test_report}"
+    local integrity_data_catalog="sha512-${hash_data_catalog}"
+    echo -e "${GREEN}  → test-report integrity: ${integrity_test_report}${RESET}"
+    echo -e "${GREEN}  → data-catalog integrity: ${integrity_data_catalog}${RESET}"
+
+    echo -e "${BLUE}[5/5] dynamic-plugins-rhdh.yaml の integrity を更新して RHDH を再起動中...${RESET}"
+
+    # test-report の integrity を更新（tgzファイル名の次の行のみ置換）
+    python3 - "$dynamic_plugins_yaml" "$integrity_test_report" "$integrity_data_catalog" <<'PYEOF'
+import sys, re
+
+yaml_file = sys.argv[1]
+hash_test = sys.argv[2]
+hash_data = sys.argv[3]
+
+with open(yaml_file) as f:
+    content = f.read()
+
+# internal-plugin-test-report の integrity を更新
+content = re.sub(
+    r"(internal-plugin-test-report[^\n]*\n\s*)integrity: 'sha512-[A-Za-z0-9+/=]+'",
+    lambda m: m.group(1).join([m.group(0).rsplit("\n", 1)[0] + "\n",
+                                f"        integrity: '{hash_test}'"]).replace(
+        m.group(0).rsplit("\n", 1)[0] + "\n" + m.group(0).rsplit("\n", 1)[1], ""),
+    content
+)
+# シンプルに両方を個別に置換
+lines = content.split("\n")
+i = 0
+while i < len(lines):
+    if "internal-plugin-test-report" in lines[i]:
+        if i + 1 < len(lines) and "integrity:" in lines[i+1]:
+            lines[i+1] = re.sub(r"integrity: 'sha512-[A-Za-z0-9+/=]+'",
+                                 f"integrity: '{hash_test}'", lines[i+1])
+    elif "internal-plugin-data-catalog" in lines[i]:
+        if i + 1 < len(lines) and "integrity:" in lines[i+1]:
+            lines[i+1] = re.sub(
+                r"integrity: '(sha512-[A-Za-z0-9+/=]+|sha512-REPLACE_WITH_ACTUAL_HASH)'",
+                f"integrity: '{hash_data}'", lines[i+1])
+    i += 1
+
+with open(yaml_file, "w") as f:
+    f.write("\n".join(lines))
+print("Updated integrity hashes in", yaml_file)
+PYEOF
+
+    # クラスター上の ConfigMap を更新
+    oc apply -f "$dynamic_plugins_yaml" -n "$RHDH_NAMESPACE"
+
+    oc rollout restart deployment/backstage-developer-hub -n "$RHDH_NAMESPACE"
+
+    echo -e "${GREEN}update-plugin 完了。RHDH の起動をお待ちください。${RESET}"
+}
+
 cleanup() {
 
     echo -e "${BLUE}クリーンナップ開始...${RESET}"
@@ -805,7 +941,7 @@ cleanup() {
     echo -e "${GREEN}クリーンナップ完了${RESET}"
 }
 
-case "$1" in
+case "${1:-}" in
     setup)
         setup
         ;;
@@ -827,6 +963,9 @@ case "$1" in
     resetcustombuild)
         resetcustombuild
         ;;
+    update-plugin)
+        update_plugin
+        ;;
     target-token)
         target_token "$@"
         ;;
@@ -837,8 +976,8 @@ case "$1" in
         cleanup
         ;;
     *)
-        echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|target-token|system-token|customimage|resetcustombuild|cleanup}${RESET}"
+        echo -e "${RED}無効なコマンドです: ${1:-（引数なし）}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|target-token|system-token|customimage|resetcustombuild|update-plugin|cleanup}${RESET}"
         echo -e "${YELLOW}  target-token <cluster-domain>  ターゲットクラスターの永続トークンを作成${RESET}"
         echo -e "${YELLOW}  system-token                   a/b/c-cluster の SA トークンを取得して secrets を更新${RESET}"
         exit 1

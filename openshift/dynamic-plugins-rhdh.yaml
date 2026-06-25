@@ -35,7 +35,7 @@ data:
         pluginConfig:
           dynamicPlugins:
             frontend:
-              backstage-community-plugin-topology:
+              backstage-community.plugin-topology:
                 mountPoints:
                   - mountPoint: entity.page.topology/cards
                     importName: TopologyPage
@@ -44,8 +44,9 @@ data:
                         gridColumn: "1 / -1"
                         gridRowStart: 1
                       if:
-                        allOf:
+                        anyOf:
                           - hasAnnotation: backstage.io/kubernetes-id
+                          - hasAnnotation: backstage.io/kubernetes-namespace
                 entityTabs:
                   - path: /topology
                     title: Topology
@@ -57,7 +58,7 @@ data:
         pluginConfig:
           dynamicPlugins:
             frontend:
-              backstage-community-plugin-tekton:
+              backstage-community.plugin-tekton:
                 mountPoints:
                   - mountPoint: entity.page.ci/cards
                     importName: TektonCI
@@ -74,4 +75,49 @@ data:
 
       - package: './dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic'
         disabled: false
+
+
+      # Test Report プラグイン（内部HTTPサーバーからtgz配信）
+      - package: 'http://plugin-test-report-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-test-report-dynamic-0.1.0.tgz'
+        disabled: false
+        integrity: 'sha512-LOggFF2/ym3nWSMojv1Q8KLE5JFRS0GpF0F2vXChDEE86t8nbiD9VCSRzLPmEi0b5c2qoWRqSIAUlIrGaLzi5w=='
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              internal.plugin-test-report:
+                mountPoints:
+                  - mountPoint: entity.page.test-report/cards
+                    importName: TestReportContent
+                    config:
+                      layout:
+                        gridColumn: "1 / -1"
+                      if:
+                        allOf:
+                          - isKind: component
+                entityTabs:
+                  - path: /test-report
+                    title: Test Report
+                    mountPoint: entity.page.test-report
+
+      # データカタログ プラグイン（OpenMetadata Explore へのリンク）
+      - package: 'http://plugin-test-report-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-data-catalog-dynamic-0.1.0.tgz'
+        disabled: false
+        integrity: 'sha512-REPLACE_WITH_ACTUAL_HASH'
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              internal.plugin-data-catalog:
+                mountPoints:
+                  - mountPoint: entity.page.data-catalog/cards
+                    importName: DataCatalogContent
+                    config:
+                      layout:
+                        gridColumn: "1 / -1"
+                      if:
+                        allOf:
+                          - isKind: resource
+                entityTabs:
+                  - path: /data-catalog
+                    title: データカタログ
+                    mountPoint: entity.page.data-catalog
 
