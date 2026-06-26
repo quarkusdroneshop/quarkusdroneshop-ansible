@@ -475,9 +475,9 @@ data:
       description: "Kafka トピック: shop-bsite.orders-up（注文ステータス更新）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-bsite.orders-up/schema"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.orders-up/schema"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-bsite.orders-up/schema"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.orders-up/schema"
           title: データカタログ
           icon: dashboard
     spec:
@@ -518,9 +518,9 @@ data:
       description: "Kafka トピック: shop-asite.inventory-in（在庫補充指示受信）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.inventory-in/schema"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.inventory-in/schema"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.inventory-in/schema"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.inventory-in/schema"
           title: データカタログ
           icon: dashboard
     spec:
@@ -606,9 +606,9 @@ data:
       description: "Kafka トピック: shop-asite.qdca10-in（QDCA10注文チケット受信）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.qdca10-in/schema"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.qdca10-in/schema"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.qdca10-in/schema"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.qdca10-in/schema"
           title: データカタログ
           icon: dashboard
     spec:
@@ -741,9 +741,9 @@ data:
       description: "Kafka トピック: shop-asite.qdca10pro-in（QDCA10Pro注文チケット受信）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.qdca10pro-in/schema"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.qdca10pro-in/schema"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.qdca10pro-in/schema"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.qdca10pro-in/schema"
           title: データカタログ
           icon: dashboard
     spec:
