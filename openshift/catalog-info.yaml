@@ -336,7 +336,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-qdca10-in
+      name: kafka-asite-qdca10-in
       description: "Kafka トピック: qdca10-in（QDCA10への注文指示）"
       annotations:
         backstage.io/kubernetes-cluster: a-cluster
@@ -381,7 +381,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-qdca10pro-in
+      name: kafka-asite-qdca10pro-in
       description: "Kafka トピック: qdca10pro-in（QDCA10Proへの注文指示）"
       annotations:
         backstage.io/kubernetes-cluster: a-cluster
@@ -426,7 +426,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-web-updates
+      name: kafka-asite-web-updates
       description: "Kafka トピック: web-updates（注文ステータス更新）"
       annotations:
         backstage.io/kubernetes-cluster: a-cluster
@@ -471,7 +471,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-shop-asite-orders-in
+      name: kafka-bsite-orders-in
       description: "Kafka トピック: shop-asite.orders-in（注文チケット受信）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -516,7 +516,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-shop-bsite-orders-up
+      name: kafka-bsite-orders-up
       description: "Kafka トピック: shop-bsite.orders-up（注文ステータス更新）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -559,7 +559,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-shop-asite-loyalty-updates
+      name: kafka-bsite-loyalty-updates
       description: "Kafka トピック: shop-asite.loyalty-updates（ロイヤリティ更新）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -602,7 +602,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-shop-asite-inventory-in
+      name: kafka-bsite-inventory-in
       description: "Kafka トピック: shop-asite.inventory-in（在庫補充指示受信）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -645,7 +645,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-inventory-out
+      name: kafka-bsite-inventory-out
       description: "Kafka トピック: inventory-out（在庫更新通知）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -690,7 +690,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-shop-asite-qdca10-in
+      name: kafka-bsite-qdca10-in
       description: "Kafka トピック: shop-asite.qdca10-in（QDCA10注文チケット受信）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -735,7 +735,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-orders-up
+      name: kafka-bsite-orders-up
       description: "Kafka トピック: orders-up（注文完了通知）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -782,7 +782,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-eighty-six
+      name: kafka-bsite-eighty-six
       description: "Kafka トピック: eighty-six（在庫切れ通知）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -825,7 +825,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-shop-asite-qdca10pro-in
+      name: kafka-bsite-qdca10pro-in
       description: "Kafka トピック: shop-asite.qdca10pro-in（QDCA10Pro注文チケット受信）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -870,7 +870,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-rewards
+      name: kafka-bsite-rewards
       description: "Kafka トピック: rewards（ロイヤリティリワード送信）"
       annotations:
         backstage.io/kubernetes-cluster: b-cluster
@@ -915,7 +915,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-orders-in
+      name: kafka-asite-orders-in
       description: "Kafka トピック: orders-in（注文受付）"
       annotations:
         backstage.io/kubernetes-cluster: a-cluster
@@ -962,7 +962,7 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-loyalty-updates
+      name: kafka-asite-loyalty-updates
       description: "Kafka トピック: loyalty-updates（ロイヤリティ更新）"
       annotations:
         backstage.io/kubernetes-cluster: a-cluster
