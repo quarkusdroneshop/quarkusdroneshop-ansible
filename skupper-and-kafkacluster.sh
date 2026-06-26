@@ -75,8 +75,8 @@ deploy() {
     if [ "$SITE_CONFREM" = "A" ]; then
 
         # Site作成
-        skupper site create skupper-asite
-        skupper site update --enable-link-access -n "$NAMESPACE"
+        skupper site create skupper-asite --enable-console
+        skupper site update --enable-link-access --enable-console -n "$NAMESPACE"
 
         # Siteのステータス確認
         skupper site status
@@ -114,8 +114,8 @@ deploy() {
     elif [ "$SITE_CONFREM" = "B" ]; then
 
         # Siteの作成
-        skupper site create skupper-bsite
-        skupper site update --enable-link-access -n "$NAMESPACE"
+        skupper site create skupper-bsite --enable-console
+        skupper site update --enable-link-access --enable-console -n "$NAMESPACE"
 
         # Siteのステータス確認
         skupper site status
@@ -151,8 +151,8 @@ deploy() {
     elif [ "$SITE_CONFREM" = "C" ]; then
 
         # Siteの作成
-        skupper site create skupper-csite
-        skupper site update --enable-link-access -n "$NAMESPACE"
+        skupper site create skupper-csite --enable-console
+        skupper site update --enable-link-access --enable-console -n "$NAMESPACE"
 
         # Siteのステータス確認
         skupper site status
@@ -188,8 +188,8 @@ deploy() {
     elif [ "$SITE_CONFREM" = "DH" ]; then
 
         # Siteの作成
-        skupper site create skupper-rhdh
-        skupper site update --enable-link-access -n "$NAMESPACE"
+        skupper site create skupper-rhdh --enable-console
+        skupper site update --enable-link-access --enable-console -n "$NAMESPACE"
 
         # Siteのステータス確認
         skupper site status
