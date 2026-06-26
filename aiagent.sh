@@ -135,14 +135,32 @@ _sync_repo() {
 
 # ─── setup: 前提 Operator のインストール ───────────────────────────────────────
 setup() {
-    echo -e "${BLUE}=== [1/5] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
+    # AMQ Streams は ocpdeploy.sh (quarkusdroneshop) で導入済みのため ここではインストールしない。
+    # Strimzi CRD が存在するか確認するだけで十分。
 
-    # RHOAI Namespace
-    oc create namespace "${RHOAI_NAMESPACE}" 2>/dev/null \
-        || echo -e "${YELLOW}  Namespace ${RHOAI_NAMESPACE} は既に存在します${RESET}"
+    echo -e "${BLUE}=== [1/4] 前提 Operator の確認 ===${RESET}"
 
-    # RHOAI Operator の OperatorGroup + Subscription
-    oc apply -f - <<EOF
+    # AMQ Streams (Strimzi) CRD の存在確認
+    if oc get crd kafkas.kafka.strimzi.io &>/dev/null; then
+        echo -e "${GREEN}  → AMQ Streams (Strimzi) CRD: 確認済み ✓${RESET}"
+    else
+        echo -e "${YELLOW}  ⚠ AMQ Streams CRD が見つかりません。${RESET}"
+        echo -e "${YELLOW}    先に ocpdeploy.sh setup を実行してください。${RESET}"
+        echo -e "${YELLOW}    または手動で AMQ Streams Operator をインストールしてください。${RESET}"
+        read -rp "    このまま続行しますか？(yes/no): " AMQ_SKIP
+        [ "${AMQ_SKIP}" != "yes" ] && exit 1
+    fi
+
+    echo -e "${BLUE}=== [2/4] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
+
+    # RHOAI が既にインストール済みかを確認
+    if oc get subscription rhods-operator -n "${RHOAI_NAMESPACE}" &>/dev/null; then
+        echo -e "${YELLOW}  → RHOAI Operator は既にインストール済みです${RESET}"
+    else
+        oc create namespace "${RHOAI_NAMESPACE}" 2>/dev/null \
+            || echo -e "${YELLOW}  Namespace ${RHOAI_NAMESPACE} は既に存在します${RESET}"
+
+        oc apply -f - <<EOF
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
@@ -163,12 +181,16 @@ spec:
   source: redhat-operators
   sourceNamespace: openshift-marketplace
 EOF
-    echo -e "${GREEN}  → RHOAI Subscription を適用しました${RESET}"
-    _wait_operator "${RHOAI_NAMESPACE}" "rhods" 360
+        echo -e "${GREEN}  → RHOAI Subscription を適用しました${RESET}"
+        _wait_operator "${RHOAI_NAMESPACE}" "rhods" 360
+    fi
 
     # DataScienceCluster の作成 (RHOAI 2.x)
-    echo -e "${BLUE}=== [2/5] DataScienceCluster の作成 ===${RESET}"
-    oc apply -f - <<EOF
+    echo -e "${BLUE}=== [3/4] DataScienceCluster の作成 ===${RESET}"
+    if oc get datasciencecluster default-dsc &>/dev/null; then
+        echo -e "${YELLOW}  → DataScienceCluster は既に存在します${RESET}"
+    else
+        oc apply -f - <<EOF
 apiVersion: datasciencecluster.opendatahub.io/v1
 kind: DataScienceCluster
 metadata:
@@ -198,46 +220,10 @@ spec:
     trustyai:
       managementState: Removed
 EOF
-    echo -e "${GREEN}  → DataScienceCluster を適用しました${RESET}"
-
-    echo -e "${BLUE}=== [3/5] AMQ Streams Operator のインストール ===${RESET}"
-    oc apply -f - <<EOF
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: amq-streams
-  namespace: openshift-operators
-spec:
-  channel: stable
-  installPlanApproval: Automatic
-  name: amq-streams
-  source: redhat-operators
-  sourceNamespace: openshift-marketplace
-EOF
-    _wait_operator "openshift-operators" "amqstreams" 180
-
-    echo -e "${BLUE}=== [4/5] Tekton Pipelines のインストール確認 ===${RESET}"
-    if ! oc get subscription openshift-pipelines-operator-rh -n openshift-operators &>/dev/null; then
-        oc apply -f - <<EOF
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: openshift-pipelines-operator-rh
-  namespace: openshift-operators
-spec:
-  channel: latest
-  installPlanApproval: Automatic
-  name: openshift-pipelines-operator-rh
-  source: redhat-operators
-  sourceNamespace: openshift-marketplace
-EOF
-        echo -e "${GREEN}  → Tekton Pipelines Subscription を適用しました${RESET}"
-        _wait_operator "openshift-operators" "pipelines" 180
-    else
-        echo -e "${YELLOW}  → Tekton Pipelines は既にインストール済みです${RESET}"
+        echo -e "${GREEN}  → DataScienceCluster を作成しました${RESET}"
     fi
 
-    echo -e "${BLUE}=== [5/5] AI Agent Platform Namespace の作成 ===${RESET}"
+    echo -e "${BLUE}=== [4/4] AI Agent Platform Namespace の作成 ===${RESET}"
     oc new-project "${AI_AGENT_NAMESPACE}" 2>/dev/null \
         || echo -e "${YELLOW}  Namespace ${AI_AGENT_NAMESPACE} は既に存在します${RESET}"
 
