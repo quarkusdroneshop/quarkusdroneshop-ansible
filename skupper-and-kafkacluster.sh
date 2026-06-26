@@ -82,7 +82,7 @@ deploy() {
         skupper site status
 
         # TOKEN/LINKの作成
-        skupper token issue skupper-token-a.yaml --uses 3
+        skupper token issue skupper-token-a.yaml -r 3
         
         # LINK作成確認
         read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
@@ -121,7 +121,7 @@ deploy() {
         skupper site status
 
         # TOKEN/LINKの作成
-        skupper token issue skupper-token-b.yaml --uses 3
+        skupper token issue skupper-token-b.yaml -r 3
         
         # LINK作成の確認
         read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
@@ -158,7 +158,7 @@ deploy() {
         skupper site status
 
         # TOKEN/LINKの作成
-        skupper token issue skupper-token-c.yaml --uses 3
+        skupper token issue skupper-token-c.yaml -r 3
         
         # LINK作成の確認
         read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
@@ -195,7 +195,7 @@ deploy() {
         skupper site status
 
         # TOKEN/LINKの作成
-        skupper token issue skupper-token-dh.yaml --uses 3
+        skupper token issue skupper-token-dh.yaml -r 3
 
         # LINK作成の確認
         read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
@@ -238,7 +238,7 @@ retoken() {
     if [ "$SITE_CONFREM" = "A" ]; then
 
         # Tokenの作り直し
-        skupper token issue skupper-token-a.yaml --uses 3
+        skupper token issue skupper-token-a.yaml -r 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
@@ -251,7 +251,7 @@ retoken() {
     elif [ "$SITE_CONFREM" = "B" ]; then
 
         # Tokenの作り直し
-        skupper token issue skupper-token-b.yaml --uses 3
+        skupper token issue skupper-token-b.yaml -r 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
@@ -264,7 +264,7 @@ retoken() {
     elif [ "$SITE_CONFREM" = "C" ]; then
 
         # Tokenの作り直し
-        skupper token issue skupper-token-c.yaml --uses 3
+        skupper token issue skupper-token-c.yaml -r 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
@@ -277,7 +277,7 @@ retoken() {
     elif [ "$SITE_CONFREM" = "DH" ]; then
 
         # Tokenの作り直し
-        skupper token issue skupper-token-dh.yaml --uses 3
+        skupper token issue skupper-token-dh.yaml -r 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
