@@ -62,12 +62,16 @@ deploy() {
 
     oc project "$NAMESPACE"
 
-    # Skupper 初期化
-    oc apply -f openshift/skupper-operator.yaml -n "$NAMESPACE"
-    
-    sleep 60
-    
-    read -p "どのサイトを構築しますか？(A/B/C): " SITE_CONFREM
+    # Skupper Operator のインストール（AllNamespaces モード）
+    echo -e "${BLUE}Skupper Operator をインストール中...${RESET}"
+    oc apply -f openshift/skupper-operator.yaml
+
+    # Skupper CRD の準備待ち
+    echo -e "${BLUE}Skupper CRD の準備を待っています...${RESET}"
+    until oc get crd sites.skupper.io &>/dev/null; do sleep 5; done
+    echo -e "${GREEN}  → Skupper CRD 準備完了${RESET}"
+
+    read -p "どのサイトを構築しますか？(A/B/C/DH): " SITE_CONFREM
     if [ "$SITE_CONFREM" = "A" ]; then
 
         # Site作成
@@ -78,7 +82,7 @@ deploy() {
         skupper site status
 
         # TOKEN/LINKの作成
-        skupper token issue skupper-token-a.yaml
+        skupper token issue skupper-token-a.yaml --uses 3
         
         # LINK作成確認
         read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
@@ -98,6 +102,7 @@ deploy() {
 
         skupper listener create external-shop-cluster-postgres-asite --host external-shop-cluster-postgres-asite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
+        skupper connector create external-shop-cluster-apicurio 8080 --selector app=droneshop-apicurioregistry-kafkasql -n "$NAMESPACE"
 
         # KafkaClusterの再作成
         oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
@@ -116,7 +121,7 @@ deploy() {
         skupper site status
 
         # TOKEN/LINKの作成
-        skupper token issue skupper-token-b.yaml
+        skupper token issue skupper-token-b.yaml --uses 3
         
         # LINK作成の確認
         read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
@@ -153,7 +158,7 @@ deploy() {
         skupper site status
 
         # TOKEN/LINKの作成
-        skupper token issue skupper-token-c.yaml
+        skupper token issue skupper-token-c.yaml --uses 3
         
         # LINK作成の確認
         read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
@@ -173,14 +178,50 @@ deploy() {
        
         skupper listener create external-shop-cluster-postgres-csite --host external-shop-cluster-postgres-csite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-postgres-asite 5432 -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
 
         # KafkaClusterの再作成
         oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"
+
+    elif [ "$SITE_CONFREM" = "DH" ]; then
+
+        # Siteの作成
+        skupper site create skupper-rhdh
+        skupper site update --enable-link-access -n "$NAMESPACE"
+
+        # Siteのステータス確認
+        skupper site status
+
+        # TOKEN/LINKの作成
+        skupper token issue skupper-token-dh.yaml --uses 3
+
+        # LINK作成の確認
+        read -p "LINKを作成しますか？(yes/no): " LINK_CONFREM
+        if [ "$LINK_CONFREM" != "yes" ]; then
+            echo -e "${YELLOW}処理を終了します。${RESET}"
+            exit 1
+        fi
+
+        # Linkの作成
+        oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
+        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
+        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
+        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
+
+        # Kafka Listener (各サイトの Connector とルーティングキーで対応)
+        skupper listener create external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
+
+        # Apicurio Listener
+        skupper listener create external-shop-cluster-apicurio 8080 -n "$NAMESPACE"
+
+        # PostgreSQL Listener — a/b/c 全サイト分を作成
+        skupper listener create external-shop-cluster-postgres-asite 5432 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-csite 5432 -n "$NAMESPACE"
 
     fi
 
@@ -193,11 +234,11 @@ deploy() {
 }
 
 retoken() {
-    read -p "どのサイトでLINKを再作成しますか？(A/B/C): " SITE_CONFREM
+    read -p "どのサイトでLINKを再作成しますか？(A/B/C/DH): " SITE_CONFREM
     if [ "$SITE_CONFREM" = "A" ]; then
 
         # Tokenの作り直し
-        skupper token issue skupper-token-a.yaml
+        skupper token issue skupper-token-a.yaml --uses 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
@@ -210,7 +251,7 @@ retoken() {
     elif [ "$SITE_CONFREM" = "B" ]; then
 
         # Tokenの作り直し
-        skupper token issue skupper-token-b.yaml
+        skupper token issue skupper-token-b.yaml --uses 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
@@ -223,11 +264,41 @@ retoken() {
     elif [ "$SITE_CONFREM" = "C" ]; then
 
         # Tokenの作り直し
-        skupper token issue skupper-token-c.yaml
+        skupper token issue skupper-token-c.yaml --uses 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
         skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
         # Tokenの作り直し後のステータス確認
+        skupper site status
+        skupper link status
+        skupper listener status
+        skupper connector status
+
+    elif [ "$SITE_CONFREM" = "DH" ]; then
+
+        # Tokenの作り直し
+        skupper token issue skupper-token-dh.yaml --uses 3
+        oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
+        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
+        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
+        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
+
+        # postgres-bsite / postgres-csite Listener が未作成の場合は追加
+        for listener in \
+            "external-shop-cluster-postgres-bsite:5432" \
+            "external-shop-cluster-postgres-csite:5432"; do
+            name="${listener%%:*}"
+            port="${listener##*:}"
+            if ! skupper listener status -n "$NAMESPACE" 2>/dev/null | grep -q "^${name}"; then
+                echo -e "${BLUE}  Listener 追加: ${name}:${port}${RESET}"
+                skupper listener create "${name}" "${port}" -n "$NAMESPACE"
+            else
+                echo -e "${YELLOW}  Listener 既存スキップ: ${name}${RESET}"
+            fi
+        done
+
+        # Tokenの作り直し後のステータス確認
+        sleep 5
         skupper site status
         skupper link status
         skupper listener status
@@ -244,9 +315,13 @@ cleanup() {
     skupper listener delete external-shop-cluster-kafka-asite -n "$NAMESPACE"
     skupper listener delete external-shop-cluster-kafka-bsite -n "$NAMESPACE"
     skupper listener delete external-shop-cluster-kafka-csite -n "$NAMESPACE"
+    skupper listener delete external-shop-cluster-kafka-rhdh -n "$NAMESPACE"
+    skupper listener delete external-shop-cluster-apicurio -n "$NAMESPACE"
+    skupper listener delete external-shop-cluster-postgres-asite -n "$NAMESPACE"
     skupper connector delete external-shop-cluster-kafka-asite -n "$NAMESPACE"
     skupper connector delete external-shop-cluster-kafka-bsite -n "$NAMESPACE"
     skupper connector delete external-shop-cluster-kafka-csite -n "$NAMESPACE"
+    skupper connector delete external-shop-cluster-apicurio -n "$NAMESPACE"
 
     skupper listener delete external-shop-cluster-postgres-asite -n quarkusdroneshop-demo
     skupper connector delete external-shop-cluster-postgres-asite -n quarkusdroneshop-demo
@@ -258,6 +333,7 @@ cleanup() {
     skupper site delete skupper-asite
     skupper site delete skupper-bsite
     skupper site delete skupper-csite
+    skupper site delete skupper-rhdh
     oc delete all -l skupper.io/component
     oc delete configmap -l skupper.io/component
     oc delete secret -l skupper.io/component
