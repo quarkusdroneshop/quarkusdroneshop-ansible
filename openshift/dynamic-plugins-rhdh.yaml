@@ -80,6 +80,7 @@ data:
       # Test Report プラグイン（内部HTTPサーバーからtgz配信）
       - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-test-report-dynamic-0.1.0.tgz'
         disabled: false
+        integrity: 'sha512-QQ/q+nRQI4tOHYce9TL6RPVfVVPUPCnXYfYgM5k0uYY9Yu5qFaKaG4nS7lHcIOjTV6k3T6yM0HuMlNwLFm5+ZQ=='
         pluginConfig:
           dynamicPlugins:
             frontend:
@@ -101,6 +102,7 @@ data:
       # データカタログ プラグイン（OpenMetadata Explore へのリンク）
       - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-data-catalog-dynamic-0.1.0.tgz'
         disabled: false
+        integrity: 'sha512-lO5H8AHoDRBU2Q4tEY5Ra9tImROefwzzVtq0XD76BShdH8Y7Tm7Wq/nFdZ8ZrolgfYXDV966+Z6uC2gU01xVQg=='
         pluginConfig:
           dynamicPlugins:
             frontend:
