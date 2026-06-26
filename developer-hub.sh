@@ -120,7 +120,14 @@ deploy() {
     oc apply -f "$SCRIPT_DIR/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE"
     oc apply -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
     oc apply -f "$SCRIPT_DIR/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE"
-    oc apply -f "$SCRIPT_DIR/openshift/catalog-info.yaml" -n "$RHDH_NAMESPACE"
+
+    # {{ ocp_apps_domain }} を実際のドメインに置換してから apply
+    echo -e "${BLUE}OpenMetadata URLのドメインを ${APPS_DOMAIN} に置換して適用...${RESET}"
+    sed "s|{{ ocp_apps_domain }}|${APPS_DOMAIN}|g" \
+        "$SCRIPT_DIR/openshift/catalog-info.yaml" | oc apply -f - -n "$RHDH_NAMESPACE"
+    sed "s|{{ ocp_apps_domain }}|${APPS_DOMAIN}|g" \
+        "$SCRIPT_DIR/openshift/om-proxy.yaml" | oc apply -f -
+
     oc apply -f "$SCRIPT_DIR/openshift/k8-plugin-sa.yaml" -n "$RHDH_NAMESPACE"
 
     oc adm policy add-cluster-role-to-user edit \
@@ -643,26 +650,10 @@ target_token() {
     echo -e "${BLUE}ターゲットクラスターにログイン: ${TARGET_API}${RESET}"
     oc login "$TARGET_API" -u admin
 
-    echo -e "${BLUE}ServiceAccount ${SA_NAME} を作成中...${RESET}"
-    oc create serviceaccount "$SA_NAME" -n "$TARGET_NAMESPACE" 2>/dev/null \
-        && echo -e "${GREEN}ServiceAccount 作成済み${RESET}" \
-        || echo -e "${YELLOW}ServiceAccount はすでに存在します${RESET}"
-
-    echo -e "${BLUE}cluster-admin 権限を付与中...${RESET}"
-    oc adm policy add-cluster-role-to-user cluster-admin \
-        -z "$SA_NAME" -n "$TARGET_NAMESPACE"
-
-    echo -e "${BLUE}永続トークン Secret を作成中...${RESET}"
-    oc apply -f - <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: ${SECRET_NAME}
-  namespace: ${TARGET_NAMESPACE}
-  annotations:
-    kubernetes.io/service-account.name: ${SA_NAME}
-type: kubernetes.io/service-account-token
-EOF
+    echo -e "${BLUE}rhdh-proxy RBAC (SA / ClusterRole / ClusterRoleBinding / Secret) を適用中...${RESET}"
+    oc apply -f "$SCRIPT_DIR/openshift/rhdh-plugin-sa.yaml" \
+        && echo -e "${GREEN}RBAC 適用済み${RESET}" \
+        || { echo -e "${RED}RBAC 適用失敗${RESET}" >&2; exit 1; }
 
     echo -e "${BLUE}トークンが生成されるまで待機中...${RESET}"
     for i in $(seq 1 20); do
@@ -827,15 +818,9 @@ update_plugin() {
         cd "$dh_dir/plugins/test-report"
         npx --yes @red-hat-developer-hub/cli@latest plugin export
 
-        # data-catalog ビルド
-        cd "$dh_dir"
-        mkdir -p dist-types/plugins/data-catalog
-        npx tsc -p plugins/data-catalog/tsconfig.json \
-            --declaration --emitDeclarationOnly \
-            --outDir dist-types/plugins/data-catalog \
-            --skipLibCheck 2>/dev/null || true
-        yarn workspace @internal/plugin-data-catalog build
+        # data-catalog ビルド（backstage-cli を直接実行）
         cd "$dh_dir/plugins/data-catalog"
+        "$dh_dir/node_modules/.bin/backstage-cli" package build
         npx --yes @red-hat-developer-hub/cli@latest plugin export
     )
     echo -e "${GREEN}  → ビルド完了${RESET}"
@@ -854,11 +839,12 @@ update_plugin() {
     echo -e "${GREEN}  → イメージビルド完了${RESET}"
 
     echo -e "${BLUE}[3/5] プラグインサーバーを適用・再起動してtgzを再生成中...${RESET}"
-    oc apply -f "$SCRIPT_DIR/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE"
-    oc rollout restart deployment/plugin-test-report-server -n "$RHDH_NAMESPACE"
-    oc rollout status deployment/plugin-test-report-server -n "$RHDH_NAMESPACE" --timeout=180s
+    oc apply -f "$SCRIPT_DIR/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE" 2>/dev/null || \
+        oc replace -f "$SCRIPT_DIR/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE"
+    oc rollout restart deployment/plugin-proxy-server -n "$RHDH_NAMESPACE"
+    oc rollout status deployment/plugin-proxy-server -n "$RHDH_NAMESPACE" --timeout=180s
     local server_pod
-    server_pod=$(oc get pod -n "$RHDH_NAMESPACE" -l app=plugin-test-report-server \
+    server_pod=$(oc get pod -n "$RHDH_NAMESPACE" -l app=plugin-proxy-server \
         --no-headers 2>/dev/null | grep "1/1.*Running" | grep -v Terminating | awk '{print $1}' | head -1)
     [ -z "$server_pod" ] && echo -e "${RED}エラー: プラグインサーバーのポッドが見つかりません${RESET}" && exit 1
     echo -e "${GREEN}  → プラグインサーバー起動: ${server_pod}${RESET}"
@@ -887,31 +873,21 @@ hash_data = sys.argv[3]
 with open(yaml_file) as f:
     content = f.read()
 
-# internal-plugin-test-report の integrity を更新
+# test-report ブロック内の integrity を更新（package行からdisabled行の後のintegrity行）
 content = re.sub(
-    r"(internal-plugin-test-report[^\n]*\n\s*)integrity: 'sha512-[A-Za-z0-9+/=]+'",
-    lambda m: m.group(1).join([m.group(0).rsplit("\n", 1)[0] + "\n",
-                                f"        integrity: '{hash_test}'"]).replace(
-        m.group(0).rsplit("\n", 1)[0] + "\n" + m.group(0).rsplit("\n", 1)[1], ""),
+    r"(internal-plugin-test-report[^\n]*\n(?:[^\n]*\n){0,3}?\s*integrity:)\s*'[^']*'",
+    lambda m: m.group(1) + f" '{hash_test}'",
     content
 )
-# シンプルに両方を個別に置換
-lines = content.split("\n")
-i = 0
-while i < len(lines):
-    if "internal-plugin-test-report" in lines[i]:
-        if i + 1 < len(lines) and "integrity:" in lines[i+1]:
-            lines[i+1] = re.sub(r"integrity: 'sha512-[A-Za-z0-9+/=]+'",
-                                 f"integrity: '{hash_test}'", lines[i+1])
-    elif "internal-plugin-data-catalog" in lines[i]:
-        if i + 1 < len(lines) and "integrity:" in lines[i+1]:
-            lines[i+1] = re.sub(
-                r"integrity: '(sha512-[A-Za-z0-9+/=]+|sha512-REPLACE_WITH_ACTUAL_HASH)'",
-                f"integrity: '{hash_data}'", lines[i+1])
-    i += 1
+# data-catalog ブロック内の integrity を更新
+content = re.sub(
+    r"(internal-plugin-data-catalog[^\n]*\n(?:[^\n]*\n){0,3}?\s*integrity:)\s*'[^']*'",
+    lambda m: m.group(1) + f" '{hash_data}'",
+    content
+)
 
 with open(yaml_file, "w") as f:
-    f.write("\n".join(lines))
+    f.write(content)
 print("Updated integrity hashes in", yaml_file)
 PYEOF
 
