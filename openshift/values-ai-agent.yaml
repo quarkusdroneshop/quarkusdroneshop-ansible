@@ -1,0 +1,62 @@
+# Enterprise AI Agent Platform — Helm values (OpenShift 用)
+# aiagent.sh deploy コマンドから参照する設定ファイル
+# 環境固有の値は aiagent.sh 内で環境変数 / oc コマンドから動的に設定する
+
+aiAgent:
+  replicaCount: 1
+  image:
+    repository: quay.io/nmushino/ai-agent-orchestrator
+    tag: latest
+    pullPolicy: Always
+  # vLLM エンドポイント (aiagent.sh が InferenceService から自動取得して上書きする)
+  env:
+    VLLM_BASE_URL: "https://granite-20b-code-instruct-predictor-redhat-ods-applications.apps.changeme.com/v1"
+    VLLM_MODEL_NAME: "granite-20b-code-instruct"
+    OPENMETADATA_HOST: "http://openmetadata.openmetadata:8585"
+    BUSINESS_API_URL: "http://business-api.ai-agent-platform:8080"
+    KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap.ai-agent-platform:9092"
+    LOG_LEVEL: "INFO"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+  route:
+    enabled: true
+    tls: true
+
+businessApi:
+  replicaCount: 1
+  image:
+    repository: quay.io/nmushino/business-api
+    tag: latest
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2"
+      memory: "1Gi"
+  route:
+    enabled: true
+    tls: true
+
+postgresql:
+  enabled: true
+  image: registry.redhat.io/rhel9/postgresql-15:latest
+  storageSize: 10Gi
+  storageClass: ""   # 空文字でクラスターデフォルトを使用
+
+kafka:
+  enabled: true
+  replicas: 1        # dev は 1、prod では 3
+  storageSize: 5Gi
+
+networkPolicy:
+  enabled: true
+
+hpa:
+  enabled: false     # dev では無効、prod overlays/prod/hpa.yaml で有効化
