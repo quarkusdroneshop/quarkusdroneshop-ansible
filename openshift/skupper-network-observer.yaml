@@ -1,0 +1,198 @@
+---
+# Skupper Network Observer (Console) — RHSI 2.x
+# ネットワークトポロジーを可視化する Web コンソール
+# 参照: https://skupperproject.github.io/refdog/docs/network-observer/
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: skupper-network-observer
+  namespace: quarkusdroneshop-demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: skupper-network-observer
+rules:
+  - apiGroups: ["skupper.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps", "pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: skupper-network-observer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: skupper-network-observer
+subjects:
+  - kind: ServiceAccount
+    name: skupper-network-observer
+    namespace: quarkusdroneshop-demo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skupper-network-observer-config
+  namespace: quarkusdroneshop-demo
+data:
+  config.yaml: |
+    prometheusUrl: http://skupper-prometheus:9090
+    networkStatusUrl: ""
+    refreshInterval: 10s
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-network-observer
+  namespace: quarkusdroneshop-demo
+  labels:
+    app: skupper-network-observer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skupper-network-observer
+  template:
+    metadata:
+      labels:
+        app: skupper-network-observer
+    spec:
+      serviceAccountName: skupper-network-observer
+      containers:
+        - name: network-observer
+          image: registry.redhat.io/service-interconnect/skupper-network-observer-rhel9:2.1
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: SKUPPER_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PROMETHEUS_URL
+              value: "http://skupper-prometheus:9090"
+          volumeMounts:
+            - name: network-status
+              mountPath: /etc/skupper-network-status
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: network-status
+          configMap:
+            name: skupper-network-status
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skupper-network-observer
+  namespace: quarkusdroneshop-demo
+spec:
+  selector:
+    app: skupper-network-observer
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: skupper-network-observer
+  namespace: quarkusdroneshop-demo
+spec:
+  to:
+    kind: Service
+    name: skupper-network-observer
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+# Prometheus — Skupper メトリクス収集
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-prometheus
+  namespace: quarkusdroneshop-demo
+  labels:
+    app: skupper-prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skupper-prometheus
+  template:
+    metadata:
+      labels:
+        app: skupper-prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: registry.redhat.io/openshift4/ose-prometheus:v4.16.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=7d"
+          ports:
+            - containerPort: 9090
+              name: http
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-data
+              mountPath: /prometheus
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: skupper-prometheus-config
+        - name: prometheus-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skupper-prometheus-config
+  namespace: quarkusdroneshop-demo
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: skupper-router
+        static_configs:
+          - targets: ['skupper-router:9090']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skupper-prometheus
+  namespace: quarkusdroneshop-demo
+spec:
+  selector:
+    app: skupper-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090

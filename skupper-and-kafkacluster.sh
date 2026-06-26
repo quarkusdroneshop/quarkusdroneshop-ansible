@@ -349,6 +349,20 @@ status() {
     
 }
 
+console() {
+
+    echo -e "${BLUE}Skupper Network Observer (コンソール) をデプロイ中...${RESET}"
+    oc apply -f openshift/skupper-network-observer.yaml -n "$NAMESPACE"
+
+    echo -e "${BLUE}Pod の起動を待っています...${RESET}"
+    oc rollout status deployment/skupper-network-observer -n "$NAMESPACE" --timeout=120s
+    oc rollout status deployment/skupper-prometheus -n "$NAMESPACE" --timeout=120s
+
+    CONSOLE_URL=$(oc get route skupper-network-observer -n "$NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null)
+    echo -e "${GREEN}Skupper コンソール URL: https://${CONSOLE_URL}${RESET}"
+
+}
+
 case "$1" in
     retoken)
         retoken
@@ -359,12 +373,15 @@ case "$1" in
     deploy)
         deploy
         ;;
+    console)
+        console
+        ;;
     cleanup)
         cleanup
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {deploy|retoken|status|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {deploy|retoken|status|console|cleanup}${RESET}"
         exit 1
         ;;
 esac
