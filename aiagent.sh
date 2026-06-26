@@ -138,20 +138,21 @@ setup() {
     # AMQ Streams は ocpdeploy.sh (quarkusdroneshop) で導入済みのため ここではインストールしない。
     # Strimzi CRD が存在するか確認するだけで十分。
 
-    echo -e "${BLUE}=== [1/4] 前提 Operator の確認 ===${RESET}"
+    # Kafka は Skupper 経由でリモートクラスターの AMQ Streams に接続するため、
+    # このクラスターへの AMQ Streams Operator / CRD のインストールは不要。
+    # Skupper が仮想 Service (kafka-cluster-kafka-bootstrap) を提供する。
 
-    # AMQ Streams (Strimzi) CRD の存在確認
-    if oc get crd kafkas.kafka.strimzi.io &>/dev/null; then
-        echo -e "${GREEN}  → AMQ Streams (Strimzi) CRD: 確認済み ✓${RESET}"
+    echo -e "${BLUE}=== [1/3] Skupper 接続確認 ===${RESET}"
+    if oc get service kafka-cluster-kafka-bootstrap -n "${AI_AGENT_NAMESPACE}" &>/dev/null 2>&1; then
+        echo -e "${GREEN}  → Skupper 仮想 Service (kafka-cluster-kafka-bootstrap): 確認済み ✓${RESET}"
     else
-        echo -e "${YELLOW}  ⚠ AMQ Streams CRD が見つかりません。${RESET}"
-        echo -e "${YELLOW}    先に ocpdeploy.sh setup を実行してください。${RESET}"
-        echo -e "${YELLOW}    または手動で AMQ Streams Operator をインストールしてください。${RESET}"
-        read -rp "    このまま続行しますか？(yes/no): " AMQ_SKIP
-        [ "${AMQ_SKIP}" != "yes" ] && exit 1
+        echo -e "${YELLOW}  ⚠ Skupper 仮想 Service が見つかりません。${RESET}"
+        echo -e "${YELLOW}    Skupper のリンクが確立されているか確認してください:${RESET}"
+        echo -e "${YELLOW}    skupper link status -n ${AI_AGENT_NAMESPACE}${RESET}"
+        echo -e "${YELLOW}    ※ deploy 前に Skupper 接続を完了させてください${RESET}"
     fi
 
-    echo -e "${BLUE}=== [2/4] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
+    echo -e "${BLUE}=== [2/3] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
 
     # RHOAI が既にインストール済みかを確認
     if oc get subscription rhods-operator -n "${RHOAI_NAMESPACE}" &>/dev/null; then
@@ -223,7 +224,7 @@ EOF
         echo -e "${GREEN}  → DataScienceCluster を作成しました${RESET}"
     fi
 
-    echo -e "${BLUE}=== [4/4] AI Agent Platform Namespace の作成 ===${RESET}"
+    echo -e "${BLUE}=== [3/3] AI Agent Platform Namespace の作成 ===${RESET}"
     oc new-project "${AI_AGENT_NAMESPACE}" 2>/dev/null \
         || echo -e "${YELLOW}  Namespace ${AI_AGENT_NAMESPACE} は既に存在します${RESET}"
 
@@ -417,11 +418,15 @@ deploy() {
         --dry-run=client -o yaml | oc apply -f -
     echo -e "${GREEN}  → ConfigMap (ai-agent-vllm-config) を作成しました${RESET}"
 
-    # ── Kafka デプロイ ──
-    echo -e "${BLUE}[3/6] Kafka (AMQ Streams) をデプロイ中...${RESET}"
-    oc apply -f "${PLATFORM_DIR}/deployment/kustomize/base/kafka/kafka.yaml" \
-        -n "${AI_AGENT_NAMESPACE}"
-    echo -e "${GREEN}  → Kafka マニフェストを適用しました${RESET}"
+    # ── Kafka 接続確認 (Skupper 経由のためデプロイ不要) ──
+    echo -e "${BLUE}[3/6] Skupper Kafka 接続確認...${RESET}"
+    if oc get service kafka-cluster-kafka-bootstrap -n "${AI_AGENT_NAMESPACE}" &>/dev/null; then
+        echo -e "${GREEN}  → Skupper 仮想 Service (kafka-cluster-kafka-bootstrap): 確認済み ✓${RESET}"
+    else
+        echo -e "${YELLOW}  ⚠ kafka-cluster-kafka-bootstrap Service が見つかりません。${RESET}"
+        echo -e "${YELLOW}    Skupper リンクが未確立の可能性があります。デプロイは続行しますが、${RESET}"
+        echo -e "${YELLOW}    Kafka 接続が必要な機能は Skupper 接続後に動作します。${RESET}"
+    fi
 
     # ── Kustomize overlay 適用 ──
     echo -e "${BLUE}[4/6] Kustomize overlay (${OVERLAY}) を適用中...${RESET}"
