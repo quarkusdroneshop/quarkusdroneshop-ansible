@@ -1,0 +1,9 @@
+# openmetadata-dependencies Helm values override
+# docker.getcollate.io のレートリミット回避のため Docker Hub を使用
+airflow:
+  webserverSecretKey: "b0485e06fe7529ee781405e87e8ce2d18de6b79e7893712a3fa677f8c4df8533"
+  images:
+    airflow:
+      repository: docker.io/openmetadata/ingestion
+      tag: "1.13.0"
+      pullPolicy: "IfNotPresent"

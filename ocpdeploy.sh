@@ -9,8 +9,8 @@
 #
 # Usage:
 #   ./deploy.sh setup           - To setup the environment.
-#   ./deploy.sh openmetadata    - To deploy the openmetadata application.
 #   ./deploy.sh cleanup         - To delete the application.
+#   (OpenMetadata は openmetadata.sh に移動しました)
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -21,7 +21,6 @@
 # =============================================================================
 
 NAMESPACE="quarkusdroneshop-demo"
-OPENMETADATASPACE="openmetadata"
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 DOMAIN_TOKEN=$(oc whoami -t)
 ENV_FILE="source.env"
@@ -81,76 +80,6 @@ setup() {
     oc adm policy add-scc-to-user privileged -z default -n "$NAMESPACE"
 }
 
-openmetadata() {
-    echo "セットアップ開始..."
-
-    # プロジェクトの作成
-    oc delete project "$OPENMETADATASPACE"
-    oc new-project "$OPENMETADATASPACE"
-
-    # シークレットの作成
-    oc create secret generic mysql-secrets --from-literal=openmetadata-mysql-password=openmetadata_password -n "$OPENMETADATASPACE"
-    oc create secret generic airflow-secrets --from-literal=openmetadata-airflow-password=admin -n "$OPENMETADATASPACE"
-    oc create secret generic airflow-mysql-secrets --from-literal=airflow-mysql-password=airflow_pass -n "$OPENMETADATASPACE"
-
-    # SCCの作成
-    oc adm policy add-scc-to-user anyuid -z airflow -n "$OPENMETADATASPACE"
-    oc adm policy add-scc-to-user anyuid -z builder -n "$OPENMETADATASPACE"
-    oc adm policy add-scc-to-user anyuid -z default -n "$OPENMETADATASPACE"
-    oc adm policy add-scc-to-user anyuid -z deployer -n "$OPENMETADATASPACE"
-    oc adm policy add-scc-to-user anyuid -z mysql -n "$OPENMETADATASPACE"
-    oc adm policy add-scc-to-user anyuid -z openmetadata -n "$OPENMETADATASPACE"
-
-    # OpenMetadataの依存Podの作成
-    helm repo add open-metadata https://helm.open-metadata.org
-    helm repo update
-    helm install openmetadata-dependencies open-metadata/openmetadata-dependencies -n "$OPENMETADATASPACE"
-
-    # 既存PVCを一度削除
-    oc delete pvc openmetadata-dependencies-dags -n "$OPENMETADATASPACE"
-    oc delete pvc openmetadata-dependencies-logs -n "$OPENMETADATASPACE"
-
-    # PVCを再作成
-    oc apply -f openshift/openmetadata-dependencies-dags.yaml -n "$OPENMETADATASPACE"
-    oc apply -f openshift/openmetadata-dependencies-logs.yaml -n "$OPENMETADATASPACE"
-
-    # PVCにラベルとアノテーションを追加
-    oc label pvc openmetadata-dependencies-dags app.kubernetes.io/managed-by=Helm -n "$OPENMETADATASPACE"
-    oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-name=openmetadata-dependencies -n "$OPENMETADATASPACE"
-    oc annotate pvc openmetadata-dependencies-dags meta.helm.sh/release-namespace=openmetadata -n "$OPENMETADATASPACE"
-    oc label pvc openmetadata-dependencies-logs app.kubernetes.io/managed-by=Helm -n "$OPENMETADATASPACE"
-    oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-name=openmetadata-dependencies -n "$OPENMETADATASPACE"
-    oc annotate pvc openmetadata-dependencies-logs meta.helm.sh/release-namespace=openmetadata -n "$OPENMETADATASPACE"
-    
-    # OpenMetadataの作成
-    helm install openmetadata open-metadata/openmetadata -n "$OPENMETADATASPACE" -f ./openshift/values-openmetadata.yaml
-    # helm install openmetadata open-metadata/openmetadata \
-    #     -n "$OPENMETADATASPACE" \
-    #     --set extraEnvs[0].name=JAVA_OPTS \
-    #     --set extraEnvs[0].value="-Xlog:gc*:file=/tmp/openmetadata-gc.log:time,tags:filecount=10,filesize=102400"
-    oc expose svc openmetadata -n "$OPENMETADATASPACE"
-
-    #helm repo add minio https://charts.min.io/
-    #helm repo update
-    #helm install minio minio/minio \
-    #    --namespace openmetadata \
-    #    --set rootUser=minioadmin \
-    #    --set rootPassword=minioadmin \
-    #    --set mode=standalone \
-    #    --set persistence.storageClass=gp3-csi \
-    #    --set resources.requests.memory=256Mi \
-    #    --set service.type=ClusterIP \
-    #    --set securityContext.enabled=false \
-    #    --set containerSecurityContext.enabled=false \
-    #    --set lifecycleHooks.postInstallJob.enabled=false \
-    #    --set lifecycleHooks.postUpgradeJob.enabled=false \
-    #    --wait
-    #pip install psycopg2-binary
-    #oc expose svc droneshopdb-primary 
-    #metadata ingest -c ./openshift/values-openmetadata.yaml
-
-}
-
 cleanup() {
     echo "クリーンナップ開始..."
 
@@ -161,18 +90,13 @@ cleanup() {
     oc delete operator --all -n "$NAMESPACE" --ignore-not-found=true
     oc delete all --all -n "$NAMESPACE" --ignore-not-found=true --force --grace-period=0
 
-    # openmetadata
-    helm uninstall openmetadata -n "$OPENMETADATASPACE"
-    helm uninstall openmetadata-dependencies -n "$OPENMETADATASPACE"
-
     read -p "本当にプロジェクトを削除してもよろしいですか？(yes/no): " DELETE_CONFREM
     if [ "$DELETE_CONFREM" == "yes" ]; then
         # KafkaTopic リソースを強制削除
         for topic in $(oc get kafkatopics.kafka.strimzi.io -n "$NAMESPACE" -o name); do
-            oc patch $topic -n "$NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}' 
+            oc patch $topic -n "$NAMESPACE" --type=merge -p '{"metadata":{"finalizers":[]}}'
         done
         oc delete project "$NAMESPACE" --force --grace-period=0
-        oc delete project "$OPENMETADATASPACE" --force --grace-period=0
     fi
 }
 
@@ -182,9 +106,6 @@ case "$1" in
         ;;
     deploy)
         deploy
-        ;;
-    openmetadata)
-        openmetadata
         ;;
     cleanup)
         cleanup

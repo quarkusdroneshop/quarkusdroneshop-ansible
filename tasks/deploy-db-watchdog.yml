@@ -1,0 +1,27 @@
+---
+# Deploy droneshopdb watchdog CronJob
+# Watches droneshopdb StatefulSets and scales up if replicas == 0 (e.g. after cluster restart)
+
+- name: Deploy droneshopdb watchdog (ServiceAccount, Role, RoleBinding, CronJob)
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ project_namespace }}"
+    apply: true
+    definition: "{{ lookup('template', 'droneshopdb-watchdog.yaml.j2') }}"
+  when: not delete_deployment | bool
+  tags:
+    - postgres
+    - helm
+    - watchdog
+
+- name: Remove droneshopdb watchdog
+  kubernetes.core.k8s:
+    state: absent
+    namespace: "{{ project_namespace }}"
+    definition: "{{ lookup('template', 'droneshopdb-watchdog.yaml.j2') }}"
+  ignore_errors: true
+  when: delete_deployment | bool
+  tags:
+    - postgres
+    - helm
+    - watchdog

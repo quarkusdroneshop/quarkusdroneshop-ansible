@@ -14,7 +14,7 @@ spec:
     - alias: "shop-bsite"
       bootstrapServers: "external-shop-cluster-kafka-bsite:9094"  
     - alias: "shop-csite"
-      bootstrapServers: "shop-cluster-kafka-external-bootstrap:9094"
+      bootstrapServers: "shop-cluster-kafka-bootstrap:9092"
   ports:
     - name: rest-api
       port: 8083
@@ -110,5 +110,4 @@ spec:
             secretKeyRef:
               name: quarkusdroneshop-user
               key: sasl.jaas.config
-
 

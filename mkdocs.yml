@@ -1,0 +1,6 @@
+site_name: 'Ansible Deployment'
+docs_dir: docs
+nav:
+  - ホーム: index.md
+plugins:
+  - techdocs-core

@@ -1,3 +1,8 @@
+# docker.getcollate.io のレートリミット回避のため Docker Hub を使用
+image:
+  repository: docker.io/openmetadata/server
+  tag: "1.13.0"
+
 global:
   database:
     host: mysql
@@ -13,6 +18,16 @@ openmetadata:
   config:
     authorizer:
       className: "org.openmetadata.service.security.DefaultAuthorizer"
+    pipelineServiceClientConfig:
+      enabled: true
+      type: "k8s"
+      metadataApiEndpoint: http://openmetadata:8585/api
+      k8s:
+        namespace: "openmetadata"
+        className: "org.openmetadata.service.clients.pipeline.k8s.K8sPipelineClient"
+        ingestionImage: "docker.io/openmetadata/ingestion-base:1.13.0"
+        imagePullPolicy: "IfNotPresent"
+        serviceAccountName: "openmetadata-ingestion"
 
 ingestion:
   enabled: true

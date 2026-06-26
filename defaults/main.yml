@@ -16,6 +16,7 @@ crunchystartingCSV: postgresoperator.v5.8.7
 config_location: "/tmp/"
 kafka_cluster_name: shop-cluster
 domain: ocp4.example.com
+ocp_apps_domain: "apps.{{ domain }}"
 branch: master # for developmemt change to dev
 
 # Helm Chart Version 

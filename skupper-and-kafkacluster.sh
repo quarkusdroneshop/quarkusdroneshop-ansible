@@ -104,8 +104,8 @@ deploy() {
         skupper connector create external-shop-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         skupper connector create external-shop-cluster-apicurio 8080 --selector app=droneshop-apicurioregistry-kafkasql -n "$NAMESPACE"
 
-        # KafkaClusterの再作成
-        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        # KafkaClusterの再作成 (Skupper advertisedHost を asite の FQDN に設定)
+        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners-asite.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-a-site.yaml -n "$NAMESPACE"
@@ -142,8 +142,8 @@ deploy() {
         skupper listener create external-shop-cluster-postgres-bsite --host external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         
-        # KafkaClusterの再作成
-        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        # KafkaClusterの再作成 (Skupper advertisedHost を bsite の FQDN に設定)
+        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners-bsite.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-b-site.yaml -n "$NAMESPACE"
@@ -179,8 +179,8 @@ deploy() {
         skupper listener create external-shop-cluster-postgres-csite --host external-shop-cluster-postgres-csite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
 
-        # KafkaClusterの再作成
-        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners.yaml -n "$NAMESPACE"
+        # KafkaClusterの再作成 (Skupper advertisedHost を csite の FQDN に設定)
+        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners-csite.yaml -n "$NAMESPACE"
 
         # MirrorMakerの設定
         oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"

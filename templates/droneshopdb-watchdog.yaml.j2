@@ -1,0 +1,85 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: droneshopdb-watchdog
+  namespace: "{{ project_namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: droneshopdb-watchdog
+  namespace: "{{ project_namespace }}"
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: droneshopdb-watchdog
+  namespace: "{{ project_namespace }}"
+subjects:
+  - kind: ServiceAccount
+    name: droneshopdb-watchdog
+    namespace: "{{ project_namespace }}"
+roleRef:
+  kind: Role
+  name: droneshopdb-watchdog
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: droneshopdb-watchdog
+  namespace: "{{ project_namespace }}"
+  labels:
+    app: droneshopdb-watchdog
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      template:
+        spec:
+          serviceAccountName: droneshopdb-watchdog
+          restartPolicy: OnFailure
+          containers:
+            - name: watchdog
+              image: registry.redhat.io/openshift4/ose-cli:latest
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  NAMESPACE="{{ project_namespace }}"
+
+                  echo "Checking droneshopdb StatefulSets in namespace: ${NAMESPACE}"
+
+                  # Crunchy PGO の StatefulSet はラベルで識別する
+                  STS_NAMES=$(oc get statefulset -n "${NAMESPACE}" \
+                    -l postgres-operator.crunchydata.com/cluster=droneshopdb \
+                    -o jsonpath='{.items[*].metadata.name}')
+
+                  if [ -z "${STS_NAMES}" ]; then
+                    echo "No StatefulSets found for droneshopdb cluster. Skipping."
+                    exit 0
+                  fi
+
+                  for STS in ${STS_NAMES}; do
+                    REPLICAS=$(oc get statefulset "${STS}" -n "${NAMESPACE}" \
+                      -o jsonpath='{.spec.replicas}')
+                    echo "StatefulSet ${STS}: replicas=${REPLICAS}"
+
+                    if [ "${REPLICAS}" -eq 0 ]; then
+                      echo "Scaling up ${STS} to 1 replica..."
+                      oc scale statefulset "${STS}" -n "${NAMESPACE}" --replicas=1
+                      echo "Scale command issued for ${STS}."
+                    else
+                      echo "${STS} is already running (replicas=${REPLICAS}). No action needed."
+                    fi
+                  done
