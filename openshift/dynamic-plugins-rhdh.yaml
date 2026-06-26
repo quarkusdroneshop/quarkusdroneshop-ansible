@@ -78,9 +78,8 @@ data:
 
 
       # Test Report プラグイン（内部HTTPサーバーからtgz配信）
-      - package: 'http://plugin-test-report-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-test-report-dynamic-0.1.0.tgz'
+      - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-test-report-dynamic-0.1.0.tgz'
         disabled: false
-        integrity: 'sha512-LOggFF2/ym3nWSMojv1Q8KLE5JFRS0GpF0F2vXChDEE86t8nbiD9VCSRzLPmEi0b5c2qoWRqSIAUlIrGaLzi5w=='
         pluginConfig:
           dynamicPlugins:
             frontend:
@@ -100,9 +99,8 @@ data:
                     mountPoint: entity.page.test-report
 
       # データカタログ プラグイン（OpenMetadata Explore へのリンク）
-      - package: 'http://plugin-test-report-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-data-catalog-dynamic-0.1.0.tgz'
+      - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-data-catalog-dynamic-0.1.0.tgz'
         disabled: false
-        integrity: 'sha512-REPLACE_WITH_ACTUAL_HASH'
         pluginConfig:
           dynamicPlugins:
             frontend:
@@ -114,8 +112,9 @@ data:
                       layout:
                         gridColumn: "1 / -1"
                       if:
-                        allOf:
+                        anyOf:
                           - isKind: resource
+                          - isKind: api
                 entityTabs:
                   - path: /data-catalog
                     title: データカタログ
