@@ -471,51 +471,6 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: API
     metadata:
-      name: kafka-bsite-orders-in
-      description: "Kafka トピック: shop-asite.orders-in（注文チケット受信）"
-      annotations:
-        backstage.io/kubernetes-cluster: b-cluster
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.orders-in/schema"
-      links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.orders-in/schema"
-          title: データカタログ
-          icon: dashboard
-    spec:
-      type: asyncapi
-      lifecycle: production
-      owner: user:default/nmushino
-      system: b-cluster
-      definition: |
-        asyncapi: 2.6.0
-        info:
-          title: shop-asite.orders-in
-          version: 1.0.0
-          description: ドローンショップ注文チケット受信トピック
-        servers:
-          production:
-            url: shop-cluster-kafka-bootstrap:9092
-            protocol: kafka
-        channels:
-          shop-asite.orders-in:
-            description: 注文チケットを受信するトピック
-            subscribe:
-              operationId: receiveOrder
-              message:
-                name: OrderTicket
-                contentType: application/json
-                payload:
-                  type: object
-                  properties:
-                    orderId:
-                      type: string
-                    item:
-                      type: string
-                    quantity:
-                      type: integer
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: API
-    metadata:
       name: kafka-bsite-orders-up
       description: "Kafka トピック: shop-bsite.orders-up（注文ステータス更新）"
       annotations:
@@ -555,49 +510,6 @@ data:
                       type: string
                     status:
                       type: string
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: API
-    metadata:
-      name: kafka-bsite-loyalty-updates
-      description: "Kafka トピック: shop-asite.loyalty-updates（ロイヤリティ更新）"
-      annotations:
-        backstage.io/kubernetes-cluster: b-cluster
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.loyalty-updates/schema"
-      links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.shop-asite.loyalty-updates/schema"
-          title: データカタログ
-          icon: dashboard
-    spec:
-      type: asyncapi
-      lifecycle: production
-      owner: user:default/nmushino
-      system: b-cluster
-      definition: |
-        asyncapi: 2.6.0
-        info:
-          title: shop-asite.loyalty-updates
-          version: 1.0.0
-          description: ロイヤリティポイント更新トピック
-        servers:
-          production:
-            url: shop-cluster-kafka-bootstrap:9092
-            protocol: kafka
-        channels:
-          shop-asite.loyalty-updates:
-            description: ロイヤリティ更新情報を受信するトピック
-            subscribe:
-              operationId: receiveLoyaltyUpdate
-              message:
-                name: LoyaltyUpdate
-                contentType: application/json
-                payload:
-                  type: object
-                  properties:
-                    customerId:
-                      type: string
-                    points:
-                      type: integer
     ---
     apiVersion: backstage.io/v1alpha1
     kind: API
