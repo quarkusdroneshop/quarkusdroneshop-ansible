@@ -152,8 +152,8 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: Resource
     metadata:
-      name: droneshopdb-postgresql
-      description: DroneShop PostgreSQL データベース
+      name: droneshopdb-asite-postgresql
+      description: DroneShop PostgreSQL データベース（Aクラスタ）
       links:
         - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/explore?quickFilter=%7B%22query%22%3A%7B%22bool%22%3A%7B%22must%22%3A%5B%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22serviceType%22%3A%22postgres%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22service.displayName.keyword%22%3A%22external-shop-cluster-postgres-asite%3A5432%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22database.displayName%22%3A%22droneshopdb%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22databaseSchema.displayName%22%3A%22droneshop%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22entityType.keyword%22%3A%22table%22%7D%7D%5D%7D%7D%5D%7D%7D%7D&page=1&size=15"
           title: データカタログ
@@ -166,12 +166,40 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: Resource
     metadata:
+      name: droneshopdb-bsite-postgresql
+      description: DroneShop PostgreSQL データベース（Bクラスタ）
+      links:
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/explore?quickFilter=%7B%22query%22%3A%7B%22bool%22%3A%7B%22must%22%3A%5B%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22serviceType%22%3A%22postgres%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22service.displayName.keyword%22%3A%22external-shop-cluster-postgres-bsite%3A5432%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22database.displayName%22%3A%22droneshopdb%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22databaseSchema.displayName%22%3A%22droneshop%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22entityType.keyword%22%3A%22table%22%7D%7D%5D%7D%7D%5D%7D%7D%7D&page=1&size=15"
+          title: データカタログ
+          icon: dashboard
+    spec:
+      type: database
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: droneshopdb-costgresql
+      description: DroneShop PostgreSQL データベース（Cクラスタ）
+      links:
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/explore?quickFilter=%7B%22query%22%3A%7B%22bool%22%3A%7B%22must%22%3A%5B%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22serviceType%22%3A%22postgres%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22service.displayName.keyword%22%3A%22external-shop-cluster-postgres-csite%3A5432%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22database.displayName%22%3A%22droneshopdb%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22databaseSchema.displayName%22%3A%22droneshop%22%7D%7D%5D%7D%7D%2C%7B%22bool%22%3A%7B%22should%22%3A%5B%7B%22term%22%3A%7B%22entityType.keyword%22%3A%22table%22%7D%7D%5D%7D%7D%5D%7D%7D%7D&page=1&size=15"
+          title: データカタログ
+          icon: dashboard
+    spec:
+      type: database
+      owner: user:default/nmushino
+      system: c-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
       name: shop-orders-in
       description: "Kafka トピック: orders-in"
       annotations:
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-up"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-in"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-up"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-in"
           title: データカタログ
           icon: dashboard
     spec:
@@ -198,12 +226,12 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: Resource
     metadata:
-      name: shop-loyalty-updates
-      description: "Kafka トピック: loyalty-updates"
+      name: shop-asite-orders-in
+      description: "Kafka トピック: asite orders-in"
       annotations:
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.loyalty-updates/custom_properties"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-in"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.loyalty-updates/custom_properties"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-in"
           title: データカタログ
           icon: dashboard
     spec:
@@ -214,34 +242,34 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: Resource
     metadata:
-      name: shop-asite-orders-in
-      description: "Kafka トピック: asite orders-in (MirrorMaker2)"
+      name: shop-asite-orders-up
+      description: "Kafka トピック: asite orders-up"
       annotations:
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-in"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-up"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-in"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.orders-up"
           title: データカタログ
           icon: dashboard
     spec:
       type: topic
       owner: user:default/nmushino
-      system: b-cluster
+      system: a-cluster
     ---
     apiVersion: backstage.io/v1alpha1
     kind: Resource
     metadata:
-      name: shop-bsite-orders-up
-      description: "Kafka トピック: bsite orders-up (MirrorMaker2)"
+      name: shop-asite-loyalty-updates
+      description: "Kafka トピック: asite loyalty-updates"
       annotations:
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.orders-up"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.loyalty-updates"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.orders-up"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.loyalty-updates"
           title: データカタログ
           icon: dashboard
     spec:
       type: topic
       owner: user:default/nmushino
-      system: b-cluster
+      system: a-cluster
     ---
     apiVersion: backstage.io/v1alpha1
     kind: Resource
@@ -257,7 +285,7 @@ data:
     spec:
       type: topic
       owner: user:default/nmushino
-      system: b-cluster
+      system: a-cluster
     ---
     apiVersion: backstage.io/v1alpha1
     kind: Resource
@@ -273,17 +301,17 @@ data:
     spec:
       type: topic
       owner: user:default/nmushino
-      system: b-cluster
+      system: a-cluster
     ---
     apiVersion: backstage.io/v1alpha1
     kind: Resource
     metadata:
-      name: shop-asite-inventory-in
-      description: "Kafka トピック: asite inventory-in"
+      name: shop-bsite-inventory-in
+      description: "Kafka トピック: bsite inventory-in"
       annotations:
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.inventory-in"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.inventory-in"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.inventory-in"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.inventory-in"
           title: データカタログ
           icon: dashboard
     spec:
@@ -294,12 +322,76 @@ data:
     apiVersion: backstage.io/v1alpha1
     kind: Resource
     metadata:
-      name: shop-asite-loyalty-updates
-      description: "Kafka トピック: asite loyalty-updates (MirrorMaker2)"
+      name: shop-bsite-inventory-up
+      description: "Kafka トピック: bsite inventory-up"
       annotations:
-        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.loyalty-updates/custom_properties"
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.inventory-up"
       links:
-        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-asite%3A9094.loyalty-updates/custom_properties"
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.inventory-up"
+          title: データカタログ
+          icon: dashboard
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-bsite-loyalty-updates
+      description: "Kafka トピック: bsite loyalty-updates"
+      annotations:
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.loyalty-updates"
+      links:
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.loyalty-updates"
+          title: データカタログ
+          icon: dashboard
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-bsite-qdca10-in
+      description: "Kafka トピック: bsite qdca10-in"
+      annotations:
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.qdca10-in"
+      links:
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.qdca10-in"
+          title: データカタログ
+          icon: dashboard
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-bsite-qdca10pro-in
+      description: "Kafka トピック: bsite qdca10pro-in"
+      annotations:
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.qdca10pro-in"
+      links:
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.qdca10pro-in"
+          title: データカタログ
+          icon: dashboard
+    spec:
+      type: topic
+      owner: user:default/nmushino
+      system: b-cluster
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Resource
+    metadata:
+      name: shop-bsite-orders-up
+      description: "Kafka トピック: bsite orders-up"
+      annotations:
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.orders-up"
+      links:
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.orders-up"
           title: データカタログ
           icon: dashboard
     spec:
@@ -327,11 +419,17 @@ data:
     kind: Resource
     metadata:
       name: shop-bsite-rewards
-      description: "Kafka トピック: bsite rewards (MirrorMaker2)"
+      description: "Kafka トピック: bsite rewards"
+      annotations:
+        openmetadata/explore-url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.rewards"
+      links:
+        - url: "http://openmetadata-openmetadata.apps.ocp.hfczn.sandbox2320.opentlc.com/topic/external-shop-cluster-kafka-bsite%3A9094.rewards"
+          title: データカタログ
+          icon: dashboard
     spec:
       type: topic
       owner: user:default/nmushino
-      system: a-cluster
+      system: b-cluster
     ---
     apiVersion: backstage.io/v1alpha1
     kind: API
