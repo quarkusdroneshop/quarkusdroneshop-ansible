@@ -72,25 +72,6 @@ deploy() {
         echo -e "${GREEN}coschedule: disabled${RESET}"
     fi
 
-    # OWASP Dependency-Check DB キャッシュ用 PVC 作成（存在しない場合のみ）
-    if ! oc get pvc dependency-check-db -n "$CICD_NAMESPACE" &>/dev/null; then
-        echo -e "${BLUE}dependency-check-db PVC を作成中...${RESET}"
-        oc apply -n "$CICD_NAMESPACE" -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: dependency-check-db
-  namespace: ${CICD_NAMESPACE}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
-EOF
-        echo -e "${GREEN}dependency-check-db PVC 作成完了${RESET}"
-    fi
-
     # オペレータのインストール
     # プロジェクトが存在するか確認
     if oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then
@@ -133,11 +114,15 @@ EOF
         case $opt in
             "qdca10"|"qdca10pro"|"counter"|"web"|"inventory"|"reword"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
                 echo "実行中: $opt"
+                oc delete pipelinerun "build-and-push-quarkusdroneshop-$opt" \
+                    -n "$CICD_NAMESPACE" --ignore-not-found=true 2>/dev/null || true
                 kustomize build "quarkusdroneshop-$opt" | oc apply -f -
                 ;;
             "all")
                 for d in qdca10 qdca10pro counter web inventory reword homeofficebackend homeoffice-ui customermocker; do
                     echo "実行中: $d"
+                    oc delete pipelinerun "build-and-push-quarkusdroneshop-$d" \
+                        -n "$CICD_NAMESPACE" --ignore-not-found=true 2>/dev/null || true
                     kustomize build "quarkusdroneshop-$d" | oc apply -f -
                 done
                 ;;
@@ -184,22 +169,6 @@ setup() {
     sleep 5
     echo -e "${GREEN}coschedule: $(oc get configmap feature-flags -n openshift-pipelines -o jsonpath='{.data.coschedule}')${RESET}"
 
-    # OWASP Dependency-Check DB キャッシュ用 PVC 作成
-    echo -e "${BLUE}dependency-check-db PVC を作成中...${RESET}"
-    oc apply -n "$CICD_NAMESPACE" -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: dependency-check-db
-  namespace: ${CICD_NAMESPACE}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
-EOF
-    echo -e "${GREEN}dependency-check-db PVC 作成完了${RESET}"
 
 }
 
