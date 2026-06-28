@@ -3,6 +3,7 @@
 # Script Name: nvd.sh
 # Description: OWASP Dependency-Check 用 NVD データベースのセットアップと
 #              日次更新 CronJob を OpenShift 上に構築するスクリプト。
+#
 # Author: Noriaki Mushino
 # Date Created: 2026-06-21
 # Last Modified: 2026-06-21
@@ -17,12 +18,12 @@
 # Prerequisites:
 #   - OpenShift CLI (oc) がインストール・ログイン済みであること
 #   - NVD API キーを取得済みであること（https://nvd.nist.gov/developers/request-an-api-key）
-#   - EFS StorageClass (efs-sc) が利用可能であること（ReadWriteMany が必要）
+#   - EFS StorageClass (efs-sc) が利用可能であること（ReadWriteMany が必要）-> gp3-csiへ変更
 #   - The Test was conducted on MacOS
 #
 # =============================================================================
 
-CICD_NAMESPACE="quarkusdroneshop-demo"
+NAMESPACE="quarkusdroneshop-demo"
 SECRET_NAME="nvd-api-key"
 PVC_NAME="dependency-check-db"
 CRONJOB_NAME="dependency-check-update"
@@ -55,8 +56,8 @@ setup() {
     echo -e "${BLUE}=== NVD セットアップ開始 ===${RESET}"
 
     # Namespace 確認
-    if ! oc get project "$CICD_NAMESPACE" &>/dev/null; then
-        echo -e "${RED}Namespace ${CICD_NAMESPACE} が存在しません。piplines.sh setup を先に実行してください。${RESET}"
+    if ! oc get project "$NAMESPACE" &>/dev/null; then
+        echo -e "${RED}Namespace ${NAMESPACE} が存在しません。piplines.sh setup を先に実行してください。${RESET}"
         exit 1
     fi
 
@@ -72,30 +73,30 @@ setup() {
 
     # Secret 作成（既存の場合は上書き）
     echo -e "${BLUE}[1/4] Secret を作成します...${RESET}"
-    oc delete secret "${SECRET_NAME}" -n "${CICD_NAMESPACE}" --ignore-not-found
+    oc delete secret "${SECRET_NAME}" -n "${NAMESPACE}" --ignore-not-found
     oc create secret generic "${SECRET_NAME}" \
         --from-literal=key="${NVD_API_KEY_VALUE}" \
-        -n "${CICD_NAMESPACE}"
+        -n "${NAMESPACE}"
     echo -e "${GREEN}Secret '${SECRET_NAME}' を作成しました。${RESET}"
 
     # PVC 作成
     echo -e "${BLUE}[2/4] PVC を作成します...${RESET}"
-    if oc get pvc "${PVC_NAME}" -n "${CICD_NAMESPACE}" &>/dev/null; then
+    if oc get pvc "${PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
         echo -e "${YELLOW}PVC '${PVC_NAME}' はすでに存在します。スキップします。${RESET}"
     else
-        sed "s/namespace:.*/namespace: ${CICD_NAMESPACE}/" "${PVC_YAML}" | oc apply -n "${CICD_NAMESPACE}" -f -
+        sed "s/namespace:.*/namespace: ${NAMESPACE}/" "${PVC_YAML}" | oc apply -n "${NAMESPACE}" -f -
         echo -e "${GREEN}PVC '${PVC_NAME}' を作成しました。${RESET}"
     fi
 
     # CronJob 作成
     echo -e "${BLUE}[3/4] 日次更新 CronJob を作成します（毎日 JST 03:00）...${RESET}"
-    oc apply -n "${CICD_NAMESPACE}" -f - <<EOF
+    oc apply -n "${NAMESPACE}" -f - <<EOF
 
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: ${CRONJOB_NAME}
-  namespace: ${CICD_NAMESPACE}
+  namespace: ${NAMESPACE}
   labels:
     app: owasp-dependency-check
 spec:
@@ -107,7 +108,13 @@ spec:
     spec:
       backoffLimit: 2
       template:
+
         spec:
+          template:
+            spec:
+              securityContext:
+                fsGroup: 1000
+        
           restartPolicy: OnFailure
           containers:
           - name: update
@@ -145,11 +152,11 @@ EOF
 
     # 初回 DB 更新 Job を即時実行
     echo -e "${BLUE}[4/4] 初回 DB 更新 Job を実行します（完了まで数分かかります）...${RESET}"
-    oc delete job "${INIT_JOB_NAME}" -n "${CICD_NAMESPACE}" --ignore-not-found
+    oc delete job "${INIT_JOB_NAME}" -n "${NAMESPACE}" --ignore-not-found
 
     oc create job "${INIT_JOB_NAME}" \
         --from="cronjob/${CRONJOB_NAME}" \
-        -n "${CICD_NAMESPACE}"
+        -n "${NAMESPACE}"
 
     echo -e "${YELLOW}Job '${INIT_JOB_NAME}' を起動しました。ログを監視します（Ctrl+C で監視を中断できます）...${RESET}"
 
@@ -157,7 +164,7 @@ EOF
     echo "Pod 起動待機中..."
     POD=""
     for i in $(seq 1 30); do
-        POD=$(oc get pods -n "${CICD_NAMESPACE}" \
+        POD=$(oc get pods -n "${NAMESPACE}" \
             -l "job-name=${INIT_JOB_NAME}" \
             --field-selector=status.phase!=Pending \
             -o name 2>/dev/null | head -1)
@@ -168,7 +175,7 @@ EOF
     done
 
     if [ -n "${POD}" ]; then
-        oc logs -f "${POD}" -n "${CICD_NAMESPACE}" 2>/dev/null || true
+        oc logs -f "${POD}" -n "${NAMESPACE}" 2>/dev/null || true
     else
         echo -e "${YELLOW}Pod がタイムアウト前に起動しませんでした。'./nvd.sh status' で状態を確認してください。${RESET}"
     fi
@@ -188,33 +195,33 @@ status() {
     echo ""
 
     echo -e "${YELLOW}--- PVC ---${RESET}"
-    oc get pvc "${PVC_NAME}" -n "${CICD_NAMESPACE}" 2>/dev/null \
+    oc get pvc "${PVC_NAME}" -n "${NAMESPACE}" 2>/dev/null \
         || echo "PVC '${PVC_NAME}' は存在しません"
 
     echo ""
     echo -e "${YELLOW}--- Secret ---${RESET}"
-    oc get secret "${SECRET_NAME}" -n "${CICD_NAMESPACE}" 2>/dev/null \
+    oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" 2>/dev/null \
         || echo "Secret '${SECRET_NAME}' は存在しません"
 
     echo ""
     echo -e "${YELLOW}--- CronJob ---${RESET}"
-    oc get cronjob "${CRONJOB_NAME}" -n "${CICD_NAMESPACE}" 2>/dev/null \
+    oc get cronjob "${CRONJOB_NAME}" -n "${NAMESPACE}" 2>/dev/null \
         || echo "CronJob '${CRONJOB_NAME}' は存在しません"
 
     echo ""
     echo -e "${YELLOW}--- 直近の Job ---${RESET}"
-    oc get jobs -n "${CICD_NAMESPACE}" \
+    oc get jobs -n "${NAMESPACE}" \
         --sort-by='.metadata.creationTimestamp' 2>/dev/null \
         | grep -E "dependency-check|NAME" || echo "Job が見つかりません"
 
     echo ""
     echo -e "${YELLOW}--- 直近の Pod ログ（末尾 30 行）---${RESET}"
-    LATEST_POD=$(oc get pods -n "${CICD_NAMESPACE}" \
+    LATEST_POD=$(oc get pods -n "${NAMESPACE}" \
         --sort-by='.metadata.creationTimestamp' \
         -o name 2>/dev/null \
         | grep "dependency-check" | tail -1)
     if [ -n "${LATEST_POD}" ]; then
-        oc logs "${LATEST_POD}" -n "${CICD_NAMESPACE}" --tail=30 2>/dev/null || true
+        oc logs "${LATEST_POD}" -n "${NAMESPACE}" --tail=30 2>/dev/null || true
     else
         echo "関連 Pod が見つかりません"
     fi
@@ -227,7 +234,7 @@ update() {
     echo -e "${BLUE}=== NVD DB 手動更新 ===${RESET}"
 
     # CronJob 存在確認
-    if ! oc get cronjob "${CRONJOB_NAME}" -n "${CICD_NAMESPACE}" &>/dev/null; then
+    if ! oc get cronjob "${CRONJOB_NAME}" -n "${NAMESPACE}" &>/dev/null; then
         echo -e "${RED}CronJob '${CRONJOB_NAME}' が存在しません。先に './nvd.sh setup' を実行してください。${RESET}"
         exit 1
     fi
@@ -236,14 +243,14 @@ update() {
 
     oc create job "${MANUAL_JOB_NAME}" \
         --from="cronjob/${CRONJOB_NAME}" \
-        -n "${CICD_NAMESPACE}"
+        -n "${NAMESPACE}"
 
     echo -e "${GREEN}Job '${MANUAL_JOB_NAME}' を起動しました。${RESET}"
     echo -e "${YELLOW}ログを監視します（Ctrl+C で中断可）...${RESET}"
 
     POD=""
     for i in $(seq 1 30); do
-        POD=$(oc get pods -n "${CICD_NAMESPACE}" \
+        POD=$(oc get pods -n "${NAMESPACE}" \
             -l "job-name=${MANUAL_JOB_NAME}" \
             --field-selector=status.phase!=Pending \
             -o name 2>/dev/null | head -1)
@@ -254,7 +261,7 @@ update() {
     done
 
     if [ -n "${POD}" ]; then
-        oc logs -f "${POD}" -n "${CICD_NAMESPACE}" 2>/dev/null || true
+        oc logs -f "${POD}" -n "${NAMESPACE}" 2>/dev/null || true
     else
         echo -e "${YELLOW}Pod 起動待機タイムアウト。'./nvd.sh status' で確認してください。${RESET}"
     fi
@@ -277,19 +284,19 @@ cleanup() {
         exit 1
     fi
 
-    oc delete cronjob "${CRONJOB_NAME}" -n "${CICD_NAMESPACE}" --ignore-not-found
+    oc delete cronjob "${CRONJOB_NAME}" -n "${NAMESPACE}" --ignore-not-found
 
     # dependency-check 関連 Job を一括削除
-    for JOB in $(oc get jobs -n "${CICD_NAMESPACE}" -o name 2>/dev/null | grep "dependency-check"); do
-        oc delete "${JOB}" -n "${CICD_NAMESPACE}" --ignore-not-found
+    for JOB in $(oc get jobs -n "${NAMESPACE}" -o name 2>/dev/null | grep "dependency-check"); do
+        oc delete "${JOB}" -n "${NAMESPACE}" --ignore-not-found
     done
 
     # PVC を削除するには finalizer を外す
-    oc patch pvc "${PVC_NAME}" -n "${CICD_NAMESPACE}" \
+    oc patch pvc "${PVC_NAME}" -n "${NAMESPACE}" \
         --type=merge -p '{"metadata":{"finalizers":[]}}' 2>/dev/null || true
-    oc delete pvc "${PVC_NAME}" -n "${CICD_NAMESPACE}" --ignore-not-found
+    oc delete pvc "${PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found
 
-    oc delete secret "${SECRET_NAME}" -n "${CICD_NAMESPACE}" --ignore-not-found
+    oc delete secret "${SECRET_NAME}" -n "${NAMESPACE}" --ignore-not-found
 
     echo -e "${GREEN}削除完了。${RESET}"
 }
@@ -327,3 +334,5 @@ esac
 #   --from-literal=key=<YOUR_NVD_API_KEY> \
 #   -n quarkusdroneshop-cicd \
 #   --context="quarkusdroneshop-cicd/api-ocp-mnlq9-sandbox1332-opentlc-com:6443/admin"
+#   7d820e39-9ec7-41c4-ae4a-27f3ad57a367
+

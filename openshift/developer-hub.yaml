@@ -71,12 +71,12 @@ spec:
                 resources:
                   requests:
                     cpu: "1"
-                    memory: "4Gi"
-                    ephemeral-storage: "15Gi"
+                    memory: "2Gi"
+                    ephemeral-storage: "10Gi"
                   limits:
                     cpu: "4"
                     memory: "8Gi"
-                    ephemeral-storage: "50Gi"
+                    ephemeral-storage: "30Gi"
 
                 volumeMounts:
                   - name: catalog-info
