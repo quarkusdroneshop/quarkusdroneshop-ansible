@@ -19,12 +19,12 @@ The source code for the  [quarkusdroneshop](https://github.com/quarkusdroneshop)
 
 Requirements
 ------------
-* OpenShift 4.16 an up Cluster installed
+* OpenShift 4.20 an up Cluster installed on AWS
 * Docker or podman
 
 Currently tested on 
 -------------------
-* OpenShift 4.16.41
+* OpenShift 4.21.41
 * OpenShift Pipelines: 1.18.0
 * AMQ Streams: 2.9.0-2
 * Postgres Operator: v5.8.2
@@ -258,9 +258,7 @@ Ansibleの定義ファイルにある下記を参考にログインしてくだ�
 
 To-Do
 -------
-* BackOfficeを修正する
-* OpenMetadataのエクスポートとインポート
-* QuarkusバージョンとJavaのバージョンアップをする
+* AI による自律的運用機能の実装
 
 
 Troubleshooting
