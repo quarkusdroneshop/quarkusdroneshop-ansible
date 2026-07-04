@@ -9,19 +9,19 @@
 # Version: 2.0
 #
 # Usage:
-#   ./deploy.sh setup                  - OCP 環境セットアップ（demo NS）
-#   ./deploy.sh cleanup                - demo NS の全リソース削除
+#   ./script/ocpdeploy.sh setup                  - OCP 環境セットアップ（demo NS）
+#   ./script/ocpdeploy.sh cleanup                - demo NS の全リソース削除
 #
-#   ./deploy.sh pipeline setup         - Tekton Operator インストール
-#   ./deploy.sh pipeline deploy        - Pipeline kustomize デプロイ
-#   ./deploy.sh pipeline config        - Demo ConfigMap 設定
-#   ./deploy.sh pipeline cleanup       - CICD NS 削除
+#   ./script/ocpdeploy.sh pipeline setup         - Tekton Operator インストール
+#   ./script/ocpdeploy.sh pipeline deploy        - Pipeline kustomize デプロイ
+#   ./script/ocpdeploy.sh pipeline config        - Demo ConfigMap 設定
+#   ./script/ocpdeploy.sh pipeline cleanup       - CICD NS 削除
 #
-#   ./deploy.sh skupper deploy         - Skupper + Kafka クラスター構築
-#   ./deploy.sh skupper retoken        - Skupper トークン再作成
-#   ./deploy.sh skupper status         - Skupper ステータス確認
-#   ./deploy.sh skupper console        - Skupper コンソールデプロイ
-#   ./deploy.sh skupper cleanup        - Skupper リソース削除
+#   ./script/ocpdeploy.sh skupper deploy         - Skupper + Kafka クラスター構築
+#   ./script/ocpdeploy.sh skupper retoken        - Skupper トークン再作成
+#   ./script/ocpdeploy.sh skupper status         - Skupper ステータス確認
+#   ./script/ocpdeploy.sh skupper console        - Skupper コンソールデプロイ
+#   ./script/ocpdeploy.sh skupper cleanup        - Skupper リソース削除
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -32,6 +32,10 @@
 #   - The Test was conducted on MacOS
 #
 # =============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# script/ から見たリポジトリルート（openshift/, source.env, Dockerfile, skupper-token-*.yaml はここ基準）
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 NAMESPACE="quarkusdroneshop-demo"
 CICD_NAMESPACE="quarkusdroneshop-cicd"
@@ -127,8 +131,8 @@ ocp_setup() {
     echo "セットアップ開始..."
 
     # source.env の CLUSTER_DOMAIN_NAME と TOKEN を更新
-    sed -i '' "s/^CLUSTER_DOMAIN_NAME=.*$/CLUSTER_DOMAIN_NAME=$DOMAIN_NAME/" $ENV_FILE
-    sed -i '' "s/^TOKEN=.*$/TOKEN=$DOMAIN_TOKEN/" $ENV_FILE
+    sed -i '' "s/^CLUSTER_DOMAIN_NAME=.*$/CLUSTER_DOMAIN_NAME=$DOMAIN_NAME/" "$REPO_ROOT/$ENV_FILE"
+    sed -i '' "s/^TOKEN=.*$/TOKEN=$DOMAIN_TOKEN/" "$REPO_ROOT/$ENV_FILE"
 
     # プロジェクトの作成
     oc new-project "$NAMESPACE"
@@ -136,9 +140,9 @@ ocp_setup() {
     # default ServiceAccount へ権限の追加
     oc adm policy add-scc-to-user anyuid system:serviceaccount:"$NAMESPACE":default
 
-    # Podman イメージの作成と Operator のインストール
-    podman build --no-cache -t "$NAMESPACE" .
-    podman run --platform linux/amd64 -it --env-file=./$ENV_FILE "$NAMESPACE"
+    # Podman イメージの作成と Operator のインストール（ビルドコンテキストはリポジトリルート）
+    podman build --no-cache -t "$NAMESPACE" "$REPO_ROOT"
+    podman run --platform linux/amd64 -it --env-file="$REPO_ROOT/$ENV_FILE" "$NAMESPACE"
 
     # PostgreSQLCluster へ権限の追加
     oc adm policy add-scc-to-user anyuid -z droneshopdb-instance -n "$NAMESPACE"
@@ -170,10 +174,10 @@ ocp_cleanup() {
 pipeline_setup() {
     # Tekton Operator のインストール
     oc new-project $CICD_NAMESPACE
-    oc apply -f openshift/openshift-pipline.yaml
+    oc apply -f "$REPO_ROOT/openshift/openshift-pipline.yaml"
     sleep 30
     oc delete tektonconfig config -n $CICD_NAMESPACE
-    oc apply -f openshift/tektonconfig.yaml -n $CICD_NAMESPACE
+    oc apply -f "$REPO_ROOT/openshift/tektonconfig.yaml" -n $CICD_NAMESPACE
 
     # Tekton coschedule 無効化（複数 PVC の並列マウントを許可）
     echo -e "${BLUE}Tekton coschedule を無効化中...${RESET}"
@@ -208,10 +212,10 @@ pipeline_deploy() {
         oc new-project $CICD_NAMESPACE
     fi
 
-    oc apply -f openshift/tekton-configmap.yaml -n $CICD_NAMESPACE
+    oc apply -f "$REPO_ROOT/openshift/tekton-configmap.yaml" -n $CICD_NAMESPACE
     oc adm policy add-scc-to-user privileged -z pipeline -n $CICD_NAMESPACE
 
-    cd ../tekton-pipelines
+    cd "$REPO_ROOT/../tekton-pipelines"
 
     OPTIONS=(
         "qdca10" "qdca10pro" "counter" "web" "inventory"
@@ -253,7 +257,7 @@ pipeline_deploy() {
 }
 
 pipeline_config() {
-    oc apply -f openshift/droneshop-configmap.yaml -n $NAMESPACE
+    oc apply -f "$REPO_ROOT/openshift/droneshop-configmap.yaml" -n $NAMESPACE
     oc policy add-role-to-user admin system:serviceaccount:$CICD_NAMESPACE:pipeline -n $NAMESPACE
 }
 
@@ -276,7 +280,7 @@ skupper_deploy() {
     oc project "$NAMESPACE"
 
     echo -e "${BLUE}Skupper Operator をインストール中...${RESET}"
-    oc apply -f openshift/skupper-operator.yaml
+    oc apply -f "$REPO_ROOT/openshift/skupper-operator.yaml"
 
     echo -e "${BLUE}Skupper CRD の準備を待っています...${RESET}"
     until oc get crd sites.skupper.io &>/dev/null; do sleep 5; done
@@ -288,7 +292,7 @@ skupper_deploy() {
         skupper site create skupper-asite
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
-        skupper token issue skupper-token-a.yaml -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-a.yaml" -r 3
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
@@ -296,8 +300,8 @@ skupper_deploy() {
         fi
 
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-asite --host external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-kafka-asite 9094 --selector app.kubernetes.io/part-of=strimzi-shop-cluster -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
@@ -305,14 +309,14 @@ skupper_deploy() {
         skupper listener create external-shop-cluster-postgres-asite --host external-shop-cluster-postgres-asite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         skupper connector create external-shop-cluster-apicurio 8080 --selector app=droneshop-apicurioregistry-kafkasql -n "$NAMESPACE"
-        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners-asite.yaml -n "$NAMESPACE"
-        oc apply -f openshift/kafka-mm2-a-site.yaml -n "$NAMESPACE"
+        oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-asite.yaml" -n "$NAMESPACE"
+        oc apply -f "$REPO_ROOT/openshift/kafka-mm2-a-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "B" ]; then
         skupper site create skupper-bsite
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
-        skupper token issue skupper-token-b.yaml -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-b.yaml" -r 3
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
@@ -320,22 +324,22 @@ skupper_deploy() {
         fi
 
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-bsite --host external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-kafka-bsite 9094 --selector app.kubernetes.io/part-of=strimzi-shop-cluster -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
         skupper listener create external-shop-cluster-postgres-bsite --host external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
-        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners-bsite.yaml -n "$NAMESPACE"
-        oc apply -f openshift/kafka-mm2-b-site.yaml -n "$NAMESPACE"
+        oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-bsite.yaml" -n "$NAMESPACE"
+        oc apply -f "$REPO_ROOT/openshift/kafka-mm2-b-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "C" ]; then
         skupper site create skupper-csite
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
-        skupper token issue skupper-token-c.yaml -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-c.yaml" -r 3
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
@@ -343,22 +347,22 @@ skupper_deploy() {
         fi
 
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-csite --host external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-kafka-csite 9094 --selector app.kubernetes.io/part-of=strimzi-shop-cluster -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
         skupper listener create external-shop-cluster-postgres-csite --host external-shop-cluster-postgres-csite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
-        oc apply -f openshift/droneshop-cluster-kafka-bootstrap-listeners-csite.yaml -n "$NAMESPACE"
-        oc apply -f openshift/kafka-mm2-c-site.yaml -n "$NAMESPACE"
+        oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-csite.yaml" -n "$NAMESPACE"
+        oc apply -f "$REPO_ROOT/openshift/kafka-mm2-c-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "DH" ]; then
         skupper site create skupper-rhdh
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
-        skupper token issue skupper-token-dh.yaml -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-dh.yaml" -r 3
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
@@ -366,9 +370,9 @@ skupper_deploy() {
         fi
 
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
         skupper listener create external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
@@ -388,29 +392,29 @@ skupper_retoken() {
     read -p "どのサイトで LINK を再作成しますか？(A/B/C/DH): " SITE_CONFREM
 
     if [ "$SITE_CONFREM" = "A" ]; then
-        skupper token issue skupper-token-a.yaml -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-a.yaml" -r 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "B" ]; then
-        skupper token issue skupper-token-b.yaml -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-b.yaml" -r 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "C" ]; then
-        skupper token issue skupper-token-c.yaml -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-c.yaml" -r 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "DH" ]; then
-        skupper token issue skupper-token-dh.yaml -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-dh.yaml" -r 3
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem skupper-token-a.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-b.yaml -n "$NAMESPACE"
-        skupper token redeem skupper-token-c.yaml -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
 
         for listener in \
             "external-shop-cluster-postgres-bsite:5432" \
@@ -442,7 +446,7 @@ skupper_status() {
 
 skupper_console() {
     echo -e "${BLUE}Skupper Network Observer (コンソール) をデプロイ中...${RESET}"
-    oc apply -f openshift/skupper-network-observer.yaml -n "$NAMESPACE"
+    oc apply -f "$REPO_ROOT/openshift/skupper-network-observer.yaml" -n "$NAMESPACE"
 
     echo -e "${BLUE}Pod の起動を待っています...${RESET}"
     oc rollout status deployment/skupper-network-observer -n "$NAMESPACE" --timeout=120s

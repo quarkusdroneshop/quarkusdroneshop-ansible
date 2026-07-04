@@ -8,13 +8,13 @@
 # Version: 1.0
 #
 # Usage:
-#   ./aiagent.sh setup           - OpenShift AI Operator / 前提ミドルをインストール
-#   ./aiagent.sh deploy          - AI Agent Platform をデプロイ (dev overlay)
-#   ./aiagent.sh deploy-prod     - AI Agent Platform を本番デプロイ (prod overlay)
-#   ./aiagent.sh vllm            - vLLM モデルサービングをデプロイ
-#   ./aiagent.sh status          - 全コンポーネントの状態確認
-#   ./aiagent.sh logs            - AI Agent の最新ログを表示
-#   ./aiagent.sh cleanup         - AI Agent Platform を削除
+#   ./script/aiagent.sh setup           - OpenShift AI Operator / 前提ミドルをインストール
+#   ./script/aiagent.sh deploy          - AI Agent Platform をデプロイ (dev overlay)
+#   ./script/aiagent.sh deploy-prod     - AI Agent Platform を本番デプロイ (prod overlay)
+#   ./script/aiagent.sh vllm            - vLLM モデルサービングをデプロイ
+#   ./script/aiagent.sh status          - 全コンポーネントの状態確認
+#   ./script/aiagent.sh logs            - AI Agent の最新ログを表示
+#   ./script/aiagent.sh cleanup         - AI Agent Platform を削除
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) が インストール・ログイン済み
@@ -237,8 +237,8 @@ EOF
     echo -e "${GREEN}セットアップ完了${RESET}"
     echo -e "${GREEN}========================================${RESET}"
     echo -e "${YELLOW}次のステップ:${RESET}"
-    echo -e "  1. ${CYAN}./aiagent.sh vllm${RESET}    — vLLM モデルサービングをデプロイ"
-    echo -e "  2. ${CYAN}./aiagent.sh deploy${RESET}  — AI Agent Platform をデプロイ"
+    echo -e "  1. ${CYAN}./script/aiagent.sh vllm${RESET}    — vLLM モデルサービングをデプロイ"
+    echo -e "  2. ${CYAN}./script/aiagent.sh deploy${RESET}  — AI Agent Platform をデプロイ"
 }
 
 # ─── vllm: モデルサービングのデプロイ ──────────────────────────────────────────
@@ -483,7 +483,7 @@ deploy() {
     [ -n "${BIZ_URL}"   ] && echo -e "${GREEN}Business API : https://${BIZ_URL}${RESET}"
     echo ""
     echo -e "${YELLOW}Pod 起動確認: oc get pod -n ${AI_AGENT_NAMESPACE} -w${RESET}"
-    echo -e "${YELLOW}ログ確認    : ./aiagent.sh logs${RESET}"
+    echo -e "${YELLOW}ログ確認    : ./script/aiagent.sh logs${RESET}"
 }
 
 # ─── deploy-prod: 本番デプロイ ─────────────────────────────────────────────────

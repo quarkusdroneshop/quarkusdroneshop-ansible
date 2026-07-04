@@ -168,7 +168,7 @@ DEBUG=-v
 下記コマンドで実行してください。（数分かかります）
 
 ```
-./ocpdeploy.sh setup
+./script/ocpdeploy.sh setup
 ```
 
 ### DataMeshの準備
@@ -234,7 +234,7 @@ Readyになったオーダは削除されていきます。
 openmetadataプロジェクトが作成され、OpenMetadataがインストールされます。
 
 ```
-./ocpdeploy.sh openmetadata
+./script/ocpdeploy.sh openmetadata
 ```
 
 openmetadataプロジェクトのRouteにopenmetadataができますので、そこから画面にアクセスしてください。
@@ -253,7 +253,7 @@ Ansibleの定義ファイルにある下記を参考にログインしてくだ�
 環境のリセットは下記コマンドで実施します。
 
 ```
-./ocpdeploy.sh cleanup
+./script/ocpdeploy.sh cleanup
 ```
 
 To-Do
@@ -277,7 +277,7 @@ oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
 > ただし、利用時にはドメインなど間違えないように注意してください。
 
 ```
-./delete-project.sh
+./script/delete-project.sh
 ```
 
 #### KafkaやPostgresのインスタンス生成で失敗するとき
@@ -302,7 +302,7 @@ registry_starting_csv: service-registry-operator.v2.6.10
 下記シェルにて、Topicを強制的に削除します。
 
 ```
-./kafka-delete-topic.sh
+./script/kafka-delete-topic.sh
 ```
 #### Skapperでのサイト連携がうまくいかない場合
 

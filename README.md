@@ -79,7 +79,7 @@ AMQ Streams・Crunchy PostgreSQL Operator をインストールし、`quarkusdro
 内部で Podman イメージをビルドして Ansible Playbook を実行します。
 
 ```bash
-./ocpdeploy.sh setup
+./script/ocpdeploy.sh setup
 ```
 
 ### 3. Data Mesh ネットワーク構築
@@ -88,7 +88,7 @@ AMQ Streams・Crunchy PostgreSQL Operator をインストールし、`quarkusdro
 Skupper VAN の構築と KafkaMirrorMaker2 の設定を自動的に行います。
 
 ```bash
-./ocpdeploy.sh skupper deploy
+./script/ocpdeploy.sh skupper deploy
 ```
 
 ### 4. Pipeline セットアップとアプリデプロイ
@@ -97,13 +97,13 @@ Skupper VAN の構築と KafkaMirrorMaker2 の設定を自動的に行います�
 
 ```bash
 # Tekton Operator インストール
-./ocpdeploy.sh pipeline setup
+./script/ocpdeploy.sh pipeline setup
 
 # Pipeline (kustomize) デプロイ ← デプロイするアプリをメニューで選択
-./ocpdeploy.sh pipeline deploy
+./script/ocpdeploy.sh pipeline deploy
 
 # Demo 用 ConfigMap 適用
-./ocpdeploy.sh pipeline config
+./script/ocpdeploy.sh pipeline config
 ```
 
 **推奨デプロイ構成**
@@ -120,7 +120,9 @@ Pipeline 実行後は OpenShift コンソールの `quarkusdroneshop-cicd` プ�
 
 ## シェルスクリプト一覧
 
-### `ocpdeploy.sh` — メイン統合管理スクリプト
+> すべてのシェルスクリプトは `script/` ディレクトリ配下にあります（例: `./script/ocpdeploy.sh setup`）。
+
+### `script/ocpdeploy.sh` — メイン統合管理スクリプト
 
 | コマンド | 内容 |
 |---|---|
@@ -136,7 +138,7 @@ Pipeline 実行後は OpenShift コンソールの `quarkusdroneshop-cicd` プ�
 | `skupper console` | Skupper Network Observer デプロイ |
 | `skupper cleanup` | Skupper 全リソース削除・MirrorMaker2 削除 |
 
-### `developer-hub.sh` — Red Hat Developer Hub (RHDH) 管理
+### `script/developer-hub.sh` — Red Hat Developer Hub (RHDH) 管理
 
 | コマンド | 内容 |
 |---|---|
@@ -151,14 +153,14 @@ Pipeline 実行後は OpenShift コンソールの `quarkusdroneshop-cicd` プ�
 | `update-plugin` | test-report プラグイン再ビルド・integrity ハッシュ更新・RHDH 再起動 |
 | `cleanup` | RHDH 全リソース削除 |
 
-### `openmetadata.sh` — OpenMetadata 管理
+### `script/openmetadata.sh` — OpenMetadata 管理
 
 | コマンド | 内容 |
 |---|---|
 | `deploy` | `openmetadata` プロジェクト作成・Secrets・SCC 付与・Helm で依存サービス + 本体をインストール |
 | `cleanup` | Helm アンインストール・プロジェクト削除 |
 
-### `aiagent.sh` — Enterprise AI Agent Platform 管理
+### `script/aiagent.sh` — Enterprise AI Agent Platform 管理
 
 | コマンド | 内容 |
 |---|---|
@@ -174,13 +176,13 @@ Pipeline 実行後は OpenShift コンソールの `quarkusdroneshop-cicd` プ�
 
 | シェル | 内容 |
 |---|---|
-| `postgres.sh` | PostgreSQL Pod へのポートフォワード (5432) を開き、接続パスワードを表示 |
-| `podman.sh` | ローカルで Kafka + PostgreSQL + Kafdrop を Podman コンテナとして起動 |
-| `kafka-delete-topic.sh` | `shop-asite.*` / `shop-bsite.*` / `shop-csite.*` の全 Kafka トピックを削除 |
-| `delete-project.sh <namespace>` | Terminating のまま残るプロジェクトの finalizer を除去して強制削除 |
-| `sqldump.sh` | OpenMetadata の MySQL をポートフォワード経由でダンプ (`openmetadata_backup.sql`) |
-| `sqlimport.sh` | ダンプファイルを OpenMetadata MySQL へインポート |
-| `get-rhtoken.sh <refresh_token>` | Red Hat SSO のリフレッシュトークンからアクセストークンを取得 |
+| `script/postgres.sh` | PostgreSQL Pod へのポートフォワード (5432) を開き、接続パスワードを表示 |
+| `script/podman.sh` | ローカルで Kafka + PostgreSQL + Kafdrop を Podman コンテナとして起動 |
+| `script/kafka-delete-topic.sh` | `shop-asite.*` / `shop-bsite.*` / `shop-csite.*` の全 Kafka トピックを削除 |
+| `script/delete-project.sh <namespace>` | Terminating のまま残るプロジェクトの finalizer を除去して強制削除 |
+| `script/sqldump.sh` | OpenMetadata の MySQL をポートフォワード経由でダンプ (`openmetadata_backup.sql`) |
+| `script/sqlimport.sh` | ダンプファイルを OpenMetadata MySQL へインポート |
+| `script/get-rhtoken.sh <refresh_token>` | Red Hat SSO のリフレッシュトークンからアクセストークンを取得 |
 
 ---
 
@@ -322,7 +324,7 @@ oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
 ### Kafka トピックをすべて削除したい
 
 ```bash
-./kafka-delete-topic.sh
+./script/kafka-delete-topic.sh
 ```
 
 shop-asite.* / shop-bsite.* / shop-csite.* の全トピックを Kafka Pod 内から直接削除します。
@@ -330,7 +332,7 @@ shop-asite.* / shop-bsite.* / shop-csite.* の全トピックを Kafka Pod 内�
 ### プロジェクトが Terminating のまま消えない
 
 ```bash
-./delete-project.sh quarkusdroneshop-demo
+./script/delete-project.sh quarkusdroneshop-demo
 ```
 
 finalizer を除去して強制削除します。`jq` が必要です。
@@ -338,26 +340,26 @@ finalizer を除去して強制削除します。`jq` が必要です。
 ### Skupper の接続がうまくいかない
 
 ```bash
-./ocpdeploy.sh skupper status     # 状態確認
-./ocpdeploy.sh skupper retoken    # トークン再発行・再接続
+./script/ocpdeploy.sh skupper status     # 状態確認
+./script/ocpdeploy.sh skupper retoken    # トークン再発行・再接続
 ```
 
 ### Pipeline 実行後に Demo ConfigMap が見つからない
 
 ```bash
-./ocpdeploy.sh pipeline config
+./script/ocpdeploy.sh pipeline config
 ```
 
 ### PostgreSQL にローカルから接続したい
 
 ```bash
-./postgres.sh   # パスワード表示 + ポートフォワード (5432)
+./script/postgres.sh   # パスワード表示 + ポートフォワード (5432)
 ```
 
 ### ローカルで Kafka + PostgreSQL + Kafdrop を動かしたい
 
 ```bash
-./podman.sh
+./script/podman.sh
 # Kafka:   localhost:9092
 # Postgres: localhost:5432
 # Kafdrop:  http://localhost:9000

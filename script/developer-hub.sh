@@ -8,16 +8,16 @@
 # Version: 2.1
 #
 # Usage:
-#   ./developer-hub.sh setup           - To setup the environment.
-#   ./developer-hub.sh deploy          - To deploy the application.
-#   ./developer-hub.sh keycloak        - To setup Keycloak realm/client/user for RHDH.
-#   ./developer-hub.sh retoken         - Reissuing a GitHub token.
-#   ./developer-hub.sh target-token <domain> - Create persistent SA token for target cluster.
-#   ./developer-hub.sh system-token          - Create SA tokens for a/b/c-cluster and update secrets.
-#   ./developer-hub.sh cleanup         - To delete the application.
-#   ./developer-hub.sh customimage     - The creation of a customised RHDH image.
-#   ./developer-hub.sh resetcustombuild - Reset and rebuild the custom RHDH image from scratch.
-#   ./developer-hub.sh update-plugin    - Rebuild test-report plugin, update integrity hash, restart RHDH.
+#   ./script/developer-hub.sh setup           - To setup the environment.
+#   ./script/developer-hub.sh deploy          - To deploy the application.
+#   ./script/developer-hub.sh keycloak        - To setup Keycloak realm/client/user for RHDH.
+#   ./script/developer-hub.sh retoken         - Reissuing a GitHub token.
+#   ./script/developer-hub.sh target-token <domain> - Create persistent SA token for target cluster.
+#   ./script/developer-hub.sh system-token          - Create SA tokens for a/b/c-cluster and update secrets.
+#   ./script/developer-hub.sh cleanup         - To delete the application.
+#   ./script/developer-hub.sh customimage     - The creation of a customised RHDH image.
+#   ./script/developer-hub.sh resetcustombuild - Reset and rebuild the custom RHDH image from scratch.
+#   ./script/developer-hub.sh update-plugin    - Rebuild test-report plugin, update integrity hash, restart RHDH.
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -32,6 +32,8 @@ set -euo pipefail
 
 RHDH_NAMESPACE="quarkusdroneshop-rhdh"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# script/ から見たリポジトリルート（openshift/ などはここ基準）
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # 色を変数に格納
 RED="\033[31m"
@@ -74,7 +76,7 @@ deploy() {
     # カスタムイメージの存在確認
     if ! oc get istag rhdh-hub-custom:latest -n "$RHDH_NAMESPACE" >/dev/null 2>&1; then
         echo -e "${RED}エラー: カスタムイメージ rhdh-hub-custom:latest が存在しません。${RESET}" >&2
-        echo -e "${YELLOW}先に './developer-hub.sh customimage' を実行してビルドを完了させてください。${RESET}" >&2
+        echo -e "${YELLOW}先に './script/developer-hub.sh customimage' を実行してビルドを完了させてください。${RESET}" >&2
         exit 1
     fi
 
@@ -96,11 +98,11 @@ deploy() {
         -e "s|AUTH_OIDC_METADATA_URL: \"https://sso\.apps\.[^\"]*\"|AUTH_OIDC_METADATA_URL: \"https://sso.${APPS_DOMAIN}/realms/rhdh/.well-known/openid-configuration\"|" \
         -e "s|K8S_CLUSTER_NAME: \"[^\"]*\"|K8S_CLUSTER_NAME: \"${CLUSTER_DOMAIN}\"|" \
         -e "s|K8S_CLUSTER_URL: \"[^\"]*\"|K8S_CLUSTER_URL: \"${CLUSTER_API_URL}\"|" \
-        "$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
-    rm -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml.bak"
+        "$REPO_ROOT/openshift/secrets-rhdh.yaml"
+    rm -f "$REPO_ROOT/openshift/secrets-rhdh.yaml.bak"
 
     # template.yaml の clusterDomain デフォルト値を更新
-    local TEMPLATE_YAML="$SCRIPT_DIR/../developerhub-skeleton/template.yaml"
+    local TEMPLATE_YAML="$REPO_ROOT/../developerhub-skeleton/template.yaml"
     if [ -f "$TEMPLATE_YAML" ]; then
         sed -i.bak \
             "s|default: apps\.ocp\.[^[:space:]]*\.opentlc\.com|default: ${APPS_DOMAIN}|" \
@@ -113,22 +115,22 @@ deploy() {
     fi
 
     if oc get backstage developer-hub -n "$RHDH_NAMESPACE" &>/dev/null; then
-        oc replace -f "$SCRIPT_DIR/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
+        oc replace -f "$REPO_ROOT/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
     else
-        oc apply -f "$SCRIPT_DIR/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
+        oc apply -f "$REPO_ROOT/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
     fi
-    oc apply -f "$SCRIPT_DIR/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE"
-    oc apply -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
-    oc apply -f "$SCRIPT_DIR/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE"
+    oc apply -f "$REPO_ROOT/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE"
+    oc apply -f "$REPO_ROOT/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
+    oc apply -f "$REPO_ROOT/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE"
 
     # {{ ocp_apps_domain }} を実際のドメインに置換してから apply
     echo -e "${BLUE}OpenMetadata URLのドメインを ${APPS_DOMAIN} に置換して適用...${RESET}"
     sed "s|{{ ocp_apps_domain }}|${APPS_DOMAIN}|g" \
-        "$SCRIPT_DIR/openshift/catalog-info.yaml" | oc apply -f - -n "$RHDH_NAMESPACE"
+        "$REPO_ROOT/openshift/catalog-info.yaml" | oc apply -f - -n "$RHDH_NAMESPACE"
     sed "s|{{ ocp_apps_domain }}|${APPS_DOMAIN}|g" \
-        "$SCRIPT_DIR/openshift/om-proxy.yaml" | oc apply -f -
+        "$REPO_ROOT/openshift/om-proxy.yaml" | oc apply -f -
 
-    oc apply -f "$SCRIPT_DIR/openshift/k8-plugin-sa.yaml" -n "$RHDH_NAMESPACE"
+    oc apply -f "$REPO_ROOT/openshift/k8-plugin-sa.yaml" -n "$RHDH_NAMESPACE"
 
     oc adm policy add-cluster-role-to-user edit \
         -z rhdh-k8s-plugin \
@@ -280,7 +282,7 @@ customimage() {
     oc project "$RHDH_NAMESPACE"
 
     local build_dir
-    build_dir="$(cd "$SCRIPT_DIR/../developerhub-skeleton/developerhub" && pwd)"
+    build_dir="$(cd "$REPO_ROOT/../developerhub-skeleton/developerhub" && pwd)"
 
     _stage_tarballs "$build_dir"
     _setup_build
@@ -300,14 +302,14 @@ resetcustombuild() {
     oc project "$RHDH_NAMESPACE"
 
     local build_dir
-    build_dir="$(cd "$SCRIPT_DIR/../developerhub-skeleton/developerhub" && pwd)"
+    build_dir="$(cd "$REPO_ROOT/../developerhub-skeleton/developerhub" && pwd)"
 
     # resetcustombuild は常にフレッシュなビルドを保証する
     _local_build "$build_dir"
     _stage_tarballs "$build_dir"
 
     echo -e "${YELLOW}BuildConfigとImageStreamを削除してキャッシュをリセットします...${RESET}"
-    oc delete -f "$SCRIPT_DIR/openshift/developer-hub.yaml" --ignore-not-found
+    oc delete -f "$REPO_ROOT/openshift/developer-hub.yaml" --ignore-not-found
     oc delete buildconfig rhdh-hub-custom --ignore-not-found
     oc delete imagestream rhdh-hub-custom --ignore-not-found
     oc delete builds --all --ignore-not-found
@@ -337,9 +339,13 @@ keycloak() {
     local CLIENT_SECRET="yvoKhHeg1M29PwaAPnlmbt4Avw2OM6Cd"
 
     # テストユーザー（ワークショップ参加者用）
-    local TEST_USER="user1"
-    local TEST_USER_PASSWORD="password1"
-    local TEST_USER_EMAIL="user1@example.com"
+    # 形式: "username:password:email:firstName:lastName"
+    local -a TEST_USERS=(
+        "NorakiMushino:password0:norakimushino@example.com:Noraki:Mushino"
+        "User1:password1:user1@example.com:Workshop:User1"
+        "User2:password2:user2@example.com:Workshop:User2"
+        "User3:password3:user3@example.com:Workshop:User3"
+    )
 
     echo -e "${BLUE}Keycloak セットアップ開始${RESET}"
     echo -e "${YELLOW}SSO URL     : ${SSO_URL}${RESET}"
@@ -425,35 +431,44 @@ keycloak() {
     esac
 
     # ===== Step 4: テストユーザー作成 =====
-    echo -e "${BLUE}[4/4] テストユーザー ${TEST_USER} 作成中...${RESET}"
-    HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
-        "${SSO_URL}/admin/realms/${REALM}/users" \
-        -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"username\": \"${TEST_USER}\",
-            \"email\": \"${TEST_USER_EMAIL}\",
-            \"enabled\": true,
-            \"emailVerified\": true,
-            \"firstName\": \"Workshop\",
-            \"lastName\": \"User1\",
-            \"credentials\": [{
-                \"type\": \"password\",
-                \"value\": \"${TEST_USER_PASSWORD}\",
-                \"temporary\": false
-            }]
-        }")
+    echo -e "${BLUE}[4/4] テストユーザー作成中 (${#TEST_USERS[@]}件)...${RESET}"
+    local user_entry username password email first_name last_name
+    for user_entry in "${TEST_USERS[@]}"; do
+        IFS=':' read -r username password email first_name last_name <<< "${user_entry}"
 
-    case "$HTTP_CODE" in
-        201) echo -e "${GREEN}OK: ユーザー ${TEST_USER} 作成成功${RESET}" ;;
-        409) echo -e "${YELLOW}SKIP: ユーザー ${TEST_USER} は既に存在します${RESET}" ;;
-        *)   echo -e "${RED}ERROR: ユーザー作成失敗 (HTTP ${HTTP_CODE})${RESET}" >&2; exit 1 ;;
-    esac
+        HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
+            "${SSO_URL}/admin/realms/${REALM}/users" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"username\": \"${username}\",
+                \"email\": \"${email}\",
+                \"enabled\": true,
+                \"emailVerified\": true,
+                \"firstName\": \"${first_name}\",
+                \"lastName\": \"${last_name}\",
+                \"credentials\": [{
+                    \"type\": \"password\",
+                    \"value\": \"${password}\",
+                    \"temporary\": false
+                }]
+            }")
+
+        case "$HTTP_CODE" in
+            201) echo -e "${GREEN}OK: ユーザー ${username} 作成成功${RESET}" ;;
+            409) echo -e "${YELLOW}SKIP: ユーザー ${username} は既に存在します${RESET}" ;;
+            *)   echo -e "${RED}ERROR: ユーザー ${username} 作成失敗 (HTTP ${HTTP_CODE})${RESET}" >&2; exit 1 ;;
+        esac
+    done
 
     echo ""
     echo -e "${GREEN}=== Keycloak セットアップ完了 ===${RESET}"
     echo -e "${GREEN}ログイン URL : ${RHDH_BASE_URL}${RESET}"
-    echo -e "${GREEN}ユーザー    : ${TEST_USER} / ${TEST_USER_PASSWORD}${RESET}"
+    echo -e "${GREEN}ユーザー一覧:${RESET}"
+    for user_entry in "${TEST_USERS[@]}"; do
+        IFS=':' read -r username password email first_name last_name <<< "${user_entry}"
+        echo -e "${GREEN}  ${username} / ${password}${RESET}"
+    done
     echo -e "${GREEN}OIDC metadata: ${SSO_URL}/realms/${REALM}/.well-known/openid-configuration${RESET}"
 }
 
@@ -472,7 +487,7 @@ setup() {
     oc wait --for=condition=Available deployment --all -n rhdh-operator \
         --timeout=120s 2>/dev/null || true
 
-    oc apply -f "$SCRIPT_DIR/openshift/developer-hub-operator.yaml" -n rhdh-operator
+    oc apply -f "$REPO_ROOT/openshift/developer-hub-operator.yaml" -n rhdh-operator
 
     echo -e "${GREEN}セットアップ完了${RESET}"
 }
@@ -481,7 +496,7 @@ pipeline() {
     local APP_NAME="${2:-quarkusdroneshop-reward}"
     local NAMESPACE="${3:-quarkusdroneshop-cicd}"
     local GIT_OWNER="${4:-quarkusdroneshop}"
-    local PIPELINE_FILE="$SCRIPT_DIR/../tekton-pipelines/${APP_NAME}/pipeline/deploy-pipeline.yaml"
+    local PIPELINE_FILE="$REPO_ROOT/../tekton-pipelines/${APP_NAME}/pipeline/deploy-pipeline.yaml"
 
     echo -e "${BLUE}Pipeline セットアップ: ${APP_NAME} in ${NAMESPACE}${RESET}"
 
@@ -651,7 +666,7 @@ target_token() {
     oc login "$TARGET_API" -u admin
 
     echo -e "${BLUE}rhdh-proxy RBAC (SA / ClusterRole / ClusterRoleBinding / Secret) を適用中...${RESET}"
-    oc apply -f "$SCRIPT_DIR/openshift/rhdh-plugin-sa.yaml" \
+    oc apply -f "$REPO_ROOT/openshift/rhdh-plugin-sa.yaml" \
         && echo -e "${GREEN}RBAC 適用済み${RESET}" \
         || { echo -e "${RED}RBAC 適用失敗${RESET}" >&2; exit 1; }
 
@@ -684,8 +699,8 @@ target_token() {
         sed -i.bak \
             -e "s|TARGET_K8S_CLUSTER_URL: \"[^\"]*\"|TARGET_K8S_CLUSTER_URL: \"${TARGET_API}\"|" \
             -e "s|TARGET_K8S_CLUSTER_TOKEN: \"[^\"]*\"|TARGET_K8S_CLUSTER_TOKEN: \"${TOKEN}\"|" \
-            "$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
-        rm -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml.bak"
+            "$REPO_ROOT/openshift/secrets-rhdh.yaml"
+        rm -f "$REPO_ROOT/openshift/secrets-rhdh.yaml.bak"
 
         # RHDHクラスターに戻って適用
         echo -e "${BLUE}RHDHクラスター (${RHDH_API}) に切り替えて適用中...${RESET}"
@@ -707,7 +722,7 @@ _system_token_one() {
     local SA_NAME="rhdh-k8s-plugin"
     local SECRET_NAME="rhdh-k8s-plugin-sa-token"
     local CICD_NS="quarkusdroneshop-cicd"
-    local SECRETS_FILE="$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
+    local SECRETS_FILE="$REPO_ROOT/openshift/secrets-rhdh.yaml"
 
     # 現在の設定値をデフォルト表示
     local CURRENT_URL
@@ -772,7 +787,7 @@ EOF
 system_token() {
     # 各システムクラスターの SA トークンを取得して secrets-rhdh.yaml を更新する
     # クラスター URL はプロビジョニングごとに変わるため実行時に入力する
-    local SECRETS_FILE="$SCRIPT_DIR/openshift/secrets-rhdh.yaml"
+    local SECRETS_FILE="$REPO_ROOT/openshift/secrets-rhdh.yaml"
     local RHDH_API
     RHDH_API=$(oc whoami --show-server)
 
@@ -796,7 +811,7 @@ update_plugin() {
 
     oc project "$RHDH_NAMESPACE"
 
-    local dynamic_plugins_yaml="$SCRIPT_DIR/openshift/dynamic-plugins-rhdh.yaml"
+    local dynamic_plugins_yaml="$REPO_ROOT/openshift/dynamic-plugins-rhdh.yaml"
 
     echo -e "${BLUE}[1/5] プラグインをビルド中...${RESET}"
     (
@@ -805,7 +820,7 @@ update_plugin() {
         [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
         nvm use 22 2>/dev/null || true
 
-        local dh_dir="$SCRIPT_DIR/../developerhub-skeleton/developerhub"
+        local dh_dir="$REPO_ROOT/../developerhub-skeleton/developerhub"
         cd "$dh_dir"
 
         # test-report ビルド
@@ -827,7 +842,7 @@ update_plugin() {
 
     echo -e "${BLUE}[2/5] カスタムイメージをビルド中...${RESET}"
     local build_dir
-    build_dir="$(cd "$SCRIPT_DIR/../developerhub-skeleton/developerhub" && pwd)"
+    build_dir="$(cd "$REPO_ROOT/../developerhub-skeleton/developerhub" && pwd)"
     _stage_tarballs "$build_dir"
     oc delete pod -A --field-selector=status.phase=Succeeded --ignore-not-found 2>/dev/null || true
     local build_name
@@ -839,8 +854,8 @@ update_plugin() {
     echo -e "${GREEN}  → イメージビルド完了${RESET}"
 
     echo -e "${BLUE}[3/5] プラグインサーバーを適用・再起動してtgzを再生成中...${RESET}"
-    oc apply -f "$SCRIPT_DIR/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE" 2>/dev/null || \
-        oc replace -f "$SCRIPT_DIR/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE"
+    oc apply -f "$REPO_ROOT/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE" 2>/dev/null || \
+        oc replace -f "$REPO_ROOT/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE"
     oc rollout restart deployment/plugin-proxy-server -n "$RHDH_NAMESPACE"
     oc rollout status deployment/plugin-proxy-server -n "$RHDH_NAMESPACE" --timeout=180s
     local server_pod
@@ -904,12 +919,12 @@ cleanup() {
     echo -e "${BLUE}クリーンナップ開始...${RESET}"
 
     ## 共通タスクの削除（ファイル名を deploy と統一: k8-plugin-sa.yaml）
-    oc delete -f "$SCRIPT_DIR/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
-    oc delete -f "$SCRIPT_DIR/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
-    oc delete -f "$SCRIPT_DIR/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
-    oc delete -f "$SCRIPT_DIR/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
-    oc delete -f "$SCRIPT_DIR/openshift/catalog-info.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
-    oc delete -f "$SCRIPT_DIR/openshift/k8-plugin-sa.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
+    oc delete -f "$REPO_ROOT/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
+    oc delete -f "$REPO_ROOT/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
+    oc delete -f "$REPO_ROOT/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
+    oc delete -f "$REPO_ROOT/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
+    oc delete -f "$REPO_ROOT/openshift/catalog-info.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
+    oc delete -f "$REPO_ROOT/openshift/k8-plugin-sa.yaml" -n "$RHDH_NAMESPACE" --ignore-not-found
 
     ## プロジェクトの削除
     oc delete project "$RHDH_NAMESPACE" --ignore-not-found

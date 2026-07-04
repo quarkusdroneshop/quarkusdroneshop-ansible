@@ -8,8 +8,8 @@
 # Version: 1.0
 #
 # Usage:
-#   ./openmetadata.sh deploy    - Deploy OpenMetadata and its dependencies.
-#   ./openmetadata.sh cleanup   - Uninstall OpenMetadata.
+#   ./script/openmetadata.sh deploy    - Deploy OpenMetadata and its dependencies.
+#   ./script/openmetadata.sh cleanup   - Uninstall OpenMetadata.
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -21,6 +21,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OPENMETADATASPACE="openmetadata"
 
 RED='\033[0;31m'
@@ -65,7 +66,7 @@ deploy() {
     helm repo update
     helm install openmetadata-dependencies open-metadata/openmetadata-dependencies \
         -n "$OPENMETADATASPACE" \
-        -f "$SCRIPT_DIR/openshift/values-openmetadata-dependencies.yaml"
+        -f "$REPO_ROOT/openshift/values-openmetadata-dependencies.yaml"
 
     # Helm が作成した Airflow ServiceAccount に anyuid を付与（SA は helm install 後に作られる）
     for sa in \
@@ -86,8 +87,8 @@ deploy() {
     oc delete pvc openmetadata-dependencies-dags -n "$OPENMETADATASPACE" --ignore-not-found=true
     oc delete pvc openmetadata-dependencies-logs -n "$OPENMETADATASPACE" --ignore-not-found=true
 
-    oc apply -f "$SCRIPT_DIR/openshift/openmetadata-dependencies-dags.yaml" -n "$OPENMETADATASPACE"
-    oc apply -f "$SCRIPT_DIR/openshift/openmetadata-dependencies-logs.yaml" -n "$OPENMETADATASPACE"
+    oc apply -f "$REPO_ROOT/openshift/openmetadata-dependencies-dags.yaml" -n "$OPENMETADATASPACE"
+    oc apply -f "$REPO_ROOT/openshift/openmetadata-dependencies-logs.yaml" -n "$OPENMETADATASPACE"
 
     oc label pvc openmetadata-dependencies-dags app.kubernetes.io/managed-by=Helm -n "$OPENMETADATASPACE"
     oc annotate pvc openmetadata-dependencies-dags \
@@ -104,7 +105,7 @@ deploy() {
     echo -e "${BLUE}[3/3] openmetadata をインストール中...${RESET}"
     helm install openmetadata open-metadata/openmetadata \
         -n "$OPENMETADATASPACE" \
-        -f "$SCRIPT_DIR/openshift/values-openmetadata.yaml"
+        -f "$REPO_ROOT/openshift/values-openmetadata.yaml"
     oc expose svc openmetadata -n "$OPENMETADATASPACE"
 
     echo -e "${GREEN}OpenMetadata のデプロイが完了しました。${RESET}"
