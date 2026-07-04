@@ -294,7 +294,7 @@ registry_starting_csv: service-registry-operator.v2.6.10
 ```
 
 もしオペレータのバージョンがあっていても失敗する場合、
-もう一度 ocpdeploy.sh を実行してみてください。
+もう一度 script/ocpdeploy.sh を実行してみてください。
 
 #### 不要なKafkaTopicをすべて消したい場合の対策
 > 利用時にはドメインなど間違えないように注意してください。

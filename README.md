@@ -58,7 +58,7 @@ jq          # JSON 処理
 
 ### 1. 環境設定ファイルの作成
 
-`source.env` をディレクトリ直下に作成します（`ocpdeploy.sh setup` が自動更新します）。
+`source.env` をディレクトリ直下に作成します（`script/ocpdeploy.sh setup` が自動更新します）。
 
 ```bash
 CLUSTER_DOMAIN_NAME=<クラスタドメイン>
