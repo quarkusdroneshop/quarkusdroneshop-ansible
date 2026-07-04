@@ -145,7 +145,7 @@ Pipeline 実行後は OpenShift コンソールの `quarkusdroneshop-cicd` プ�
 | `setup` | RHDH 名前空間・Operator・前提リソース作成 |
 | `deploy` | RHDH アプリデプロイ (ConfigMap / Secret / BackstageInstance 適用) |
 | `keycloak` | Keycloak の realm / client / ユーザー設定 |
-| `retoken` | GitHub トークン再発行・Secret 更新 |
+| `regithubtoken` | GitHub トークン再発行・Secret 更新 |
 | `target-token <domain>` | 対象クラスタの SA 永続トークン作成 |
 | `system-token` | A/B/C 全クラスタの SA トークン取得・Secret 更新 |
 | `customimage` | カスタム RHDH イメージのビルド |
@@ -160,7 +160,7 @@ Pipeline 実行後は OpenShift コンソールの `quarkusdroneshop-cicd` プ�
 | `deploy` | `openmetadata` プロジェクト作成・Secrets・SCC 付与・Helm で依存サービス + 本体をインストール |
 | `cleanup` | Helm アンインストール・プロジェクト削除 |
 
-### `script/aiagent.sh` — Enterprise AI Agent Platform 管理
+### `script/aiagent.sh` — Datamesh AI Agent Platform 管理
 
 | コマンド | 内容 |
 |---|---|

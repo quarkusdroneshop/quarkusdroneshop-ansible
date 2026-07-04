@@ -1,6 +1,13 @@
 # openmetadata-dependencies Helm values override
 # docker.getcollate.io のレートリミット回避のため Docker Hub を使用
+#
+# Airflow は無効化する。openmetadata本体側 (values-openmetadata.yaml) の
+# pipelineServiceClientConfig.type: "k8s" により、メタデータ収集パイプラインの
+# 実行は OpenShift ネイティブの Job (K8sPipelineClient) に任せる設計のため、
+# Airflow自体はOpenMetadataの動作に不要。Airflowはバージョンによって
+# OpenShift上での動作が不安定になることがあるため、依存を無くしておく。
 airflow:
+  enabled: false
   webserverSecretKey: "b0485e06fe7529ee781405e87e8ce2d18de6b79e7893712a3fa677f8c4df8533"
   images:
     airflow:

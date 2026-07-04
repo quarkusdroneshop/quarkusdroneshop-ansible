@@ -4,14 +4,14 @@
 # Description: This script sets up the developer-hub image and application skeleton.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2026-06-24
-# Version: 2.1
+# Last Modified: 2026-07-04
+# Version: 2.2
 #
 # Usage:
 #   ./script/developer-hub.sh setup           - To setup the environment.
 #   ./script/developer-hub.sh deploy          - To deploy the application.
 #   ./script/developer-hub.sh keycloak        - To setup Keycloak realm/client/user for RHDH.
-#   ./script/developer-hub.sh retoken         - Reissuing a GitHub token.
+#   ./script/developer-hub.sh regithubtoken    - Reissuing a GitHub token.
 #   ./script/developer-hub.sh target-token <domain> - Create persistent SA token for target cluster.
 #   ./script/developer-hub.sh system-token          - Create SA tokens for a/b/c-cluster and update secrets.
 #   ./script/developer-hub.sh cleanup         - To delete the application.
@@ -69,6 +69,53 @@ if [ "${1:-}" != "update-plugin" ]; then
     fi
 fi
 
+# secrets-rhdh が指すDBパスワードと、PostgreSQL Operator (Backstage CR) が
+# 実際に生成したパスワードが一致しているかを確認する。
+# 一致していないと backstage-backend が "password authentication failed" で
+# クラッシュループするため、デプロイ直後に検知できるようにする。
+# 値そのものは画面に出力せず、一致/不一致の判定のみ行う。
+_check_db_password_match() {
+    local psql_secret="backstage-psql-secret-developer-hub"
+    local rhdh_secret="secrets-rhdh"
+
+    echo -e "${BLUE}DBパスワードの整合性を確認中...${RESET}"
+
+    local psql_pw_b64=""
+    for i in $(seq 1 12); do
+        psql_pw_b64="$(oc get secret "$psql_secret" -n "$RHDH_NAMESPACE" \
+            -o jsonpath='{.data.POSTGRES_PASSWORD}' 2>/dev/null || true)"
+        [ -n "$psql_pw_b64" ] && break
+        sleep 5
+    done
+
+    if [ -z "$psql_pw_b64" ]; then
+        echo -e "${YELLOW}  → ${psql_secret} がまだ作成されていないためスキップします(Operatorのプロビジョニング待ちの可能性があります)${RESET}"
+        return 0
+    fi
+
+    local rhdh_pw_b64
+    rhdh_pw_b64="$(oc get secret "$rhdh_secret" -n "$RHDH_NAMESPACE" \
+        -o jsonpath='{.data.APP_CONFIG_backend_database_connection_password}' 2>/dev/null || true)"
+
+    if [ -z "$rhdh_pw_b64" ]; then
+        echo -e "${YELLOW}  → ${rhdh_secret} に DBパスワードのキーが見つからないためスキップします${RESET}"
+        return 0
+    fi
+
+    if [ "$psql_pw_b64" == "$rhdh_pw_b64" ]; then
+        echo -e "${GREEN}  → OK: DBパスワードは一致しています${RESET}"
+    else
+        echo -e "${RED}  ⚠ 警告: DBパスワードが一致していません！${RESET}" >&2
+        echo -e "${YELLOW}    ${psql_secret} (実際のPostgreSQLパスワード) と ${RESET}" >&2
+        echo -e "${YELLOW}    ${rhdh_secret} の APP_CONFIG_backend_database_connection_password が異なります。${RESET}" >&2
+        echo -e "${YELLOW}    backstage-backend が 'password authentication failed' でクラッシュループします。${RESET}" >&2
+        echo -e "${YELLOW}    修正例:${RESET}" >&2
+        echo -e "${YELLOW}      PW_B64=\$(oc get secret ${psql_secret} -o jsonpath='{.data.POSTGRES_PASSWORD}')${RESET}" >&2
+        echo -e "${YELLOW}      oc patch secret ${rhdh_secret} --type=json -p=\"[{\\\"op\\\":\\\"replace\\\",\\\"path\\\":\\\"/data/APP_CONFIG_backend_database_connection_password\\\",\\\"value\\\":\\\"\$PW_B64\\\"}]\"${RESET}" >&2
+        echo -e "${YELLOW}      oc rollout restart deployment/backstage-developer-hub${RESET}" >&2
+    fi
+}
+
 deploy() {
 
     oc project "$RHDH_NAMESPACE"
@@ -93,13 +140,31 @@ deploy() {
     echo -e "${BLUE}クラスタードメイン: ${APPS_DOMAIN}${RESET}"
 
     # secrets-rhdh.yaml の BASE_URL と AUTH_OIDC_METADATA_URL を現在のクラスタードメインで更新
+    # (クォート付き/無し どちらの表記でも確実にマッチするよう、各項目とも2パターン用意する。
+    #  以前 AUTH_OIDC_METADATA_URL がクォート無しで書かれていたためにこの置換がヒットせず、
+    #  古いクラスタードメインのままSSO認証が失敗する事故があったための対策)
     sed -i.bak \
         -e "s|BASE_URL: \"https://backstage-developer-hub-${RHDH_NAMESPACE}\.apps\.[^\"]*\"|BASE_URL: \"${RHDH_BASE_URL}\"|" \
+        -e "s|BASE_URL: https://backstage-developer-hub-${RHDH_NAMESPACE}\.apps\.[^[:space:]]*|BASE_URL: \"${RHDH_BASE_URL}\"|" \
         -e "s|AUTH_OIDC_METADATA_URL: \"https://sso\.apps\.[^\"]*\"|AUTH_OIDC_METADATA_URL: \"https://sso.${APPS_DOMAIN}/realms/rhdh/.well-known/openid-configuration\"|" \
+        -e "s|AUTH_OIDC_METADATA_URL: https://sso\.apps\.[^[:space:]]*|AUTH_OIDC_METADATA_URL: \"https://sso.${APPS_DOMAIN}/realms/rhdh/.well-known/openid-configuration\"|" \
         -e "s|K8S_CLUSTER_NAME: \"[^\"]*\"|K8S_CLUSTER_NAME: \"${CLUSTER_DOMAIN}\"|" \
+        -e "s|K8S_CLUSTER_NAME: [^\"[:space:]][^[:space:]]*|K8S_CLUSTER_NAME: \"${CLUSTER_DOMAIN}\"|" \
         -e "s|K8S_CLUSTER_URL: \"[^\"]*\"|K8S_CLUSTER_URL: \"${CLUSTER_API_URL}\"|" \
+        -e "s|K8S_CLUSTER_URL: [^\"[:space:]][^[:space:]]*|K8S_CLUSTER_URL: \"${CLUSTER_API_URL}\"|" \
         "$REPO_ROOT/openshift/secrets-rhdh.yaml"
     rm -f "$REPO_ROOT/openshift/secrets-rhdh.yaml.bak"
+
+    # 置換後、主要4項目が実際に現在のクラスタードメインを指しているか検証する
+    # (クォート有無以外の予期しない不一致でも、ここで気づけるようにする)
+    local _mismatch=0
+    for _key in BASE_URL AUTH_OIDC_METADATA_URL K8S_CLUSTER_NAME K8S_CLUSTER_URL; do
+        if ! grep -q "^  ${_key}:.*${CLUSTER_DOMAIN}" "$REPO_ROOT/openshift/secrets-rhdh.yaml"; then
+            echo -e "${RED}  ⚠ 警告: secrets-rhdh.yaml の ${_key} が現在のクラスタードメイン(${CLUSTER_DOMAIN})を指していません${RESET}" >&2
+            _mismatch=1
+        fi
+    done
+    [ "$_mismatch" -eq 0 ] && echo -e "${GREEN}  → secrets-rhdh.yaml のドメイン置換を確認しました${RESET}"
 
     # template.yaml の clusterDomain デフォルト値を更新
     local TEMPLATE_YAML="$REPO_ROOT/../developerhub-skeleton/template.yaml"
@@ -140,6 +205,9 @@ deploy() {
         -z rhdh-k8s-plugin \
         -n "$RHDH_NAMESPACE"
 
+    # DBパスワードの整合性確認（不一致の場合は警告のみ、デプロイは継続する）
+    _check_db_password_match
+
     # ロールアウト完了を待機（imagePullPolicy: Always は developer-hub.yaml で設定済み）
     echo -e "${BLUE}Deploymentのロールアウトを待機中...${RESET}"
     oc rollout status deployment/backstage-developer-hub \
@@ -158,15 +226,42 @@ deploy() {
 }
 
 _setup_build() {
-    # Docker設定ファイルの存在確認
-    if [ ! -f "$HOME/.docker/config.json" ]; then
-        echo -e "${RED}$HOME/.docker/config.json が見つかりません。registry.redhat.io へのログインが必要です。${RESET}" >&2
+    # registry.redhat.io の有効な認証情報を持つ設定ファイルを探す。
+    # podmanは既定で ~/.config/containers/auth.json、dockerは ~/.docker/config.json を
+    # 使い分けており、`podman login`していても~/.docker/config.jsonにはauthが空のまま
+    # 残ることがある。気づかずそちらをSecretへコピーするとイメージインポート時の
+    # "unauthorized" で初めて発覚するため、事前に両方probeして案内する
+    local candidates=(
+        "$HOME/.config/containers/auth.json"
+        "$HOME/.docker/config.json"
+    )
+    local auth_file=""
+    for f in "${candidates[@]}"; do
+        if [ -f "$f" ] && python3 -c "
+import json, sys
+with open('$f') as fh:
+    d = json.load(fh)
+auth = d.get('auths', {}).get('registry.redhat.io', {})
+sys.exit(0 if auth.get('auth') else 1)
+" 2>/dev/null; then
+            auth_file="$f"
+            break
+        fi
+    done
+
+    if [ -z "$auth_file" ]; then
+        echo -e "${RED}registry.redhat.io の有効な認証情報が見つかりません。${RESET}" >&2
+        echo -e "${YELLOW}Customer Portal アカウントでログインしてから再実行してください:${RESET}" >&2
+        echo "       docker login registry.redhat.io" >&2
+        echo "       (または: podman login registry.redhat.io)" >&2
         exit 1
     fi
 
+    echo "  registry.redhat.io の認証情報を使用: ${auth_file}"
+
     # Scopioの認証情報をセットする
     oc create secret generic redhat-pull-secret \
-        --from-file=.dockerconfigjson="$HOME/.docker/config.json" \
+        --from-file=.dockerconfigjson="$auth_file" \
         --type=kubernetes.io/dockerconfigjson \
         -n "$RHDH_NAMESPACE" \
         --dry-run=client -o yaml | oc apply -f -
@@ -341,7 +436,7 @@ keycloak() {
     # テストユーザー（ワークショップ参加者用）
     # 形式: "username:password:email:firstName:lastName"
     local -a TEST_USERS=(
-        "NorakiMushino:password0:norakimushino@example.com:Noraki:Mushino"
+        "nmushino:password0:nmushino@redhat.com:Noraki:Mushino"
         "User1:password1:user1@example.com:Workshop:User1"
         "User2:password2:user2@example.com:Workshop:User2"
         "User3:password3:user3@example.com:Workshop:User3"
@@ -353,10 +448,21 @@ keycloak() {
     echo -e "${YELLOW}Realm       : ${REALM}${RESET}"
     echo -e "-------------------------------------------"
 
-    # Keycloak 管理者パスワードの入力
-    local KEYCLOAK_ADMIN="admin"
-    local KEYCLOAK_ADMIN_PASSWORD
-    if [ -n "${KEYCLOAK_ADMIN_PASSWORD:-}" ]; then
+    # Keycloak 管理者ユーザー名・パスワードの入力
+    # (RHBK Operator のブートストラップ管理者名は "admin" 固定ではなく
+    #  keycloak-initial-admin Secret の username で決まる。例: temp-admin 等)
+    # 注意: bare な `local VAR` は環境変数からの値も空にシャドーイングしてしまうため、
+    # 必ず `local VAR="${VAR:-}"` の形で既存の値を保持してから判定すること
+    local KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-}"
+    if [ -n "$KEYCLOAK_ADMIN" ]; then
+        echo -e "${YELLOW}環境変数 KEYCLOAK_ADMIN を使用します: ${KEYCLOAK_ADMIN}${RESET}"
+    else
+        read -rp "Keycloak 管理者ユーザー名を入力してください [admin]: " KEYCLOAK_ADMIN
+        KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-admin}"
+    fi
+
+    local KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
+    if [ -n "$KEYCLOAK_ADMIN_PASSWORD" ]; then
         echo -e "${YELLOW}環境変数 KEYCLOAK_ADMIN_PASSWORD を使用します${RESET}"
     else
         read -rsp "Keycloak 管理者パスワードを入力してください: " KEYCLOAK_ADMIN_PASSWORD
@@ -375,7 +481,9 @@ keycloak() {
         | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token',''))" 2>/dev/null)
 
     if [ -z "$ADMIN_TOKEN" ]; then
-        echo -e "${RED}ERROR: admin トークン取得失敗。URL・パスワードを確認してください。${RESET}" >&2
+        echo -e "${RED}ERROR: admin トークン取得失敗。URL・ユーザー名(${KEYCLOAK_ADMIN})・パスワードを確認してください。${RESET}" >&2
+        echo -e "${YELLOW}  ヒント: RHBK Operator のブートストラップ管理者名は次で確認できます:${RESET}" >&2
+        echo -e "${YELLOW}    oc get secret keycloak-initial-admin -n keycloak -o jsonpath='{.data.username}' | base64 -d${RESET}" >&2
         exit 1
     fi
     echo -e "${GREEN}OK: admin トークン取得成功${RESET}"
@@ -455,9 +563,61 @@ keycloak() {
             }")
 
         case "$HTTP_CODE" in
-            201) echo -e "${GREEN}OK: ユーザー ${username} 作成成功${RESET}" ;;
-            409) echo -e "${YELLOW}SKIP: ユーザー ${username} は既に存在します${RESET}" ;;
-            *)   echo -e "${RED}ERROR: ユーザー ${username} 作成失敗 (HTTP ${HTTP_CODE})${RESET}" >&2; exit 1 ;;
+            201)
+                echo -e "${GREEN}OK: ユーザー ${username} 作成成功${RESET}"
+                ;;
+            409)
+                # 既に存在する場合は、TEST_USERS の内容(email/氏名/パスワード)で
+                # 上書き更新する。username で作成した際のズレ(例: 過去に別メールで
+                # 作成済みだった等)を再実行のたびに解消できるようにするため
+                local existing_id
+                existing_id=$(curl -sk -G \
+                    "${SSO_URL}/admin/realms/${REALM}/users" \
+                    -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+                    --data-urlencode "username=${username}" \
+                    --data-urlencode "exact=true" \
+                    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else '')" 2>/dev/null)
+
+                if [ -z "$existing_id" ]; then
+                    echo -e "${RED}ERROR: ユーザー ${username} のID取得に失敗しました${RESET}" >&2
+                    exit 1
+                fi
+
+                local update_code
+                update_code=$(curl -sk -o /dev/null -w "%{http_code}" -X PUT \
+                    "${SSO_URL}/admin/realms/${REALM}/users/${existing_id}" \
+                    -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -d "{
+                        \"email\": \"${email}\",
+                        \"enabled\": true,
+                        \"emailVerified\": true,
+                        \"firstName\": \"${first_name}\",
+                        \"lastName\": \"${last_name}\"
+                    }")
+
+                local pw_code
+                pw_code=$(curl -sk -o /dev/null -w "%{http_code}" -X PUT \
+                    "${SSO_URL}/admin/realms/${REALM}/users/${existing_id}/reset-password" \
+                    -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -d "{
+                        \"type\": \"password\",
+                        \"value\": \"${password}\",
+                        \"temporary\": false
+                    }")
+
+                if [ "$update_code" == "204" ] && [ "$pw_code" == "204" ]; then
+                    echo -e "${GREEN}UPDATE: ユーザー ${username} は既存のため属性(email等)とパスワードを更新しました${RESET}"
+                else
+                    echo -e "${RED}ERROR: ユーザー ${username} の更新に失敗しました (profile:${update_code} password:${pw_code})${RESET}" >&2
+                    exit 1
+                fi
+                ;;
+            *)
+                echo -e "${RED}ERROR: ユーザー ${username} 作成失敗 (HTTP ${HTTP_CODE})${RESET}" >&2
+                exit 1
+                ;;
         esac
     done
 
@@ -612,7 +772,7 @@ PVCEOF
     echo -e "${GREEN}Pipeline / PVC セットアップ完了${RESET}"
 }
 
-retoken() {
+regithubtoken() {
 
     local NEW_TOKEN
     if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -945,8 +1105,8 @@ case "${1:-}" in
     pipeline)
         pipeline "$@"
         ;;
-    retoken)
-        retoken
+    regithubtoken)
+        regithubtoken
         ;;
     customimage)
         customimage
@@ -968,7 +1128,7 @@ case "${1:-}" in
         ;;
     *)
         echo -e "${RED}無効なコマンドです: ${1:-（引数なし）}${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|retoken|target-token|system-token|customimage|resetcustombuild|update-plugin|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|regithubtoken|target-token|system-token|customimage|resetcustombuild|update-plugin|cleanup}${RESET}"
         echo -e "${YELLOW}  target-token <cluster-domain>  ターゲットクラスターの永続トークンを作成${RESET}"
         echo -e "${YELLOW}  system-token                   a/b/c-cluster の SA トークンを取得して secrets を更新${RESET}"
         exit 1

@@ -5,14 +5,14 @@ quarkusdroneshopを使ったDataMeshのデモアプリになります。
 オリジナルサイトは下記をご覧ください。
 Please see the Github Pages Site for complete documentation: [quarkusdroneshop.github.io](https://quarkusdroneshop.github.io)
 
-QuarkusCoffeeshop Install
+QuarkusDroneshop Install
 =========
 
 _NOTE:_ Ansible must be installed https://docs.ansible.com/ansible/latest/installation_guide/index.html
 
-The QuarkusCoffeeshop Ansbile Role performs a basic installation that includes the microservices for a droneshop, installation of the Crunchy PostgreSQL DB, AMQ Streams (Kafka.)
+The QuarkusDroneshop Ansbile Role performs a basic installation that includes the microservices for a droneshop, installation of the Crunchy PostgreSQL DB, AMQ Streams (Kafka.)
 
-The QuarkusCoffeeshop Role will deploy an event-driven demo application built with Quarkus, AMQ Streams (Kafka), and MongoDB. The application deploys to OpenShift (Kubernetes.)
+The QuarkusDroneshop Role will deploy an event-driven demo application built with Quarkus, AMQ Streams (Kafka), and MongoDB. The application deploys to OpenShift (Kubernetes.)
 The source code for the  [quarkusdroneshop](https://github.com/quarkusdroneshop) application support doc can be found  [here](https://github.com/quarkusdroneshop/quarkusdroneshop-support).
 
 ※ MongoDBはテスト用なのでデモでは利用しません。
@@ -85,7 +85,7 @@ curl  --request POST http://${ENDPOINT}/order \
 * Ansible should be installed on machine
 * oc cli must be installed
 * Ansible community.kubernetes module must be installed `ansible-galaxy collection install community.kubernetes`
-* [Postges Operator](https://github.com/tosin2013/postgres-operator) for Quarkus CoffeeShop 5.0.1-SNAPSHOT Deployments
+* [Postges Operator](https://github.com/tosin2013/postgres-operator) for Quarkus DroneShop 5.0.1-SNAPSHOT Deployments
 * pip3 
 * プロビジョニングはMacで実施しています
 * OpenShift CLI (oc) コマンドをインストールしていること
@@ -119,7 +119,7 @@ version_counter | Default container counter tag | 5.0.1-SNAPSHOT
 version_customermocker | Default container customermocker tag | 3.0.1
 version_QDCA10Pro | Default container QDCA10Pro tag | 5.0.0-SNAPSHOT
 version_web | Default container web tag | 5.0.1-SNAPSHOT
-helm_chart_version | Version of Qaurkus Cafe Helm Chart | 3.4.4
+helm_chart_version | Version of Qaurkus Drone Helm Chart | 3.4.4
 pgsql_username | Default postgress user  | droneshopadmin
 postgres_password | this is the postgress password that will be used in deployment| must be changed
 pgsql_url | default postgres URL | 'jdbc:postgresql://droneshopdb:5432/droneshopdb?currentSchema=droneshop'

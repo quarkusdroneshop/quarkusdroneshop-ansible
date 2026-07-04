@@ -99,7 +99,7 @@ jobs:
 
     - name: Deploy application
       run: |
-        echo "Deploying Quarkus Coffee Shop application"
+        echo "Deploying Quarkus Drone Shop application"
         source env.variables
         cat env.variables
         ./files/deploy-quarkusdroneshop-ansible.sh -d ${{ secrets.CLUSTER_DOMAIN_NAME }} -t ${{ secrets.OPENSHIFT_TOKEN }} -s RALEIGH || exit $?

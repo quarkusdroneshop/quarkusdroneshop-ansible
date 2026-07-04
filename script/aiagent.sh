@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Script Name: aiagent.sh
-# Description: Enterprise AI Agent Platform を OpenShift AI 上にデプロイする
+# Description: Datamesh AI Agent Platform を OpenShift AI 上にデプロイする
 # Author: Noriaki Mushino
 # Date Created: 2026-06-26
 # Last Modified: 2026-06-26
@@ -35,8 +35,8 @@ RHOAI_NAMESPACE="redhat-ods-operator"
 MODEL_NAMESPACE="redhat-ods-applications"
 CICD_NAMESPACE="ai-agent-cicd"
 
-PLATFORM_REPO="https://github.com/nmushino/enterprise-ai-agent-platform.git"
-PLATFORM_DIR="${SCRIPT_DIR}/tmp-enterprise-ai-agent-platform"
+PLATFORM_REPO="https://github.com/nmushino/datamesh-ai-agent-platform.git"
+PLATFORM_DIR="${SCRIPT_DIR}/tmp-datamesh-ai-agent-platform"
 
 # vLLM モデル設定 (環境変数で上書き可能)
 MODEL_NAME="${VLLM_MODEL_NAME:-ibm-granite/granite-20b-code-instruct-8k}"
@@ -51,8 +51,8 @@ CYAN='\033[0;36m'
 RESET='\033[0m'
 
 # ─── ロゴ ──────────────────────────────────────────────────────────────────────
-figlet "AI Agent" 2>/dev/null || echo "=== Enterprise AI Agent Platform ==="
-echo -e "${CYAN}Enterprise AI Agent Platform — OpenShift AI Deployment${RESET}"
+figlet "AI Agent" 2>/dev/null || echo "=== Datamesh AI Agent Platform ==="
+echo -e "${CYAN}Datamesh AI Agent Platform — OpenShift AI Deployment${RESET}"
 echo ""
 
 # ─── ログイン確認 ──────────────────────────────────────────────────────────────
@@ -499,7 +499,7 @@ deploy_prod() {
 
 # ─── status: 全コンポーネントの状態確認 ────────────────────────────────────────
 status() {
-    echo -e "${CYAN}=== Enterprise AI Agent Platform — 状態確認 ===${RESET}"
+    echo -e "${CYAN}=== Datamesh AI Agent Platform — 状態確認 ===${RESET}"
     echo ""
 
     echo -e "${BLUE}── AI Agent Platform (${AI_AGENT_NAMESPACE}) ──${RESET}"

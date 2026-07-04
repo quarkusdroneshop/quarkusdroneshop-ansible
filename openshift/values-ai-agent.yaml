@@ -1,4 +1,4 @@
-# Enterprise AI Agent Platform — Helm values (OpenShift 用)
+# Datamesh AI Agent Platform — Helm values (OpenShift 用)
 # aiagent.sh deploy コマンドから参照する設定ファイル
 # 環境固有の値は aiagent.sh 内で環境変数 / oc コマンドから動的に設定する
 

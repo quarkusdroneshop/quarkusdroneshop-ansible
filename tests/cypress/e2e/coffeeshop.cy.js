@@ -10,14 +10,14 @@ describe('template spec', () => {
     .should('be.visible')
     .click()
 
-    // モーダル画面で注文処理の実行/Coffee (black)
+    // モーダル画面で注文処理の実行/QDC_A101
     cy.get("div:nth-child(1)>div:nth-child(1)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).type("Noriaki Mushino")
     cy.get("button:nth-child(7)").click()
     cy.findByRole("button",{"name":"Place Order"}).click()
 
-    // モーダル画面で注文処理の実行/Coffee (with room)
+    // モーダル画面で注文処理の実行/QDC_A102
     cy.get("div:nth-child(1)>div:nth-child(2)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.get("button:nth-child(7)").click()

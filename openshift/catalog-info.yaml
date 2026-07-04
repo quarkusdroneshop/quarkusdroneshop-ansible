@@ -26,6 +26,7 @@ data:
     spec:
       profile:
         displayName: User 1
+        email: user1@example.com
       memberOf:
         - admins
     ---
@@ -36,6 +37,7 @@ data:
     spec:
       profile:
         displayName: User 2
+        email: user2@example.com
       memberOf:
         - admins
     ---
@@ -46,6 +48,7 @@ data:
     spec:
       profile:
         displayName: User 3
+        email: user3@example.com
       memberOf:
         - admins
     ---
