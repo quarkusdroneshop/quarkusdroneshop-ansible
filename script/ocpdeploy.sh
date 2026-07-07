@@ -52,6 +52,7 @@ usage() {
     echo -e "${YELLOW}使用方法:${RESET}"
     echo "  $0 setup                  OCP 環境セットアップ（demo NS）"
     echo "  $0 cleanup                demo NS の全リソース削除"
+    echo "  $0 acm                    RHACM への追加クラスタ import"
     echo ""
     echo "  $0 pipeline setup         Tekton Operator インストール"
     echo "  $0 pipeline deploy        Pipeline kustomize デプロイ"
@@ -70,7 +71,7 @@ usage() {
 # =============================================================================
 
 case "$1" in
-    setup|cleanup) ;;
+    setup|cleanup|acm) ;;
     pipeline)
         case "$2" in
             setup|deploy|config|cleanup) ;;
@@ -150,9 +151,6 @@ ocp_setup() {
 
     # Skupper Operator の準備（site作成等は引き続き `skupper deploy` で手動実行）
     skupper_operator_setup
-
-    # RHACM (MultiClusterHub) が導入されている場合のみ、追加クラスタのimportを行う
-    acm_import_cluster
 }
 
 # =============================================================================
@@ -579,8 +577,9 @@ skupper_cleanup() {
 # =============================================================================
 
 case "$1" in
-    setup)   ocp_setup    ;;
-    cleanup) ocp_cleanup  ;;
+    setup)   ocp_setup           ;;
+    cleanup) ocp_cleanup         ;;
+    acm)     acm_import_cluster  ;;
     pipeline)
         case "$2" in
             setup)   pipeline_setup   ;;
