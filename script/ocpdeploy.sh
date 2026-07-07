@@ -588,14 +588,6 @@ case "$1" in
     setup)   ocp_setup           ;;
     cleanup) ocp_cleanup         ;;
     acm)     acm_import_cluster  ;;
-    pipeline)
-        case "$2" in
-            setup)   pipeline_setup   ;;
-            deploy)  pipeline_deploy  ;;
-            config)  pipeline_config  ;;
-            cleanup) pipeline_cleanup ;;
-        esac
-        ;;
     skupper)
         case "$2" in
             deploy)  skupper_deploy  ;;
@@ -605,4 +597,13 @@ case "$1" in
             cleanup) skupper_cleanup ;;
         esac
         ;;
+    pipeline)
+        case "$2" in
+            setup)   pipeline_setup   ;;
+            deploy)  pipeline_deploy  ;;
+            config)  pipeline_config  ;;
+            cleanup) pipeline_cleanup ;;
+        esac
+        ;;
+
 esac
