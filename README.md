@@ -61,8 +61,6 @@ jq          # JSON 処理
 `source.env` をディレクトリ直下に作成します（`script/ocpdeploy.sh setup` が自動更新します）。
 
 ```bash
-CLUSTER_DOMAIN_NAME=<クラスタドメイン>
-TOKEN=<OCP ログイントークン>
 ACM_WORKLOADS=n
 AMQ_STREAMS=y
 CONFIGURE_POSTGRES=y

@@ -1,7 +1,5 @@
 ---
 # defaults file for quarkusdroneshop-demo-role
-openshift_token: 1234567890
-openshift_url: https://api.ocp4.example.com:6443
 default_owner: root
 default_group: root
 insecure_skip_tls_verify: true
@@ -37,7 +35,7 @@ replica_customermocker: 1
 replica_inventory: 1
 replica_QDCA10: 1
 replica_QDCA10Pro: 1
-replica_web: 1
+replica_web: 2
 replica_customerloyalty: 1
 
 # Postgres database information
