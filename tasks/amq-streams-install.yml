@@ -167,6 +167,18 @@
     - amq
     - acm-workload
 
+- name: Wait for AMQ Streams Console CSV to be ready
+  shell: "{{ oc_location }} get csv -n {{ project_namespace }} -o json"
+  register: r_console_csv_raw
+  changed_when: false
+  retries: 20
+  delay: 30
+  until: (r_console_csv_raw.stdout | from_json | json_query("items[?starts_with(metadata.name, 'amq-streams-console.') && status.phase=='Succeeded']")) | length == 1
+  when: not delete_deployment|bool
+  tags:
+    - amq
+    - acm-workload
+
 - name: Create Kafka Console
   kubernetes.core.k8s:
     state: present
