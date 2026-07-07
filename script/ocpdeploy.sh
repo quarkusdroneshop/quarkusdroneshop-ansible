@@ -131,9 +131,17 @@ fi
 ocp_setup() {
     echo "セットアップ開始..."
 
-    # source.env の CLUSTER_DOMAIN_NAME と TOKEN を更新
-    sed -i '' "s/^CLUSTER_DOMAIN_NAME=.*$/CLUSTER_DOMAIN_NAME=$DOMAIN_NAME/" "$REPO_ROOT/$ENV_FILE"
-    sed -i '' "s/^TOKEN=.*$/TOKEN=$DOMAIN_TOKEN/" "$REPO_ROOT/$ENV_FILE"
+    # source.env の CLUSTER_DOMAIN_NAME と TOKEN を更新（行が無ければ追加する）
+    if grep -q "^CLUSTER_DOMAIN_NAME=" "$REPO_ROOT/$ENV_FILE"; then
+        sed -i '' "s/^CLUSTER_DOMAIN_NAME=.*$/CLUSTER_DOMAIN_NAME=$DOMAIN_NAME/" "$REPO_ROOT/$ENV_FILE"
+    else
+        echo "CLUSTER_DOMAIN_NAME=$DOMAIN_NAME" >> "$REPO_ROOT/$ENV_FILE"
+    fi
+    if grep -q "^TOKEN=" "$REPO_ROOT/$ENV_FILE"; then
+        sed -i '' "s/^TOKEN=.*$/TOKEN=$DOMAIN_TOKEN/" "$REPO_ROOT/$ENV_FILE"
+    else
+        echo "TOKEN=$DOMAIN_TOKEN" >> "$REPO_ROOT/$ENV_FILE"
+    fi
 
     # プロジェクトの作成
     oc new-project "$NAMESPACE"
