@@ -52,7 +52,6 @@ usage() {
     echo -e "${YELLOW}使用方法:${RESET}"
     echo "  $0 setup                  OCP 環境セットアップ（demo NS）"
     echo "  $0 cleanup                demo NS の全リソース削除"
-    echo "  $0 acm                    RHACM への追加クラスタ import"
     echo ""
     echo "  $0 skupper deploy         Skupper + Kafka クラスター構築"
     echo "  $0 skupper retoken        Skupper トークン再作成"
@@ -72,7 +71,7 @@ usage() {
 # =============================================================================
 
 case "$1" in
-    setup|cleanup|acm) ;;
+    setup|cleanup) ;;
     pipeline)
         case "$2" in
             setup|deploy|config|cleanup) ;;
@@ -163,87 +162,6 @@ ocp_setup() {
 
     # Tekton Operator の準備（pipeline deploy 等は引き続き `pipeline deploy` で手動実行）
     pipeline_setup
-}
-
-# =============================================================================
-# RHACM: 追加クラスタの import（ACM_WORKLOADS=y でハブを構築済みの場合のみ）
-# =============================================================================
-
-acm_import_cluster() {
-    echo -e "${YELLOW}-------------------------------------------${RESET}"
-
-    if ! oc get multiclusterhub -n open-cluster-management &>/dev/null; then
-        echo -e "${YELLOW}RHACM (MultiClusterHub) が見つかりません。importをスキップします。${RESET}"
-        echo -e "${YELLOW}(ACM_WORKLOADS=y でハブを構築した場合のみ、このステップは有効になります)${RESET}"
-        return
-    fi
-
-    read -p "追加クラスタをRHACMにimportしますか？(yes/no): " ACM_IMPORT_CONFIRM
-    if [ "$ACM_IMPORT_CONFIRM" != "yes" ]; then
-        echo "importをスキップします。"
-        return
-    fi
-
-    echo -e "${YELLOW}利用可能な oc context 一覧:${RESET}"
-    oc config get-contexts -o name
-
-    read -p "importするクラスタの oc context 名を入力してください: " TARGET_CONTEXT
-    if ! oc config get-contexts -o name | grep -qx "$TARGET_CONTEXT"; then
-        echo -e "${RED}指定された context が見つかりません: $TARGET_CONTEXT${RESET}"
-        return 1
-    fi
-
-    read -p "RHACM上でのクラスタ名を入力してください: " TARGET_CLUSTER_NAME
-    if [ -z "$TARGET_CLUSTER_NAME" ]; then
-        echo -e "${RED}クラスタ名が指定されていません。${RESET}"
-        return 1
-    fi
-
-    HUB_CONTEXT=$(oc config current-context)
-    echo -e "${BLUE}ハブ context: $HUB_CONTEXT / 対象 context: $TARGET_CONTEXT${RESET}"
-
-    # --- ハブ側: namespace + ManagedCluster を作成 ---
-    oc --context="$HUB_CONTEXT" get namespace "$TARGET_CLUSTER_NAME" >/dev/null 2>&1 || \
-        oc --context="$HUB_CONTEXT" create namespace "$TARGET_CLUSTER_NAME"
-
-    cat <<EOF | oc --context="$HUB_CONTEXT" apply -f -
-apiVersion: cluster.open-cluster-management.io/v1
-kind: ManagedCluster
-metadata:
-  name: ${TARGET_CLUSTER_NAME}
-spec:
-  hubAcceptsClient: true
-EOF
-
-    # --- import 用マニフェストが自動生成される Secret を待つ ---
-    echo -e "${BLUE}import 用 Secret の生成を待っています...${RESET}"
-    until oc --context="$HUB_CONTEXT" get secret "${TARGET_CLUSTER_NAME}-import" -n "$TARGET_CLUSTER_NAME" &>/dev/null; do
-        sleep 5
-    done
-
-    # --- 生成された CRD / import マニフェストを対象クラスタへ適用 ---
-    echo -e "${BLUE}klusterlet CRD を対象クラスタへ適用中...${RESET}"
-    oc --context="$HUB_CONTEXT" get secret "${TARGET_CLUSTER_NAME}-import" -n "$TARGET_CLUSTER_NAME" \
-        -o jsonpath='{.data.crds\.yaml}' | base64 --decode | oc --context="$TARGET_CONTEXT" apply -f -
-
-    sleep 10
-
-    echo -e "${BLUE}import マニフェストを対象クラスタへ適用中...${RESET}"
-    oc --context="$HUB_CONTEXT" get secret "${TARGET_CLUSTER_NAME}-import" -n "$TARGET_CLUSTER_NAME" \
-        -o jsonpath='{.data.import\.yaml}' | base64 --decode | oc --context="$TARGET_CONTEXT" apply -f -
-
-    # --- ハブ側で join 完了を待つ ---
-    echo -e "${BLUE}クラスタの join を待っています（数分かかることがあります）...${RESET}"
-    for i in $(seq 1 40); do
-        AVAILABLE=$(oc --context="$HUB_CONTEXT" get managedcluster "$TARGET_CLUSTER_NAME" \
-            -o jsonpath='{.status.conditions[?(@.type=="ManagedClusterConditionAvailable")].status}' 2>/dev/null)
-        if [ "$AVAILABLE" == "True" ]; then
-            echo -e "${GREEN}クラスタ ${TARGET_CLUSTER_NAME} の import が完了しました。${RESET}"
-            return 0
-        fi
-        sleep 30
-    done
-    echo -e "${RED}タイムアウトしました。RHACM コンソールでステータスを確認してください。${RESET}"
 }
 
 ocp_cleanup() {
@@ -591,9 +509,8 @@ skupper_cleanup() {
 # =============================================================================
 
 case "$1" in
-    setup)   ocp_setup           ;;
-    cleanup) ocp_cleanup         ;;
-    acm)     acm_import_cluster  ;;
+    setup)   ocp_setup    ;;
+    cleanup) ocp_cleanup  ;;
     skupper)
         case "$2" in
             deploy)  skupper_deploy  ;;

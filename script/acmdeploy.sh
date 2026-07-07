@@ -7,6 +7,7 @@
 # Usage:
 #   ./script/acmdeploy.sh setup     - RHACM Operator インストール + MultiClusterHub 作成
 #   ./script/acmdeploy.sh cleanup   - RHACM Operator + MultiClusterHub 削除
+#   ./script/acmdeploy.sh acmlink   - 追加クラスタを RHACM へ import
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -30,6 +31,7 @@ usage() {
     echo -e "${YELLOW}使用方法:${RESET}"
     echo "  $0 setup       RHACM Operator インストール + MultiClusterHub 作成"
     echo "  $0 cleanup     RHACM Operator + MultiClusterHub 削除"
+    echo "  $0 acmlink     追加クラスタを RHACM へ import"
 }
 
 # =============================================================================
@@ -37,7 +39,7 @@ usage() {
 # =============================================================================
 
 case "$1" in
-    setup|cleanup) ;;
+    setup|cleanup|acmlink) ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
         usage; exit 1
@@ -151,7 +153,7 @@ EOF
         PHASE=$(oc get multiclusterhub multiclusterhub -n "$ACM_NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null)
         if [ "$PHASE" = "Running" ]; then
             echo -e "${GREEN}MultiClusterHub が Running になりました。${RESET}"
-            echo -e "${GREEN}追加クラスタの import は './script/ocpdeploy.sh acm' から行えます。${RESET}"
+            echo -e "${GREEN}追加クラスタの import は './script/acmdeploy.sh acmlink' から行えます。${RESET}"
             return 0
         fi
         if [ "$i" = "40" ]; then
@@ -160,6 +162,76 @@ EOF
         fi
         sleep 30
     done
+}
+
+acmlink() {
+    echo -e "${YELLOW}-------------------------------------------${RESET}"
+
+    if ! oc get multiclusterhub -n "$ACM_NAMESPACE" &>/dev/null; then
+        echo -e "${YELLOW}RHACM (MultiClusterHub) が見つかりません。先に './script/acmdeploy.sh setup' を実行してください。${RESET}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}利用可能な oc context 一覧:${RESET}"
+    oc config get-contexts -o name
+
+    read -p "importするクラスタの oc context 名を入力してください: " TARGET_CONTEXT
+    if ! oc config get-contexts -o name | grep -qx "$TARGET_CONTEXT"; then
+        echo -e "${RED}指定された context が見つかりません: $TARGET_CONTEXT${RESET}"
+        return 1
+    fi
+
+    read -p "RHACM上でのクラスタ名を入力してください: " TARGET_CLUSTER_NAME
+    if [ -z "$TARGET_CLUSTER_NAME" ]; then
+        echo -e "${RED}クラスタ名が指定されていません。${RESET}"
+        return 1
+    fi
+
+    HUB_CONTEXT=$(oc config current-context)
+    echo -e "${BLUE}ハブ context: $HUB_CONTEXT / 対象 context: $TARGET_CONTEXT${RESET}"
+
+    # --- ハブ側: namespace + ManagedCluster を作成 ---
+    oc --context="$HUB_CONTEXT" get namespace "$TARGET_CLUSTER_NAME" >/dev/null 2>&1 || \
+        oc --context="$HUB_CONTEXT" create namespace "$TARGET_CLUSTER_NAME"
+
+    cat <<EOF | oc --context="$HUB_CONTEXT" apply -f -
+apiVersion: cluster.open-cluster-management.io/v1
+kind: ManagedCluster
+metadata:
+  name: ${TARGET_CLUSTER_NAME}
+spec:
+  hubAcceptsClient: true
+EOF
+
+    # --- import 用マニフェストが自動生成される Secret を待つ ---
+    echo -e "${BLUE}import 用 Secret の生成を待っています...${RESET}"
+    until oc --context="$HUB_CONTEXT" get secret "${TARGET_CLUSTER_NAME}-import" -n "$TARGET_CLUSTER_NAME" &>/dev/null; do
+        sleep 5
+    done
+
+    # --- 生成された CRD / import マニフェストを対象クラスタへ適用 ---
+    echo -e "${BLUE}klusterlet CRD を対象クラスタへ適用中...${RESET}"
+    oc --context="$HUB_CONTEXT" get secret "${TARGET_CLUSTER_NAME}-import" -n "$TARGET_CLUSTER_NAME" \
+        -o jsonpath='{.data.crds\.yaml}' | base64 --decode | oc --context="$TARGET_CONTEXT" apply -f -
+
+    sleep 10
+
+    echo -e "${BLUE}import マニフェストを対象クラスタへ適用中...${RESET}"
+    oc --context="$HUB_CONTEXT" get secret "${TARGET_CLUSTER_NAME}-import" -n "$TARGET_CLUSTER_NAME" \
+        -o jsonpath='{.data.import\.yaml}' | base64 --decode | oc --context="$TARGET_CONTEXT" apply -f -
+
+    # --- ハブ側で join 完了を待つ ---
+    echo -e "${BLUE}クラスタの join を待っています（数分かかることがあります）...${RESET}"
+    for i in $(seq 1 40); do
+        AVAILABLE=$(oc --context="$HUB_CONTEXT" get managedcluster "$TARGET_CLUSTER_NAME" \
+            -o jsonpath='{.status.conditions[?(@.type=="ManagedClusterConditionAvailable")].status}' 2>/dev/null)
+        if [ "$AVAILABLE" == "True" ]; then
+            echo -e "${GREEN}クラスタ ${TARGET_CLUSTER_NAME} の import が完了しました。${RESET}"
+            return 0
+        fi
+        sleep 30
+    done
+    echo -e "${RED}タイムアウトしました。RHACM コンソールでステータスを確認してください。${RESET}"
 }
 
 acm_cleanup() {
@@ -186,4 +258,5 @@ acm_cleanup() {
 case "$1" in
     setup)   acm_setup   ;;
     cleanup) acm_cleanup ;;
+    acmlink) acmlink     ;;
 esac
