@@ -148,6 +148,9 @@ ocp_setup() {
     oc adm policy add-scc-to-user anyuid -z droneshopdb-instance -n "$NAMESPACE"
     oc adm policy add-scc-to-user privileged -z default -n "$NAMESPACE"
 
+    # Skupper Operator の準備（site作成等は引き続き `skupper deploy` で手動実行）
+    skupper_operator_setup
+
     # RHACM (MultiClusterHub) が導入されている場合のみ、追加クラスタのimportを行う
     acm_import_cluster
 }
@@ -360,7 +363,7 @@ pipeline_cleanup() {
 # Skupper サブコマンド
 # =============================================================================
 
-skupper_deploy() {
+skupper_operator_setup() {
     oc project "$NAMESPACE"
 
     echo -e "${BLUE}Skupper Operator をインストール中...${RESET}"
@@ -369,6 +372,10 @@ skupper_deploy() {
     echo -e "${BLUE}Skupper CRD の準備を待っています...${RESET}"
     until oc get crd sites.skupper.io &>/dev/null; do sleep 5; done
     echo -e "${GREEN}  → Skupper CRD 準備完了${RESET}"
+}
+
+skupper_deploy() {
+    skupper_operator_setup
 
     read -p "どのサイトを構築しますか？(A/B/C/DH): " SITE_CONFREM
 
