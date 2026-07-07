@@ -5,3 +5,8 @@ metadata:
 spec:
   profile: all
   targetNamespace: openshift-pipelines
+  pruner:
+    resources:
+      - pipelinerun
+    keep: 10
+    schedule: "0 8 * * *"
