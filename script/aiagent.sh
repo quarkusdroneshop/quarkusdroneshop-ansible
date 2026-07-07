@@ -185,6 +185,88 @@ spec:
   source: redhat-operators
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  annotations:
+    strimzi.io/kraft: enabled
+    strimzi.io/node-pools: enabled
+  name: aiagent-cluster
+  namespace: openshift-operators
+  labels:
+    environment: dev
+spec:
+  kafka:
+    version: "4.1.0"
+    controllerReplicas: 3
+    config:
+      process.roles: "controller,broker"
+      controller.listener.names: CONTROLLER
+      log.dirs: "/var/lib/kafka/data"
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 3
+      min.insync.replicas: 2
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: agent-cluster-controllers
+  namespace: openshift-operators
+  labels:
+    strimzi.io/cluster: aiagent-cluster
+spec:
+  replicas: 3
+  roles:
+    - controller
+  storage:
+    type: persistent-claim
+    size: 10Gi
+    deleteClaim: false
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: agent-cluster-brokers
+  namespace: openshift-operators
+  labels:
+    strimzi.io/cluster: aiagent-cluster
+spec:
+  replicas: 3
+  roles:
+    - broker
+  storage:
+    type: persistent-claim
+    size: 10Gi
+    deleteClaim: false
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: history
+  namespace: openshift-operators
+  labels:
+    strimzi.io/cluster: aiagent-cluster
+spec:
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
 EOF
         echo -e "${GREEN}  → Streams for Apache Kafka Subscription を openshift-operators に適用しました${RESET}"
         _wait_operator "openshift-operators" "amqstreams" 300
@@ -204,7 +286,7 @@ metadata:
   namespace: openshift-operators
 spec:
   channel: stable
-  name: amq-streams-console
+  name: aiagent-cluster
   source: redhat-operators
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic
