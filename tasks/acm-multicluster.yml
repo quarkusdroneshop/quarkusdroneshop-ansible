@@ -1,0 +1,89 @@
+---
+- name: check if open-cluster-management project exists
+  shell: "{{ oc_location }} get project open-cluster-management"
+  register: acm_project
+  ignore_errors: true
+  changed_when: false
+  tags: acm
+
+- name: create open-cluster-management project
+  command: "{{ oc_location }} adm new-project open-cluster-management"
+  when: acm_project is failed
+  ignore_errors: true
+  tags: acm
+
+- name: Create Operator group for RHACM
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'operator-group.yaml.j2') }}"
+  vars:
+    project_namespace: open-cluster-management
+  when: not delete_deployment | bool
+  tags: acm
+
+- name: Retrieve Advanced Cluster Management PackageManifest
+  kubernetes.core.k8s_info:
+    api_version: packages.operators.coreos.com/v1
+    kind: PackageManifest
+    name: advanced-cluster-management
+    namespace: open-cluster-management
+  register: acm_manifest
+  when: not delete_deployment|bool
+  tags: acm
+
+- name: Determine RHACM default channel
+  set_fact:
+    acm_channel: "{{ acm_manifest | json_query('resources[0].status.defaultChannel') }}"
+  when: not delete_deployment|bool
+  tags: acm
+
+- name: Determine latest RHACM CSV
+  set_fact:
+    acmstartingCSV: "{{ acm_manifest | json_query('resources[*].status.channels[?name==`' + acm_channel + '`].currentCSV') | first | first }}"
+  when: not delete_deployment|bool
+  tags: acm
+
+- name: Create Advanced Cluster Management subscription
+  kubernetes.core.k8s:
+    state: present
+    namespace: open-cluster-management
+    definition: "{{ lookup('template', 'acm-multiclusterhub-sub.yaml.j2') }}"
+  when: not delete_deployment|bool
+  tags: acm
+
+- name: Wait for RHACM CSV to be ready
+  shell: "{{ oc_location }} get csv -n open-cluster-management -o json"
+  register: r_acm_csv_raw
+  changed_when: false
+  retries: 30
+  delay: 60
+  until: (r_acm_csv_raw.stdout | from_json | json_query("items[?starts_with(metadata.name, 'advanced-cluster-management.') && status.phase=='Succeeded']")) | length == 1
+  when: not delete_deployment|bool
+  tags: acm
+
+- name: Create MultiClusterHub
+  kubernetes.core.k8s:
+    state: present
+    namespace: open-cluster-management
+    definition: "{{ lookup('template', 'multiclusterhub.yaml.j2') }}"
+  when: not delete_deployment|bool
+  tags: acm
+
+- name: Wait for MultiClusterHub to be Running
+  shell: "{{ oc_location }} get multiclusterhub -n open-cluster-management -o json"
+  register: r_mch_raw
+  changed_when: false
+  retries: 40
+  delay: 30
+  until: (r_mch_raw.stdout | from_json | json_query("items[?status.phase=='Running']")) | length == 1
+  when: not delete_deployment|bool
+  tags: acm
+
+- name: Display MultiClusterHub status
+  debug:
+    msg: >-
+      MultiClusterHub is Running in namespace open-cluster-management.
+      Import additional clusters via the RHACM console
+      (Infrastructure > Clusters > Import cluster) or by creating ManagedCluster resources.
+  when: not delete_deployment|bool
+  tags: acm

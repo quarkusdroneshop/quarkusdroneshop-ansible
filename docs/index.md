@@ -111,8 +111,6 @@ insecure_skip_tls_verify  |  Skip insecure tls verify  |  true
 default_owner | Default owner of template files. | root
 default_group | Default group of template files. |  root
 delete_deployment  | delete the deployment and project for quarkusdroneshop-demo  | false
-amqstartingCSV  | Red Hat AMQ csv version  |  amqstreams.v2.9.0-2
-mongodbstartingCSV  | MongoDB Ops Manager version  |  mongodb-enterprise.v1.8.0
 config_location  | default location for application templates  | "/tmp/"
 version_QDCA10 | Default container QDCA10 tag | 5.0.0-SNAPSHOT
 version_counter | Default container counter tag | 5.0.1-SNAPSHOT
@@ -283,13 +281,11 @@ oc get crds -o name | grep '.*\.strimzi\.io' | xargs -r -n 1 oc delete
 #### KafkaやPostgresのインスタンス生成で失敗するとき
 
 Operatorがバージョンアップが変わっている可能性があります。
-defaults/mailn.yamlのバージョンをオペレータに合わせて修正してください。
+amqstartingCSVとcrunchystartingCSVはPackageManifestから都度最新のCSVを自動解決するため、手動修正は不要です。
+registry_starting_csvはdefaults/main.ymlのバージョンをオペレータに合わせて修正してください。
 修正後反映するには、コミット、Pushまで行う必要があることに注意くしてください。
 
 ```
-amqstartingCSV: amqstreams.v2.9.0-2
-mongodbstartingCSV: mongodb-enterprise.v1.32.0
-crunchystartingCSV: postgresoperator.v5.8.2
 registry_starting_csv: service-registry-operator.v2.6.10
 ```
 

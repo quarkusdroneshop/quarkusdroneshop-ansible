@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: quarkusdroneshop-pipelines
-secrets:
-  - name: quay-user-pass

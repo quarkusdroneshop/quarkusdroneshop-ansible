@@ -127,7 +127,7 @@ function run_tags(){
   fi 
 
   case $1 in
-    ACM_WORKLOADS) echo -n "quay gogs pipelines gitops acm-workload " >> /tmp/tags.temp ;;
+    ACM_WORKLOADS) echo -n "acm " >> /tmp/tags.temp ;;
     AMQ_STREAMS) echo -n "amq " >> /tmp/tags.temp ;;
     CONFIGURE_POSTGRES) echo -n "postgres " >> /tmp/tags.temp ;;
     MONGODB_OPERATOR) echo -n "mongodb-operator " >> /tmp/tags.temp ;;
@@ -245,20 +245,6 @@ else
 
 fi
 
-OC_VERSION=$(oc version  | grep Client | awk '{print $3}' | grep -oE "4.[0-20][0-9]")
-if [ -z "${OC_VERSION}" ];
-then
-  OC_VERSION=$(oc version  | grep Client | grep -o  "[4].[*]")
-  exit 
-fi
-
-if [ $OC_VERSION == '4.8' ];
-then 
-  QUAY_URL="quayecosystem-quay-{{ quay_project_name }}.router-default"
-else
-  QUAY_URL="quayecosystem-quay-{{ quay_project_name }}"
-fi 
-
 cat >/tmp/deploy-quarkus-shop.yml<<YAML
 - hosts: localhost
   become: yes
@@ -272,8 +258,6 @@ cat >/tmp/deploy-quarkus-shop.yml<<YAML
     delete_deployment: "${DESTROY}"
     domain: ${DOMAIN}
     storeid: ${STORE_ID}
-    oc_version: ${OC_VERSION}
-    quay_urlprefix: ${QUAY_URL}
   roles:
     - quarkusdroneshop-ansible
 YAML
@@ -289,27 +273,6 @@ case "${unameOut}" in
     MINGW*)     machine=MinGw;;
     *)          machine="UNKNOWN:${unameOut}"
 esac
-
-
-if [ "${machine}" == 'Linux' ] && [ -f /bin/ansible ];
-then 
-  if [ "${DESTROY}" == false ];
-  then 
-    configure-ansible-and-playbooks
-  else 
-    destory_drone_shop
-  fi
-elif [ "${machine}" == 'Mac' ] && [ -f /usr/local/bin/ansible ];
-then
-  if [ "${DESTROY}" == false ];
-  then 
-    configure-ansible-and-playbooks
-  else 
-    destory_drone_shop
-  fi
-else 
-  install_ansible
-fi 
 
 
 if [ "${machine}" == 'Linux' ]; then

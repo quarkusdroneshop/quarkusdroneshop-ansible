@@ -1,0 +1,32 @@
+---
+- name: Delete MultiClusterHub
+  kubernetes.core.k8s:
+    state: absent
+    namespace: open-cluster-management
+    definition: "{{ lookup('template', 'multiclusterhub.yaml.j2') }}"
+  ignore_errors: true
+  tags: acm
+
+- name: Retrieve installed RHACM CSV for cleanup
+  shell: "{{ oc_location }} get csv -n open-cluster-management -o json"
+  register: r_acm_csv_cleanup
+  ignore_errors: true
+  changed_when: false
+  tags: acm
+
+- name: delete Advanced Cluster Management CSV
+  command: "{{ oc_location }} delete csv {{ item }} -n open-cluster-management"
+  loop: "{{ r_acm_csv_cleanup.stdout | from_json | json_query('items[*].metadata.name') }}"
+  when: r_acm_csv_cleanup.stdout is defined and r_acm_csv_cleanup.stdout | length > 0
+  ignore_errors: true
+  tags: acm
+
+- name: Remove Advanced Cluster Management subscription
+  command: "{{ oc_location }} delete subscription advanced-cluster-management -n open-cluster-management"
+  ignore_errors: true
+  tags: acm
+
+- name: delete open-cluster-management project
+  command: "{{ oc_location }} delete project open-cluster-management"
+  ignore_errors: true
+  tags: acm

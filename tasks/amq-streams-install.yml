@@ -25,44 +25,59 @@
   - amq
   - acm-workload
     
+- name: Retrieve AMQ Streams PackageManifest
+  kubernetes.core.k8s_info:
+    api_version: packages.operators.coreos.com/v1
+    kind: PackageManifest
+    name: amq-streams
+    namespace: "{{ project_namespace }}"
+  register: amq_manifest
+  when: not delete_deployment|bool
+  tags:
+    - amq
+    - acm-workload
+
+- name: Determine latest AMQ Streams CSV
+  set_fact:
+    amqstartingCSV: "{{ amq_manifest | json_query('resources[*].status.channels[?name==`' + amqchannel + '`].currentCSV') | first | first }}"
+  when: not delete_deployment|bool
+  tags:
+    - amq
+    - acm-workload
+
 - name: Create AMQ Subscription
   kubernetes.core.k8s:
     state: present
     definition: "{{ lookup('template', 'amq-sub.yaml.j2') }}"
   register: rbac_result
   when: not delete_deployment|bool
-  tags: 
+  tags:
     - amq
     - acm-workload
 
 - name: Wait for AMQ CRD to be ready
-  kubernetes.core.k8s_info:
-    api_version: operators.coreos.com/v1alpha1
-    kind: ClusterServiceVersion
-    namespace: "{{ project_namespace }}"
-    field_selectors:
-      - metadata.name={{ amqstartingCSV }}
-  register: r_amq_crd
+  shell: "{{ oc_location }} get csv -n {{ project_namespace }} -o json"
+  register: r_amq_crd_raw
+  changed_when: false
   retries: 20
   delay: 60
-  until: r_amq_crd.resources | list | length == 1
+  until: (r_amq_crd_raw.stdout | from_json | json_query("items[?starts_with(metadata.name, 'amqstreams.') && status.phase=='Succeeded']")) | length == 1
   when: not delete_deployment|bool
-  tags: 
+  tags:
+    - amq
+    - acm-workload
+
+- name: Extract AMQ Streams CSV
+  set_fact:
+    amq_csv_matches: "{{ r_amq_crd_raw.stdout | from_json | json_query(\"items[?starts_with(metadata.name, 'amqstreams.') && status.phase=='Succeeded']\") }}"
+  when: not delete_deployment|bool
+  tags:
     - amq
     - acm-workload
 
 - name: Display AMQ install status
   debug:
-    var: r_amq_crd.resources[0].status
-  when: not delete_deployment|bool
-  tags: 
-    - amq
-    - acm-workload
-
-- name: Setting amq installed fact
-  set_fact:
-    amq_installed: "{{ r_amq_crd.resources[0].status }}"
-  ignore_errors: false
+    var: amq_csv_matches
   when: not delete_deployment|bool
   tags:
     - amq
@@ -70,8 +85,17 @@
 
 - name: fail when AMQ subscription if not ready
   fail:
-    msg: AMQ subscription is not Present on cluster
-  when: amq_installed is not defined and not delete_deployment|bool
+    msg: "AMQ Streams CSV (amqstreams.*) is not in Succeeded phase in namespace {{ project_namespace }}"
+  when: not delete_deployment|bool and (amq_csv_matches | length != 1)
+  tags:
+    - amq
+    - acm-workload
+
+- name: Setting amq installed fact
+  set_fact:
+    amq_installed: "{{ amq_csv_matches[0].status }}"
+  ignore_errors: false
+  when: not delete_deployment|bool
   tags:
     - amq
     - acm-workload
@@ -113,13 +137,33 @@
     - amq
     - acm-workload
 
+- name: Retrieve AMQ Streams Console PackageManifest
+  kubernetes.core.k8s_info:
+    api_version: packages.operators.coreos.com/v1
+    kind: PackageManifest
+    name: amq-streams-console
+    namespace: "{{ project_namespace }}"
+  register: amq_console_manifest
+  when: not delete_deployment|bool
+  tags:
+    - amq
+    - acm-workload
+
+- name: Determine latest AMQ Streams Console CSV
+  set_fact:
+    consolestartingCSV: "{{ amq_console_manifest | json_query('resources[*].status.channels[?name==`' + consolechannel + '`].currentCSV') | first | first }}"
+  when: not delete_deployment|bool
+  tags:
+    - amq
+    - acm-workload
+
 - name: Create AMQ Console Subscription
   kubernetes.core.k8s:
     state: present
     definition: "{{ lookup('template', 'amq-console-sub.yaml.j2') }}"
   register: rbac_result
   when: not delete_deployment|bool
-  tags: 
+  tags:
     - amq
     - acm-workload
 
@@ -161,28 +205,6 @@
   tags: 
     - amq
     - acm-workload
-
-# Disable Kafdrop
-#- name: Create kafdrop
-#  kubernetes.core.k8s:
-#    state: present
-#    namespace:  "{{ project_namespace }}"
-#    definition: "{{ lookup('template', 'kafdrop.yaml.j2') }}"
-#  when: not delete_deployment|bool
-#  tags:
-#    - amq
-#    - acm-workload
-
-#- name: Remove kafdrop
-#  kubernetes.core.k8s:
-#    state: absent
-#    namespace:  "{{ project_namespace }}"
-#    definition: "{{ lookup('template', 'kafdrop.yaml.j2') }}"
-#  ignore_errors: yes
-#  when: delete_deployment|bool
-#  tags:
-#    - amq
-#    - acm-workload
 
 - name: Remove kafka topics
   command: "{{ oc_location }}  delete -f {{ config_location }}amq-kafka-topics.yaml"

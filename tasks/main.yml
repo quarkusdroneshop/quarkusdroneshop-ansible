@@ -6,30 +6,17 @@
       include_tasks: login-to-cluster.yml
       tags: always 
 
-    - name: Configure ACM 
-      include_tasks: acm-deployment.yml
+    - name: Configure ACM (multi-cluster management)
+      include_tasks: acm-multicluster.yml
       when: not delete_deployment | bool
-      tags: 
-        - quay
-        - gogs
-        - pipelines
-        - gitops
+      tags:
+        - acm
 
-    - name: ACM Workload 
-      include_tasks: acm-project-workloads.yml
-      when: not delete_deployment | bool
-      tags: 
-        - acm-workload
-
-    - name: remove  ACM deployment
-      include_tasks: remove-acm-deployment.yml
+    - name: remove ACM deployment
+      include_tasks: remove-acm-multicluster.yml
       when: delete_deployment | bool
-      tags: 
-        - quay
-        - gogs
-        - pipelines
-        - gitops
-        - acm-workload
+      tags:
+        - acm
 
     - name: Create Quarkus project 
       include_tasks: create-project.yml
@@ -62,18 +49,6 @@
         - postgres
         - helm
         - watchdog
-
-    - name: MongoDB Operator installation
-      include_tasks: mongodb-operator-install.yml
-      when: not delete_deployment | bool
-      tags:
-       - mongodb-operator
-
-    - name: Installing Single mongodb database
-      include_tasks: mongodb.yml
-      when: not delete_deployment | bool
-      tags:
-       - mongodb
 
     - name: Deploy Quarkus Cafe Helm Chart
       include_tasks: helm-chart.yml

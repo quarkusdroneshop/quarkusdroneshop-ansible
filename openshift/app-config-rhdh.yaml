@@ -176,7 +176,7 @@ data:
         github:
           quarkusdroneshop:
             organization: quarkusdroneshop
-            catalogPath: /src/main/resources/catalog-info.yaml
+            catalogPath: /catalog-info.yaml
             filters:
               branch: main
               repository: >-

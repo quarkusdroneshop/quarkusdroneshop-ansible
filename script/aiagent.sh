@@ -32,15 +32,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ─── 定数 ──────────────────────────────────────────────────────────────────────
 AI_AGENT_NAMESPACE="ai-agent-platform"
 RHOAI_NAMESPACE="redhat-ods-operator"
-MODEL_NAMESPACE="redhat-ods-applications"
+MODEL_NAMESPACE="ai-model-serving"
 CICD_NAMESPACE="ai-agent-cicd"
 
 PLATFORM_REPO="https://github.com/nmushino/datamesh-ai-agent-platform.git"
 PLATFORM_DIR="${SCRIPT_DIR}/tmp-datamesh-ai-agent-platform"
 
 # vLLM モデル設定 (環境変数で上書き可能)
-MODEL_NAME="${VLLM_MODEL_NAME:-ibm-granite/granite-20b-code-instruct-8k}"
-MODEL_DISPLAY_NAME="${VLLM_MODEL_DISPLAY_NAME:-granite-20b-code-instruct}"
+MODEL_NAME="${VLLM_MODEL_NAME:-Qwen/Qwen3-8B}"
+MODEL_DISPLAY_NAME="${VLLM_MODEL_DISPLAY_NAME:-qwen3-8b}"
 
 # ─── カラー定義 ────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -51,7 +51,7 @@ CYAN='\033[0;36m'
 RESET='\033[0m'
 
 # ─── ロゴ ──────────────────────────────────────────────────────────────────────
-figlet "AI Agent" 2>/dev/null || echo "=== Datamesh AI Agent Platform ==="
+figlet "DS AI Agent" 2>/dev/null || echo "=== Datamesh AI Agent Platform ==="
 echo -e "${CYAN}Datamesh AI Agent Platform — OpenShift AI Deployment${RESET}"
 echo ""
 
@@ -135,28 +135,90 @@ _sync_repo() {
 
 # ─── setup: 前提 Operator のインストール ───────────────────────────────────────
 setup() {
-    # AMQ Streams は ocpdeploy.sh (quarkusdroneshop) で導入済みのため ここではインストールしない。
-    # Strimzi CRD が存在するか確認するだけで十分。
+    # Streams for Apache Kafka (旧 AMQ Streams) は quarkusdroneshop 側 (ocpdeploy.sh) の
+    # リモートクラスターに既に導入済みだが、このクラスター自体には未導入のため、
+    # openshift-operators (AllNamespaces) に共通コンポーネントとして新規インストールする。
 
-    # Kafka は Skupper 経由でリモートクラスターの AMQ Streams に接続するため、
-    # このクラスターへの AMQ Streams Operator / CRD のインストールは不要。
-    # Skupper が仮想 Service (kafka-cluster-kafka-bootstrap) を提供する。
-
-    echo -e "${BLUE}=== [1/3] Skupper 接続確認 ===${RESET}"
-    if oc get service kafka-cluster-kafka-bootstrap -n "${AI_AGENT_NAMESPACE}" &>/dev/null 2>&1; then
-        echo -e "${GREEN}  → Skupper 仮想 Service (kafka-cluster-kafka-bootstrap): 確認済み ✓${RESET}"
+    echo -e "${BLUE}=== [1/7] Skupper 接続確認 ===${RESET}"
+    # NOTE: `oc get csv ... | grep -q ...` は pipefail 環境下で誤判定を起こす (SIGPIPE)。
+    # 必ず一度変数に capture してから grep する。
+    local ALL_CSV
+    ALL_CSV="$(oc get csv --all-namespaces 2>/dev/null || true)"
+    if grep -q "skupper-operator.*Succeeded" <<<"${ALL_CSV}"; then
+        echo -e "${GREEN}  → Skupper Operator は既に共通導入済みです ✓${RESET}"
     else
-        echo -e "${YELLOW}  ⚠ Skupper 仮想 Service が見つかりません。${RESET}"
-        echo -e "${YELLOW}    Skupper のリンクが確立されているか確認してください:${RESET}"
-        echo -e "${YELLOW}    skupper link status -n ${AI_AGENT_NAMESPACE}${RESET}"
-        echo -e "${YELLOW}    ※ deploy 前に Skupper 接続を完了させてください${RESET}"
+        echo -e "${YELLOW}  ⚠ Skupper Operator が見つかりません。手動でインストールしてください${RESET}"
     fi
 
-    echo -e "${BLUE}=== [2/3] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
+    # Tekton Pipelines / Keycloak は cluster-wide (AllNamespaces) Operator のため、
+    # 既に別の Namespace (openshift-operators / keycloak 等) にインストール済みであれば
+    # 共通コンポーネントとして扱い、ここでの再インストールはスキップする。
+    echo -e "${BLUE}=== [2/7] 共通コンポーネントの確認 (Pipelines / Keycloak) ===${RESET}"
+    if grep -q "openshift-pipelines-operator-rh.*Succeeded" <<<"${ALL_CSV}"; then
+        echo -e "${YELLOW}  → OpenShift Pipelines (Tekton) Operator は既に共通導入済みです。スキップします${RESET}"
+    else
+        echo -e "${YELLOW}  ⚠ OpenShift Pipelines (Tekton) Operator が見つかりません。手動でインストールしてください${RESET}"
+    fi
+    if grep -qi "rhbk-operator.*Succeeded" <<<"${ALL_CSV}"; then
+        echo -e "${YELLOW}  → Keycloak (RHBK) Operator は既に共通導入済みです。スキップします${RESET}"
+    else
+        echo -e "${YELLOW}  ⚠ Keycloak (RHBK) Operator が見つかりません。手動でインストールしてください${RESET}"
+    fi
 
-    # RHOAI が既にインストール済みかを確認
-    if oc get subscription rhods-operator -n "${RHOAI_NAMESPACE}" &>/dev/null; then
-        echo -e "${YELLOW}  → RHOAI Operator は既にインストール済みです${RESET}"
+    echo -e "${BLUE}=== [3/7] Streams for Apache Kafka Operator のインストール ===${RESET}"
+
+    # このクラスター自体には Streams for Apache Kafka (Strimzi) が未導入のため、
+    # openshift-operators (AllNamespaces) に共通コンポーネントとして新規インストールする。
+    # (パッケージ名は amq-streams のままだが、表示名は Streams for Apache Kafka)
+    if grep -qi "amqstreams.*Succeeded" <<<"${ALL_CSV}"; then
+        echo -e "${YELLOW}  → Streams for Apache Kafka Operator は既に共通導入済みです。スキップします${RESET}"
+    else
+        oc apply -f - <<EOF
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: amq-streams
+  namespace: openshift-operators
+spec:
+  channel: stable
+  name: amq-streams
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+EOF
+        echo -e "${GREEN}  → Streams for Apache Kafka Subscription を openshift-operators に適用しました${RESET}"
+        _wait_operator "openshift-operators" "amqstreams" 300
+    fi
+
+    echo -e "${BLUE}=== [4/7] Streams for Apache Kafka Console のインストール ===${RESET}"
+
+    # パッケージ名は amq-streams-console のままだが、表示名は Streams for Apache Kafka Console
+    if grep -qi "amq-streams-console.*Succeeded" <<<"${ALL_CSV}"; then
+        echo -e "${YELLOW}  → Streams for Apache Kafka Console は既に共通導入済みです。スキップします${RESET}"
+    else
+        oc apply -f - <<EOF
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: amq-streams-console
+  namespace: openshift-operators
+spec:
+  channel: stable
+  name: amq-streams-console
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+EOF
+        echo -e "${GREEN}  → Streams for Apache Kafka Console Subscription を openshift-operators に適用しました${RESET}"
+        _wait_operator "openshift-operators" "amq-streams-console" 300
+    fi
+
+    echo -e "${BLUE}=== [5/7] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
+
+    # RHOAI が既にインストール済みかを確認 (他 Namespace の共通導入も含めて確認)
+    if oc get subscription rhods-operator -n "${RHOAI_NAMESPACE}" &>/dev/null \
+        || grep -q "rhods-operator.*Succeeded" <<<"${ALL_CSV}"; then
+        echo -e "${YELLOW}  → RHOAI Operator は既に共通導入済みです。スキップします${RESET}"
     else
         oc create namespace "${RHOAI_NAMESPACE}" 2>/dev/null \
             || echo -e "${YELLOW}  Namespace ${RHOAI_NAMESPACE} は既に存在します${RESET}"
@@ -187,7 +249,7 @@ EOF
     fi
 
     # DataScienceCluster の作成 (RHOAI 2.x)
-    echo -e "${BLUE}=== [3/4] DataScienceCluster の作成 ===${RESET}"
+    echo -e "${BLUE}=== [6/7] DataScienceCluster の作成 ===${RESET}"
     if oc get datasciencecluster default-dsc &>/dev/null; then
         echo -e "${YELLOW}  → DataScienceCluster は既に存在します${RESET}"
     else
@@ -224,7 +286,7 @@ EOF
         echo -e "${GREEN}  → DataScienceCluster を作成しました${RESET}"
     fi
 
-    echo -e "${BLUE}=== [3/3] AI Agent Platform Namespace の作成 ===${RESET}"
+    echo -e "${BLUE}=== [7/7] AI Agent Platform Namespace の作成 ===${RESET}"
     oc new-project "${AI_AGENT_NAMESPACE}" 2>/dev/null \
         || echo -e "${YELLOW}  Namespace ${AI_AGENT_NAMESPACE} は既に存在します${RESET}"
 
@@ -250,11 +312,20 @@ vllm() {
 
     _sync_repo
 
+    # モデルサービング専用 Namespace の作成
+    # NOTE: redhat-ods-applications は RHOAI が自動生成する保護対象 namespace のため、
+    # ユーザーが直接 InferenceService を作成することはできない。
+    # 専用の Data Science Project (opendatahub.io/dashboard=true) を別途用意する。
+    oc new-project "${MODEL_NAMESPACE}" 2>/dev/null \
+        || echo -e "${YELLOW}  Namespace ${MODEL_NAMESPACE} は既に存在します${RESET}"
+    oc label namespace "${MODEL_NAMESPACE}" opendatahub.io/dashboard=true --overwrite 2>/dev/null || true
+
     # vLLM ServingRuntime + InferenceService を適用
+    # (vllm-serving.yaml 内の MODEL_DISPLAY_NAME_PLACEHOLDER を実際のモデル名に置換してから適用)
     echo -e "${BLUE}[1/3] vLLM ServingRuntime を適用中...${RESET}"
-    oc apply -f "${PLATFORM_DIR}/deployment/openshift/vllm-serving.yaml" \
-        -n "${MODEL_NAMESPACE}" 2>/dev/null \
-    || oc apply -f "${PLATFORM_DIR}/deployment/openshift/vllm-serving.yaml"
+    sed "s|MODEL_DISPLAY_NAME_PLACEHOLDER|${MODEL_DISPLAY_NAME}|g" \
+        "${PLATFORM_DIR}/deployment/openshift/vllm-serving.yaml" \
+        | oc apply -n "${MODEL_NAMESPACE}" -f -
     echo -e "${GREEN}  → ServingRuntime / InferenceService を適用しました${RESET}"
 
     # モデルダウンロード用 Job (Hugging Face → PVC)
@@ -306,6 +377,11 @@ spec:
           env:
             - name: HF_HUB_DISABLE_PROGRESS_BARS
               value: "1"
+            # OpenShift は任意 UID でコンテナを実行するため、デフォルトの HOME (/) は
+            # 書き込み不可。pip / huggingface_hub のキャッシュ先を書き込み可能な
+            # /tmp 配下に変更する。
+            - name: HOME
+              value: /tmp
       volumes:
         - name: model-storage
           persistentVolumeClaim:
@@ -355,14 +431,18 @@ deploy() {
     _sync_repo
 
     # ── vLLM エンドポイント取得 ──
+    # NOTE: .status.url はポート番号を含まない (例: http://host)。
+    # predictor Service は headless (ClusterIP: None) のためポート変換されず、
+    # ポート省略時のデフォルト80番では Connection refused になる。
+    # ポート込みの .status.address.url (例: http://host:8080) を使うこと。
     local VLLM_URL
     VLLM_URL=$(oc get inferenceservice "${MODEL_DISPLAY_NAME}" \
         -n "${MODEL_NAMESPACE}" \
-        -o jsonpath='{.status.url}' 2>/dev/null || echo "")
+        -o jsonpath='{.status.address.url}' 2>/dev/null || echo "")
 
     if [ -z "${VLLM_URL}" ]; then
         echo -e "${YELLOW}⚠ vLLM InferenceService が見つかりません。${RESET}"
-        read -rp "VLLM_BASE_URL を手動入力してください (例: https://granite-20b.apps.xxx.com): " VLLM_URL
+        read -rp "VLLM_BASE_URL を手動入力してください (例: https://qwen3-8b.apps.xxx.com): " VLLM_URL
     else
         VLLM_URL="${VLLM_URL}/v1"
         echo -e "${GREEN}  vLLM URL: ${VLLM_URL}${RESET}"
@@ -429,7 +509,7 @@ deploy() {
     fi
 
     # ── Kustomize overlay 適用 ──
-    echo -e "${BLUE}[4/6] Kustomize overlay (${OVERLAY}) を適用中...${RESET}"
+    echo -e "${BLUE}[4/7] Kustomize overlay (${OVERLAY}) を適用中...${RESET}"
     if ! command -v kustomize &>/dev/null; then
         echo -e "${YELLOW}  kustomize が見つかりません。oc kustomize を使用します${RESET}"
         oc apply -k "${PLATFORM_DIR}/deployment/kustomize/overlays/${OVERLAY}"
@@ -439,8 +519,48 @@ deploy() {
     fi
     echo -e "${GREEN}  → Kustomize (${OVERLAY}) を適用しました${RESET}"
 
+    # ── Route ホスト名を使って外部 URL 系の env/ConfigMap を上書き ──
+    # (chat-ui/deployment.yaml, business-api-config はビルド時点で自身の Route
+    #  ホスト名が分からないため空文字のまま。Route 作成後にここで実際の値を注入する)
+    echo -e "${BLUE}[5/7] 外部 URL (Keycloak/OpenMetadata/RHDH 等) を設定中...${RESET}"
+    local elapsed=0
+    while [ $elapsed -lt 60 ]; do
+        oc get route ai-agent-orchestrator -n "${AI_AGENT_NAMESPACE}" &>/dev/null \
+            && oc get route business-api -n "${AI_AGENT_NAMESPACE}" &>/dev/null \
+            && oc get route chat-ui -n "${AI_AGENT_NAMESPACE}" &>/dev/null \
+            && break
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+
+    local AI_AGENT_HOST BUSINESS_API_HOST CHAT_UI_HOST KEYCLOAK_HOST OPENMETADATA_HOST_EXT RHDH_HOST
+    AI_AGENT_HOST=$(oc get route ai-agent-orchestrator -n "${AI_AGENT_NAMESPACE}" -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+    BUSINESS_API_HOST=$(oc get route business-api -n "${AI_AGENT_NAMESPACE}" -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+    CHAT_UI_HOST=$(oc get route chat-ui -n "${AI_AGENT_NAMESPACE}" -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+    KEYCLOAK_HOST=$(oc get route keycloak -n keycloak -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+    OPENMETADATA_HOST_EXT=$(oc get route om-proxy -n openmetadata -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+    RHDH_HOST=$(oc get route backstage-developer-hub -n quarkusdroneshop-rhdh -o jsonpath='{.spec.host}' 2>/dev/null || echo "")
+
+    if [ -n "${CHAT_UI_HOST}" ]; then
+        oc set env deploy/chat-ui -n "${AI_AGENT_NAMESPACE}" \
+            API_BASE_URL="https://${AI_AGENT_HOST}" \
+            KEYCLOAK_URL="https://${KEYCLOAK_HOST}" \
+            OPENMETADATA_URL="https://${OPENMETADATA_HOST_EXT}" \
+            DEVELOPER_HUB_URL="https://${RHDH_HOST}" >/dev/null
+        echo -e "${GREEN}  → chat-ui の env を設定しました${RESET}"
+    else
+        echo -e "${YELLOW}  ⚠ chat-ui の Route がまだ無いため env 設定をスキップ${RESET}"
+    fi
+
+    # business-api はサーバー側の OIDC トークン検証用のため、外部 Route ではなく
+    # クラスター内部の Keycloak Service を使う
+    oc patch configmap business-api-config -n "${AI_AGENT_NAMESPACE}" --type merge \
+        -p '{"data":{"keycloak-url":"http://keycloak.keycloak.svc.cluster.local:8080"}}' >/dev/null 2>&1 \
+        && echo -e "${GREEN}  → business-api-config の keycloak-url を設定しました${RESET}" \
+        || echo -e "${YELLOW}  ⚠ business-api-config が見つからずスキップ${RESET}"
+
     # ── Tekton タスク・パイプラインをデプロイ ──
-    echo -e "${BLUE}[5/6] Tekton タスク / パイプラインをデプロイ中...${RESET}"
+    echo -e "${BLUE}[6/7] Tekton タスク / パイプラインをデプロイ中...${RESET}"
     oc new-project "${CICD_NAMESPACE}" 2>/dev/null \
         || echo -e "${YELLOW}  Namespace ${CICD_NAMESPACE} は既に存在します${RESET}"
 
@@ -450,7 +570,7 @@ deploy() {
     echo -e "${GREEN}  → Tekton リソースを適用しました${RESET}"
 
     # ── Prometheus 監視ルール ──
-    echo -e "${BLUE}[6/6] 監視ルール (PrometheusRule) を適用中...${RESET}"
+    echo -e "${BLUE}[7/7] 監視ルール (PrometheusRule) を適用中...${RESET}"
     oc apply -f "${PLATFORM_DIR}/deployment/monitoring/prometheus-rules.yaml" \
         -n "${AI_AGENT_NAMESPACE}" 2>/dev/null \
         || echo -e "${YELLOW}  ⚠ PrometheusRule の適用をスキップ (monitoring.coreos.com CRD が未インストール)${RESET}"
@@ -630,7 +750,7 @@ case "${1:-}" in
         echo -e "${RED}無効なコマンドです: ${1:-（引数なし）}${RESET}"
         echo ""
         echo -e "${YELLOW}使用方法:${RESET}"
-        echo -e "  $0 setup         OpenShift AI / AMQ Streams / Tekton Operator をインストール"
+        echo -e "  $0 setup         OpenShift AI / Streams for Apache Kafka / Tekton Operator をインストール"
         echo -e "  $0 vllm          vLLM モデルサービングをデプロイ (${MODEL_NAME})"
         echo -e "  $0 deploy        AI Agent Platform を dev 環境にデプロイ"
         echo -e "  $0 deploy-prod   AI Agent Platform を prod 環境にデプロイ (確認あり)"

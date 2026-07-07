@@ -102,7 +102,7 @@ data:
       # データカタログ プラグイン（OpenMetadata Explore へのリンク）
       - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-data-catalog-dynamic-0.1.0.tgz'
         disabled: false
-        integrity: 'sha512-0FdVYtxNq5w8je5y3fyDH1OaflzkIJowb4jUkp4Iu+RzTcya5C4KXzFkQTc04k0GNvf0g73w0fNENWpilpayQQ=='
+        integrity: 'sha512-1z+ZLoYVGZQSUcZfFuw59vYZdp50d9U3FLMp/wngTpHDSXc8C5ZBSTmCWXj0mcF6ElmUKDouAZMMAEo2gzghLA=='
         pluginConfig:
           dynamicPlugins:
             frontend:

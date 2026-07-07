@@ -3,13 +3,10 @@ FROM --platform=linux/amd64 fedora:41
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
-# Faster + stable mirrors
-RUN sed -i 's|^metalink=|#metalink=|g' /etc/yum.repos.d/fedora*.repo && \
-    sed -i 's|^#baseurl=http://download.example/pub/fedora/linux|baseurl=https://download.fedoraproject.org/pub/fedora/linux|g' /etc/yum.repos.d/fedora*.repo
-
 # Base packages
 RUN dnf -y update && \
     dnf install -y \
+        glibc-langpack-en \
         bind-utils \
         openssl \
         openssh-clients \

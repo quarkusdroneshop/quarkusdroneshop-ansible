@@ -11,7 +11,7 @@ Ansible Playbook と複数のシェルスクリプトによって、ミドルウ
 |---|---|
 | OpenShift | 4.21.41 |
 | OpenShift Pipelines (Tekton) | 1.18.0 |
-| AMQ Streams | 2.9.0-2 (Operator: v3.2.0-16) |
+| AMQ Streams | 2.9.0-2 (Operator: v3.2.0-26) |
 | AMQ Streams Console | v3.2.0-12 |
 | Crunchy Postgres Operator | v5.8.7 |
 | Apicurio Service Registry | v2.6.10 |
@@ -66,8 +66,6 @@ TOKEN=<OCP ログイントークン>
 ACM_WORKLOADS=n
 AMQ_STREAMS=y
 CONFIGURE_POSTGRES=y
-MONGODB_OPERATOR=n
-MONGODB=n
 HELM_DEPLOYMENT=n
 DELETE_DEPLOYMENT=false
 DEBUG=-v

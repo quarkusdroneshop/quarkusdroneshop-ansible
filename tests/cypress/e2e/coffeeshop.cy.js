@@ -23,43 +23,43 @@ describe('template spec', () => {
     cy.get("button:nth-child(7)").click()
     cy.findByRole("button",{"name":"Place Order"}).click()
 
-    // モーダル画面で注文処理の実行/Espresso
+    // モーダル画面で注文処理の実行/QDC_A103
     cy.get("div:nth-child(1)>div:nth-child(3)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.get("button:nth-child(7)").click()
     cy.findByRole("button",{"name":"Place Order"}).click()
 
-    // モーダル画面で注文処理の実行/Espresso (Double) 
+    // モーダル画面で注文処理の実行/A104-AC
     cy.get("div:nth-child(1)>div:nth-child(4)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.get("button:nth-child(7)").click()
     cy.findByRole("button",{"name":"Place Order"}).click()
 
-    // モーダル画面で注文処理の実行/Cappuccino
+    // モーダル画面で注文処理の実行/A104-AT
     cy.get("div:nth-child(1)>div:nth-child(5)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.get("button:nth-child(7)").click()
     cy.findByRole("button",{"name":"Place Order"}).click()
 
-    // モーダル画面で注文処理の実行/Croissant
+    // モーダル画面で注文処理の実行/QDC_A105_Pro01
     cy.get("div:nth-child(2)>div:nth-child(1)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.get("button:nth-child(7)").click()
     cy.findByRole("button",{"name":"Place Order"}).click()
 
-    // モーダル画面で注文処理の実行/Chocolate Croissant
+    // モーダル画面で注文処理の実行/QDC_A105_Pro02
     cy.get("div:nth-child(2)>div:nth-child(2)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.get("button:nth-child(7)").click()
     cy.findByRole("button",{"name":"Place Order"}).click()
 
-    // モーダル画面で注文処理の実行/Muffin
+    // モーダル画面で注文処理の実行/QDC_A105_Pro03
     cy.get("div:nth-child(2)>div:nth-child(3)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.get("button:nth-child(7)").click()
     cy.findByRole("button",{"name":"Place Order"}).click()
 
-    // モーダル画面で注文処理の実行/Cakepop
+    // モーダル画面で注文処理の実行/QDC_A105_Pro04
     cy.get("div:nth-child(2)>div:nth-child(4)>div:nth-child(1)>div:nth-child(2)>button:nth-child(1)").click()
     cy.findByLabelText("for Name:", {"selector":"input","trim":true}).click()
     cy.get("button:nth-child(7)").click()
@@ -67,3 +67,12 @@ describe('template spec', () => {
 
   })
 })
+
+
+            case QDC_A105_Pro01:
+                return 5;
+            case QDC_A105_Pro02:
+                return 3;
+            case QDC_A105_Pro03:
+                return 5;
+            case QDC_A105_Pro04:

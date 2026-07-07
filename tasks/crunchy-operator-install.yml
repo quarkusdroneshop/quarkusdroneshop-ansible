@@ -1,12 +1,31 @@
+- name: Retrieve Crunchy Postgres PackageManifest
+  kubernetes.core.k8s_info:
+    api_version: packages.operators.coreos.com/v1
+    kind: PackageManifest
+    name: crunchy-postgres-operator
+    namespace: "{{ project_namespace }}"
+  register: crunchy_manifest
+  when: not delete_deployment|bool
+  tags:
+    - postgres
+    - helm
+
+- name: Determine latest Crunchy Postgres CSV
+  set_fact:
+    crunchystartingCSV: "{{ crunchy_manifest | json_query('resources[*].status.channels[?name==`v5`].currentCSV') | first | first }}"
+  when: not delete_deployment|bool
+  tags:
+    - postgres
+    - helm
+
 - name: Create Crunchy Postgres for Kubernetes subscription
   kubernetes.core.k8s:
     state: present
     namespace: "{{ project_namespace }}"
     definition: "{{ lookup('template', 'crunchy-postgres-sub.yaml.j2') }}"
   when: not delete_deployment|bool
-  tags: 
+  tags:
     - postgres
-    - acm-workload
     - helm
 
 # wait for Postgres to be ready
@@ -32,7 +51,6 @@
   when: not delete_deployment|bool
   tags:
     - postgres
-    - acm-workload
     - helm
 
 - name: Get a list of all pods from any namespace
@@ -44,7 +62,6 @@
   when: not delete_deployment|bool
   tags:
     - postgres
-    - acm-workload
     - helm
 
 - name: Print return information from the previous task
@@ -54,7 +71,6 @@
   when: not delete_deployment|bool
   tags:
     - postgres
-    - acm-workload
     - helm
 
 # wait for Postgres to be ready
@@ -77,7 +93,6 @@
   when: not delete_deployment|bool
   tags:
     - postgres
-    - acm-workload
     - helm
 
 - name: Create Crunchy PGAdmin instance 
@@ -89,7 +104,6 @@
   when: not delete_deployment|bool
   tags:
     - postgres
-    - acm-workload
     - helm
 
 - name: retrieve pullsecret
@@ -103,7 +117,6 @@
   when: not delete_deployment|bool
   tags:
     - postgres
-    - acm-workload
     - helm
 
 - name: Get the original cred secrets
@@ -114,7 +127,6 @@
   no_log: true
   tags:
     - postgres
-    - acm-workload
     - helm
 
 - name: Get postgress password
@@ -123,7 +135,6 @@
   when: not delete_deployment|bool
   tags: 
     - postgres
-    - acm-workload
     - helm
 
 - name: Delete Crunchy Postgres database instance 
@@ -135,7 +146,6 @@
   when: delete_deployment|bool
   tags: 
     - postgres
-    - acm-workload
     - helm
 
 - name: Remove an droneshopdb-repo-host
@@ -149,7 +159,6 @@
   when:  delete_deployment|bool
   tags: 
     - postgres
-    - acm-workload
     - helm
 
 - name: delete Crunchy Postgres  crd
@@ -158,7 +167,6 @@
   when:  delete_deployment|bool
   tags:
     - postgres
-    - acm-workload
     - helm
 
 - name: Remove Crunchy Postgres for Kubernetes subscription
@@ -170,7 +178,6 @@
   when:  delete_deployment|bool
   tags:
     - postgres
-    - acm-workload
     - helm
   
 

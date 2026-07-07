@@ -30,6 +30,9 @@ BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
 RESET='\033[0m'
 
+# ロゴの表示
+figlet "droneshop"
+
 # ログイン確認
 if ! oc whoami &>/dev/null; then
     echo -e "${RED}エラー: OpenShift にログインしていません。${RESET}" >&2
