@@ -79,7 +79,9 @@ kind: OperatorGroup
 metadata:
   name: ${ACM_NAMESPACE}-group
   namespace: ${ACM_NAMESPACE}
-spec: {}
+spec:
+  targetNamespaces:
+    - ${ACM_NAMESPACE}
 EOF
 
     # PackageManifest からチャンネル / 最新 CSV を動的解決

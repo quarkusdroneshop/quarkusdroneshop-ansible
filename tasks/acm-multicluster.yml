@@ -19,9 +19,7 @@
 - name: Create Operator group for RHACM
   kubernetes.core.k8s:
     state: present
-    definition: "{{ lookup('template', 'operator-group.yaml.j2') }}"
-  vars:
-    project_namespace: open-cluster-management
+    definition: "{{ lookup('template', 'acm-operatorgroup.yaml.j2') }}"
   when: not delete_deployment | bool
   tags: acm
 
