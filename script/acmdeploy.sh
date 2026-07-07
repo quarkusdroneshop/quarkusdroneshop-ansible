@@ -172,8 +172,20 @@ acmlink() {
         return 1
     fi
 
-    echo -e "${YELLOW}利用可能な oc context 一覧:${RESET}"
-    oc config get-contexts -o name
+    # ~/.kube/cache/discovery/<host>/ の mtime は実際に最後に接続した時刻を反映するため、
+    # これを使って default namespace の context だけに絞り、最近使ったクラスタを上に表示する
+    echo -e "${YELLOW}利用可能な oc context 一覧（default namespace / 最近使った順・上位20件）:${RESET}"
+    COUNT=0
+    for dir in $(ls -dt "$HOME"/.kube/cache/discovery/*/ 2>/dev/null); do
+        host=$(basename "$dir")
+        cluster_pattern=$(echo "$host" | sed 's/\./-/g; s/_/:/')
+        match=$(oc config get-contexts -o name | grep "^default/${cluster_pattern}/" | head -1)
+        if [ -n "$match" ]; then
+            echo "  $match"
+            COUNT=$((COUNT + 1))
+            [ "$COUNT" -ge 20 ] && break
+        fi
+    done
 
     read -p "importするクラスタの oc context 名を入力してください: " TARGET_CONTEXT
     if ! oc config get-contexts -o name | grep -qx "$TARGET_CONTEXT"; then
