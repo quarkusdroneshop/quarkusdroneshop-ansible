@@ -1,13 +1,17 @@
 ---
-- name: check if open-cluster-management project exists
-  shell: "{{ oc_location }} get project open-cluster-management"
+- name: check if open-cluster-management namespace exists
+  shell: "{{ oc_location }} get namespace open-cluster-management"
   register: acm_project
   ignore_errors: true
   changed_when: false
   tags: acm
 
-- name: create open-cluster-management project
-  command: "{{ oc_location }} adm new-project open-cluster-management"
+# oc adm new-project / oc new-project は環境によって OpenShift 側が
+# デフォルトの OperatorGroup を自動生成することがあり、直後に作成する
+# 明示的な OperatorGroup と衝突して Subscription が解決できなくなる
+# (MultipleOperatorGroupsFound) ため、素の namespace として作成する。
+- name: create open-cluster-management namespace
+  command: "{{ oc_location }} create namespace open-cluster-management"
   when: acm_project is failed
   ignore_errors: true
   tags: acm
