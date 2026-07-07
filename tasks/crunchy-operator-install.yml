@@ -30,19 +30,26 @@
 
 # wait for Postgres to be ready
 - name: Wait for Crunchy CSV to succeed
-  kubernetes.core.k8s_info:
-    api_version: operators.coreos.com/v1alpha1
-    kind: ClusterServiceVersion
-    namespace: "{{ project_namespace }}"
-    name: "{{ crunchystartingCSV }}"
+  shell: "{{ oc_location }} get csv {{ crunchystartingCSV }} -n {{ project_namespace }} -o json"
   register: csv_status
+  changed_when: false
   retries: 30
   delay: 20
-  until:
-    - csv_status.resources | length > 0
-    - csv_status.resources[0].status.phase == "Succeeded"
+  until: (csv_status.stdout | from_json).status.phase == "Succeeded"
+  when: not delete_deployment|bool
 
-- name: Create Crunchy Postgres database instance 
+# CSV が Succeeded になっても PostgresCluster CRD が API discovery に
+# 反映されるまでわずかにラグがあるため、CRD 自体の登録も待つ
+- name: Wait for PostgresCluster CRD to be registered
+  shell: "{{ oc_location }} get crd postgresclusters.postgres-operator.crunchydata.com"
+  register: r_pgo_crd
+  changed_when: false
+  retries: 20
+  delay: 15
+  until: r_pgo_crd.rc == 0
+  when: not delete_deployment|bool
+
+- name: Create Crunchy Postgres database instance
   kubernetes.core.k8s:
     state: present
     namespace: "{{ project_namespace }}"
