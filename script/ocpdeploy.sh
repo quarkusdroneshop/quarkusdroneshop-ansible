@@ -54,16 +54,17 @@ usage() {
     echo "  $0 cleanup                demo NS の全リソース削除"
     echo "  $0 acm                    RHACM への追加クラスタ import"
     echo ""
-    echo "  $0 pipeline setup         Tekton Operator インストール"
-    echo "  $0 pipeline deploy        Pipeline kustomize デプロイ"
-    echo "  $0 pipeline config        Demo ConfigMap 設定"
-    echo "  $0 pipeline cleanup       CICD NS 削除"
-    echo ""
     echo "  $0 skupper deploy         Skupper + Kafka クラスター構築"
     echo "  $0 skupper retoken        Skupper トークン再作成"
     echo "  $0 skupper status         Skupper ステータス確認"
     echo "  $0 skupper console        Skupper コンソールデプロイ"
     echo "  $0 skupper cleanup        Skupper リソース削除"
+    echo ""
+    echo "  $0 pipeline setup         Tekton Operator インストール"
+    echo "  $0 pipeline deploy        Pipeline kustomize デプロイ"
+    echo "  $0 pipeline config        Demo ConfigMap 設定"
+    echo "  $0 pipeline cleanup       CICD NS 削除"
+
 }
 
 # =============================================================================
@@ -159,6 +160,9 @@ ocp_setup() {
 
     # Skupper Operator の準備（site作成等は引き続き `skupper deploy` で手動実行）
     skupper_operator_setup
+
+    # Tekton Operator の準備（pipeline deploy 等は引き続き `pipeline deploy` で手動実行）
+    pipeline_setup
 }
 
 # =============================================================================
@@ -266,7 +270,9 @@ ocp_cleanup() {
 
 pipeline_setup() {
     # Tekton Operator のインストール
-    oc new-project $CICD_NAMESPACE
+    if ! oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then
+        oc new-project $CICD_NAMESPACE
+    fi
     oc apply -f "$REPO_ROOT/openshift/openshift-pipline.yaml"
     sleep 30
     oc delete tektonconfig config -n $CICD_NAMESPACE
