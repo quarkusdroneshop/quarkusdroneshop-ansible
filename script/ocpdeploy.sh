@@ -127,31 +127,8 @@ fi
 # OCP セットアップ / クリーンアップ
 # =============================================================================
 
-# ノードあたりの Pod 上限（デフォルト 250）を引き上げる。
-# master プールに適用する（このクラスターは全ノードが master ロールを兼ねる
-# 構成のため、worker プールを対象にしても実ノードに反映されない）。
-# MachineConfig の再展開が走り、対象ノードが再起動する点に注意。
-increase_max_pods() {
-    cat <<'EOF' | oc apply -f -
-apiVersion: machineconfiguration.openshift.io/v1
-kind: KubeletConfig
-metadata:
-  name: increase-max-pods
-spec:
-  machineConfigPoolSelector:
-    matchLabels:
-      pools.operator.machineconfiguration.openshift.io/master: ""
-  kubeletConfig:
-    maxPods: 500
-    podsPerCore: 0
-EOF
-}
-
 ocp_setup() {
     echo "セットアップ開始..."
-
-    # ノードあたりの Pod 上限を引き上げる（既に適用済みなら oc apply は無変更で完了する）
-    increase_max_pods
 
     # source.env の CLUSTER_DOMAIN_NAME と TOKEN を更新（行が無ければ追加する）
     if grep -q "^CLUSTER_DOMAIN_NAME=" "$REPO_ROOT/$ENV_FILE"; then

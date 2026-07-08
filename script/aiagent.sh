@@ -139,7 +139,27 @@ setup() {
     # リモートクラスターに既に導入済みだが、このクラスター自体には未導入のため、
     # openshift-operators (AllNamespaces) に共通コンポーネントとして新規インストールする。
 
-    echo -e "${BLUE}=== [1/7] Skupper 接続確認 ===${RESET}"
+    echo -e "${BLUE}=== [1/8] ノードあたりの Pod 上限引き上げ ===${RESET}"
+    # デフォルト 250 だと RHACM 等の追加コンポーネントがスケジュールできなくなるため、
+    # master プールに適用する（このクラスターは全ノードが master ロールを兼ねる構成の
+    # ため、worker プールを対象にしても実ノードに反映されない）。
+    # MachineConfig の再展開が走り、対象ノードが再起動する点に注意。
+    # 既に適用済みなら oc apply は無変更で完了する。
+    cat <<'KUBELETCFG' | oc apply -f -
+apiVersion: machineconfiguration.openshift.io/v1
+kind: KubeletConfig
+metadata:
+  name: increase-max-pods
+spec:
+  machineConfigPoolSelector:
+    matchLabels:
+      pools.operator.machineconfiguration.openshift.io/master: ""
+  kubeletConfig:
+    maxPods: 500
+    podsPerCore: 0
+KUBELETCFG
+
+    echo -e "${BLUE}=== [2/8] Skupper 接続確認 ===${RESET}"
     # NOTE: `oc get csv ... | grep -q ...` は pipefail 環境下で誤判定を起こす (SIGPIPE)。
     # 必ず一度変数に capture してから grep する。
     local ALL_CSV
@@ -153,7 +173,7 @@ setup() {
     # Tekton Pipelines / Keycloak は cluster-wide (AllNamespaces) Operator のため、
     # 既に別の Namespace (openshift-operators / keycloak 等) にインストール済みであれば
     # 共通コンポーネントとして扱い、ここでの再インストールはスキップする。
-    echo -e "${BLUE}=== [2/7] 共通コンポーネントの確認 (Pipelines / Keycloak) ===${RESET}"
+    echo -e "${BLUE}=== [3/8] 共通コンポーネントの確認 (Pipelines / Keycloak) ===${RESET}"
     if grep -q "openshift-pipelines-operator-rh.*Succeeded" <<<"${ALL_CSV}"; then
         echo -e "${YELLOW}  → OpenShift Pipelines (Tekton) Operator は既に共通導入済みです。スキップします${RESET}"
     else
@@ -165,7 +185,7 @@ setup() {
         echo -e "${YELLOW}  ⚠ Keycloak (RHBK) Operator が見つかりません。手動でインストールしてください${RESET}"
     fi
 
-    echo -e "${BLUE}=== [3/7] Streams for Apache Kafka Operator のインストール ===${RESET}"
+    echo -e "${BLUE}=== [4/8] Streams for Apache Kafka Operator のインストール ===${RESET}"
 
     # このクラスター自体には Streams for Apache Kafka (Strimzi) が未導入のため、
     # openshift-operators (AllNamespaces) に共通コンポーネントとして新規インストールする。
@@ -272,7 +292,7 @@ EOF
         _wait_operator "openshift-operators" "amqstreams" 300
     fi
 
-    echo -e "${BLUE}=== [4/7] Streams for Apache Kafka Console のインストール ===${RESET}"
+    echo -e "${BLUE}=== [5/8] Streams for Apache Kafka Console のインストール ===${RESET}"
 
     # パッケージ名は amq-streams-console のままだが、表示名は Streams for Apache Kafka Console
     if grep -qi "amq-streams-console.*Succeeded" <<<"${ALL_CSV}"; then
@@ -286,16 +306,16 @@ metadata:
   namespace: openshift-operators
 spec:
   channel: stable
-  name: aiagent-cluster
+  name: amq-streams-console
   source: redhat-operators
-  sourceNamespace: openshift-marketplace
+  source: redhat-operators
   installPlanApproval: Automatic
 EOF
         echo -e "${GREEN}  → Streams for Apache Kafka Console Subscription を openshift-operators に適用しました${RESET}"
         _wait_operator "openshift-operators" "amq-streams-console" 300
     fi
 
-    echo -e "${BLUE}=== [5/7] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
+    echo -e "${BLUE}=== [6/8] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
 
     # RHOAI が既にインストール済みかを確認 (他 Namespace の共通導入も含めて確認)
     if oc get subscription rhods-operator -n "${RHOAI_NAMESPACE}" &>/dev/null \
@@ -331,7 +351,7 @@ EOF
     fi
 
     # DataScienceCluster の作成 (RHOAI 2.x)
-    echo -e "${BLUE}=== [6/7] DataScienceCluster の作成 ===${RESET}"
+    echo -e "${BLUE}=== [7/8] DataScienceCluster の作成 ===${RESET}"
     if oc get datasciencecluster default-dsc &>/dev/null; then
         echo -e "${YELLOW}  → DataScienceCluster は既に存在します${RESET}"
     else
@@ -368,7 +388,7 @@ EOF
         echo -e "${GREEN}  → DataScienceCluster を作成しました${RESET}"
     fi
 
-    echo -e "${BLUE}=== [7/7] AI Agent Platform Namespace の作成 ===${RESET}"
+    echo -e "${BLUE}=== [8/8] AI Agent Platform Namespace の作成 ===${RESET}"
     oc new-project "${AI_AGENT_NAMESPACE}" 2>/dev/null \
         || echo -e "${YELLOW}  Namespace ${AI_AGENT_NAMESPACE} は既に存在します${RESET}"
 
