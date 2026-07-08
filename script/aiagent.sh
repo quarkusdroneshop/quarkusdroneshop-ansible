@@ -308,7 +308,7 @@ spec:
   channel: stable
   name: amq-streams-console
   source: redhat-operators
-  source: redhat-operators
+  sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic
 EOF
         echo -e "${GREEN}  → Streams for Apache Kafka Console Subscription を openshift-operators に適用しました${RESET}"
