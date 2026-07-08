@@ -1,52 +1,95 @@
 ---
 # Skupper Network Observer (Console) — RHSI 2.x
 # ネットワークトポロジーを可視化する Web コンソール
-# 参照: https://skupperproject.github.io/refdog/docs/network-observer/
+#
+# 参照実装: 公式 Helm チャート skupperproject/skupper の charts/network-observer
+# (https://github.com/skupperproject/skupper/tree/v2/charts/network-observer)
+# をプレーンYAMLに書き下したもの。auth.strategy=none 相当(認証なし)。
+#
+# ポイント:
+# - network-observer は Kubernetes API ではなく、Router の管理エンドポイントに
+#   AMQP(TLS)で直接接続してトポロジー情報を取得する。そのため Kubernetes RBAC
+#   (ClusterRole等)は不要で、代わりに Router への mTLS クライアント証明書が必須。
+# - Prometheus は別Serviceではなく同一Pod内のサイドカーとして必要
+#   (network-observer が127.0.0.1:9090で参照する)。
+# - HTTPS終端用のnginxサイドカーも同一Pod内に必要。
 
-apiVersion: v1
-kind: ServiceAccount
+# Router への mTLS クライアント証明書 (skupper-local-ca から発行)
+apiVersion: skupper.io/v2alpha1
+kind: Certificate
 metadata:
-  name: skupper-network-observer
+  name: skupper-network-observer-client
   namespace: quarkusdroneshop-demo
+spec:
+  ca: skupper-local-ca
+  hosts:
+    - skupper-router-local
+  client: true
+  subject: skupper-router-local
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+# nginx (HTTPS終端) 用のサーバー証明書 (skupper-local-ca から発行)
+apiVersion: skupper.io/v2alpha1
+kind: Certificate
 metadata:
-  name: skupper-network-observer
-rules:
-  - apiGroups: ["skupper.io"]
-    resources: ["*"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["configmaps", "pods", "services", "endpoints"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["apps"]
-    resources: ["deployments", "replicasets"]
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: skupper-network-observer
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: skupper-network-observer
-subjects:
-  - kind: ServiceAccount
-    name: skupper-network-observer
-    namespace: quarkusdroneshop-demo
+  name: skupper-network-observer-tls
+  namespace: quarkusdroneshop-demo
+spec:
+  ca: skupper-local-ca
+  hosts:
+    - skupper-network-observer
+  server: true
+  subject: skupper-network-observer
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: skupper-network-observer-config
+  name: skupper-network-observer-nginx
   namespace: quarkusdroneshop-demo
 data:
-  config.yaml: |
-    prometheusUrl: http://prometheus-k8s.openshift-monitoring.svc:9091
-    networkStatusUrl: ""
-    refreshInterval: 10s
+  nginx.conf: |
+    worker_processes auto;
+    pid /tmp/nginx.pid;
+
+    events {}
+    http {
+        ssl_session_cache   shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        server {
+            listen              8443 ssl;
+            keepalive_timeout   70;
+
+            ssl_certificate     /etc/certificates/tls.crt;
+            ssl_certificate_key /etc/certificates/tls.key;
+            ssl_protocols       TLSv1.3;
+            add_header Strict-Transport-Security "max-age=63072000" always;
+
+            location /api/ {
+              proxy_pass  http://localhost:8080;
+            }
+            location / {
+              proxy_pass  http://localhost:8080;
+            }
+        }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skupper-network-observer-prometheus
+  namespace: quarkusdroneshop-demo
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval:     15s
+      evaluation_interval: 15s
+    scrape_configs:
+      - job_name: "network-observer-local"
+        scheme: http
+        follow_redirects: true
+        enable_http2: true
+        static_configs:
+          - targets: ["localhost:8080"]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -56,44 +99,93 @@ metadata:
   labels:
     app: skupper-network-observer
 spec:
-  serviceAccountName: skupper-network-observer
-  containers:
-    - name: network-observer
-      image: registry.redhat.io/service-interconnect/skupper-network-observer-rhel9:2.2.1
-      ports:
-        - containerPort: 8080
-          name: http
-      env:
-        - name: SKUPPER_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: PROMETHEUS_URL
-          value: "http://prometheus-k8s.openshift-monitoring.svc:9091"
-      volumeMounts:
-        - name: network-status
-          mountPath: /etc/skupper-network-status
-          readOnly: true
-        - name: observer-config
-          mountPath: /etc/skupper-network-observer
-          readOnly: true
-      resources:
-        requests:
-          cpu: 100m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 256Mi
-  volumes:
-    - name: network-status
-      configMap:
-        name: skupper-network-status
-    - name: observer-config
-      configMap:
-        name: skupper-network-observer-config
-
-
-
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skupper-network-observer
+  template:
+    metadata:
+      labels:
+        app: skupper-network-observer
+    spec:
+      containers:
+        - name: network-observer
+          image: registry.redhat.io/service-interconnect/skupper-network-observer-rhel9:2.2.1
+          args:
+            - -listen=127.0.0.1:8080
+            - -prometheus-api=http://127.0.0.1:9090
+            - -router-endpoint=amqps://skupper-router-local
+            - -router-tls-ca=/etc/messaging/ca.crt
+            - -router-tls-cert=/etc/messaging/tls.crt
+            - -router-tls-key=/etc/messaging/tls.key
+            - -listen-metrics=:9000
+          ports:
+            - containerPort: 8080
+              name: api
+            - containerPort: 9000
+              name: metrics
+          volumeMounts:
+            - name: skupper-management-client
+              mountPath: /etc/messaging/
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+        - name: proxy
+          image: mirror.gcr.io/nginxinc/nginx-unprivileged:1.31.0-alpine
+          ports:
+            - containerPort: 8443
+              name: https
+          volumeMounts:
+            - name: skupper-network-observer-tls
+              mountPath: /etc/certificates/
+            - name: nginx-config
+              mountPath: /etc/nginx
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+        - name: prometheus
+          image: registry.redhat.io/openshift4/ose-prometheus:v4.12.0-202606110325.p2.g6270bda.assembly.stream.el8
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus/
+          ports:
+            - containerPort: 9090
+              name: prom
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-storage
+              mountPath: /prometheus
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: skupper-management-client
+          secret:
+            secretName: skupper-network-observer-client
+        - name: skupper-network-observer-tls
+          secret:
+            secretName: skupper-network-observer-tls
+        - name: nginx-config
+          configMap:
+            name: skupper-network-observer-nginx
+        - name: prometheus-config
+          configMap:
+            name: skupper-network-observer-prometheus
+        - name: prometheus-storage
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -104,9 +196,9 @@ spec:
   selector:
     app: skupper-network-observer
   ports:
-    - name: http
-      port: 8080
-      targetPort: 8080
+    - name: https
+      port: 443
+      targetPort: https
 ---
 apiVersion: route.openshift.io/v1
 kind: Route
@@ -118,81 +210,7 @@ spec:
     kind: Service
     name: skupper-network-observer
   port:
-    targetPort: http
+    targetPort: https
   tls:
-    termination: edge
+    termination: reencrypt
     insecureEdgeTerminationPolicy: Redirect
----
-# Prometheus — Skupper メトリクス収集
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: skupper-prometheus
-  namespace: quarkusdroneshop-demo
-  labels:
-    app: skupper-prometheus
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: skupper-prometheus
-  template:
-    metadata:
-      labels:
-        app: skupper-prometheus
-    spec:
-      containers:
-        - name: prometheus
-          image: registry.redhat.io/openshift4/ose-prometheus:v4.12.0-202606110325.p2.g6270bda.assembly.stream.el8
-          args:
-            - "--config.file=/etc/prometheus/prometheus.yml"
-            - "--storage.tsdb.path=/prometheus"
-            - "--storage.tsdb.retention.time=7d"
-          ports:
-            - containerPort: 9090
-              name: http
-          volumeMounts:
-            - name: prometheus-config
-              mountPath: /etc/prometheus
-            - name: prometheus-data
-              mountPath: /prometheus
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
-        - name: prometheus-config
-          configMap:
-            name: skupper-prometheus-config
-        - name: prometheus-data
-          emptyDir: {}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: skupper-prometheus-config
-  namespace: quarkusdroneshop-demo
-data:
-  prometheus.yml: |
-    global:
-      scrape_interval: 15s
-    scrape_configs:
-      - job_name: skupper-router
-        static_configs:
-          - targets: ['skupper-router:9090']
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: skupper-prometheus
-  namespace: quarkusdroneshop-demo
-spec:
-  selector:
-    app: skupper-prometheus
-  ports:
-    - name: http
-      port: 9090
-      targetPort: 9090

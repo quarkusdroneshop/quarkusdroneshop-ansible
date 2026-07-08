@@ -39,6 +39,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 NAMESPACE="quarkusdroneshop-demo"
 CICD_NAMESPACE="quarkusdroneshop-cicd"
+RHDH_NAMESPACE="quarkusdroneshop-rhdh"
 ENV_FILE="source.env"
 
 # 色を変数に格納
@@ -309,7 +310,7 @@ skupper_deploy() {
     read -p "どのサイトを構築しますか？(A/B/C/DH): " SITE_CONFREM
 
     if [ "$SITE_CONFREM" = "A" ]; then
-        skupper site create skupper-asite
+        skupper site create skupper-asite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
         skupper token issue "$REPO_ROOT/skupper-token-a.yaml" -r 3
@@ -333,7 +334,7 @@ skupper_deploy() {
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-a-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "B" ]; then
-        skupper site create skupper-bsite
+        skupper site create skupper-bsite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
         skupper token issue "$REPO_ROOT/skupper-token-b.yaml" -r 3
@@ -356,7 +357,7 @@ skupper_deploy() {
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-b-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "C" ]; then
-        skupper site create skupper-csite
+        skupper site create skupper-csite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
         skupper token issue "$REPO_ROOT/skupper-token-c.yaml" -r 3
@@ -379,33 +380,45 @@ skupper_deploy() {
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-c-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "DH" ]; then
-        skupper site create skupper-rhdh
-        skupper site update --enable-link-access -n "$NAMESPACE"
-        skupper site status
-        skupper token issue "$REPO_ROOT/skupper-token-dh.yaml" -r 3
+        # DHサイトは quarkusdroneshop-rhdh namespace に構築する
+        # ($NAMESPACE=quarkusdroneshop-demo とは別。-nを省略すると
+        # 現在のカレントプロジェクトに作成されてしまうため明示する)
+        if ! oc get project "$RHDH_NAMESPACE" > /dev/null 2>&1; then
+            oc new-project "$RHDH_NAMESPACE"
+        fi
+        skupper site create skupper-rhdh -n "$RHDH_NAMESPACE"
+        skupper site update --enable-link-access -n "$RHDH_NAMESPACE"
+        skupper site status -n "$RHDH_NAMESPACE"
+        skupper token issue "$REPO_ROOT/skupper-token-rhdh.yaml" -r 3 -n "$RHDH_NAMESPACE"
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
             echo -e "${YELLOW}処理を終了します。${RESET}"; exit 1
         fi
 
-        oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
-        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
-        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-kafka-asite 9094 -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-apicurio 8080 -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-postgres-asite 5432 -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
-        skupper listener create external-shop-cluster-postgres-csite 5432 -n "$NAMESPACE"
+        oc delete accesstokens.skupper.io --all -n "$RHDH_NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$RHDH_NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$RHDH_NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$RHDH_NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-asite 9094 -n "$RHDH_NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$RHDH_NAMESPACE"
+        skupper listener create external-shop-cluster-kafka-csite 9094 -n "$RHDH_NAMESPACE"
+        skupper listener create external-shop-cluster-apicurio 8080 -n "$RHDH_NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-asite 5432 -n "$RHDH_NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-bsite 5432 -n "$RHDH_NAMESPACE"
+        skupper listener create external-shop-cluster-postgres-csite 5432 -n "$RHDH_NAMESPACE"
+    fi
+
+    if [ "$SITE_CONFREM" = "DH" ]; then
+        STATUS_NAMESPACE="$RHDH_NAMESPACE"
+    else
+        STATUS_NAMESPACE="$NAMESPACE"
     fi
 
     sleep 10
-    skupper link status
-    skupper listener status
-    skupper connector status
+    skupper link status -n "$STATUS_NAMESPACE"
+    skupper listener status -n "$STATUS_NAMESPACE"
+    skupper connector status -n "$STATUS_NAMESPACE"
 }
 
 skupper_retoken() {
@@ -430,49 +443,80 @@ skupper_retoken() {
         skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "DH" ]; then
-        skupper token issue "$REPO_ROOT/skupper-token-dh.yaml" -r 3
-        oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
-        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
-        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
-        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
+        # DHサイトは quarkusdroneshop-rhdh namespace が対象
+        skupper token issue "$REPO_ROOT/skupper-token-rhdh.yaml" -r 3 -n "$RHDH_NAMESPACE"
+        oc delete accesstokens.skupper.io --all -n "$RHDH_NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$RHDH_NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$RHDH_NAMESPACE"
+        skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$RHDH_NAMESPACE"
 
         for listener in \
             "external-shop-cluster-postgres-bsite:5432" \
             "external-shop-cluster-postgres-csite:5432"; do
             name="${listener%%:*}"
             port="${listener##*:}"
-            if ! skupper listener status -n "$NAMESPACE" 2>/dev/null | grep -q "^${name}"; then
-                echo -e "${BLUE}  Listener 追加: ${name}:${port}${RESET}"
-                skupper listener create "${name}" "${port}" -n "$NAMESPACE"
-            else
-                echo -e "${YELLOW}  Listener 既存スキップ: ${name}${RESET}"
+            # 既存でもスキップせず、いったん削除してから作り直す
+            # (Connector側が未作成/Pendingのままの場合の再同期を試すため)
+            if skupper listener status -n "$RHDH_NAMESPACE" 2>/dev/null | grep -q "^${name}"; then
+                echo -e "${YELLOW}  Listener 再作成のため削除: ${name}${RESET}"
+                skupper listener delete "${name}" -n "$RHDH_NAMESPACE"
             fi
+            echo -e "${BLUE}  Listener 追加: ${name}:${port}${RESET}"
+            skupper listener create "${name}" "${port}" -n "$RHDH_NAMESPACE"
         done
     fi
 
+    if [ "$SITE_CONFREM" = "DH" ]; then
+        STATUS_NAMESPACE="$RHDH_NAMESPACE"
+    else
+        STATUS_NAMESPACE="$NAMESPACE"
+    fi
+
     sleep 5
-    skupper site status
-    skupper link status
-    skupper listener status
-    skupper connector status
+    skupper site status -n "$STATUS_NAMESPACE"
+    skupper link status -n "$STATUS_NAMESPACE"
+    skupper listener status -n "$STATUS_NAMESPACE"
+    skupper connector status -n "$STATUS_NAMESPACE"
 }
 
 skupper_status() {
-    skupper site status
-    skupper link status
-    skupper listener status
-    skupper connector status
+    # -n を省略すると現在のカレントプロジェクトを見てしまい、site が
+    # 実際にあるnamespaceと食い違って「site が見つからない」となるため、
+    # deploy/retoken 同様どのサイトを見るか確認してから対象namespaceを決める
+    read -p "どのサイトのステータスを確認しますか？(A/B/C/DH): " SITE_CONFREM
+    if [ "$SITE_CONFREM" = "DH" ]; then
+        STATUS_NAMESPACE="$RHDH_NAMESPACE"
+    else
+        STATUS_NAMESPACE="$NAMESPACE"
+    fi
+
+    skupper site status -n "$STATUS_NAMESPACE"
+    skupper link status -n "$STATUS_NAMESPACE"
+    skupper listener status -n "$STATUS_NAMESPACE"
+    skupper connector status -n "$STATUS_NAMESPACE"
 }
 
 skupper_console() {
-    echo -e "${BLUE}Skupper Network Observer (コンソール) をデプロイ中...${RESET}"
-    oc apply -f "$REPO_ROOT/openshift/skupper-network-observer.yaml" -n "$NAMESPACE"
+    # skupper-network-observer.yaml は namespace: quarkusdroneshop-demo が
+    # 全リソースにハードコードされており、oc apply -n だけでは上書きできない
+    # (metadata.namespace が明示されたリソースはそちらが優先される)ため、
+    # どのサイトのコンソールかを確認し、対象namespaceにsedで置換してから適用する
+    read -p "どのサイトのコンソールをデプロイしますか？(A/B/C/DH): " SITE_CONFREM
+    if [ "$SITE_CONFREM" = "DH" ]; then
+        TARGET_NAMESPACE="$RHDH_NAMESPACE"
+    else
+        TARGET_NAMESPACE="$NAMESPACE"
+    fi
+
+    echo -e "${BLUE}Skupper Network Observer (コンソール) を ${TARGET_NAMESPACE} にデプロイ中...${RESET}"
+    sed "s/quarkusdroneshop-demo/${TARGET_NAMESPACE}/g" "$REPO_ROOT/openshift/skupper-network-observer.yaml" \
+        | oc apply -f - -n "$TARGET_NAMESPACE"
 
     echo -e "${BLUE}Pod の起動を待っています...${RESET}"
-    oc rollout status deployment/skupper-network-observer -n "$NAMESPACE" --timeout=120s
-    oc rollout status deployment/skupper-prometheus -n "$NAMESPACE" --timeout=120s
+    oc rollout status deployment/skupper-network-observer -n "$TARGET_NAMESPACE" --timeout=120s
+    oc rollout status deployment/skupper-prometheus -n "$TARGET_NAMESPACE" --timeout=120s
 
-    CONSOLE_URL=$(oc get route skupper-network-observer -n "$NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null)
+    CONSOLE_URL=$(oc get route skupper-network-observer -n "$TARGET_NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null)
     echo -e "${GREEN}Skupper コンソール URL: https://${CONSOLE_URL}${RESET}"
 }
 
