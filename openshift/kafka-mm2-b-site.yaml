@@ -12,7 +12,7 @@ spec:
     - alias: "shop-asite"
       bootstrapServers: "external-shop-cluster-kafka-asite:9094"
     - alias: "shop-bsite"
-      bootstrapServers: "shop-cluster-kafka-external-bootstrap:9094"
+      bootstrapServers: "shop-cluster-kafka-bootstrap:9092"
   ports:
     - name: rest-api
       port: 8083

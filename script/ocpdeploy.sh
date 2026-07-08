@@ -304,6 +304,55 @@ skupper_operator_setup() {
     echo -e "${GREEN}  → Skupper CRD 準備完了${RESET}"
 }
 
+# Kafka の external(loadbalancer) リスナーの advertisedHost は、AWS ELB が
+# 再作成されるたびにホスト名が変わる(ELBを削除・再作成すると新しいランダムな
+# ホスト名が割り当てられる)ため、YAMLファイルに静的に書いた値はすぐに陳腐化し、
+# MirrorMaker2やSkupper経由の外部クライアントが NoBrokersAvailable /
+# UnknownHostException で接続できなくなる。
+# droneshop-cluster-kafka-bootstrap-listeners-*site.yaml を適用した直後に
+# 実際にプロビジョニングされたLBのホスト名を取得し、Kafka CRへ上書きパッチする。
+_patch_kafka_advertised_host() {
+    echo -e "${BLUE}  Load Balancer のホスト名を待機中...${RESET}"
+    local elb_host=""
+    for i in $(seq 1 60); do
+        elb_host=$(oc get svc shop-cluster-kafka-external-bootstrap -n "$NAMESPACE" \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+        if [ -n "$elb_host" ]; then
+            break
+        fi
+        sleep 5
+    done
+    if [ -z "$elb_host" ]; then
+        echo -e "${RED}  Load Balancer のホスト名取得に失敗しました。advertisedHost は手動で確認してください。${RESET}"
+        return 1
+    fi
+    echo -e "${GREEN}  Load Balancer ホスト名: ${elb_host}${RESET}"
+    oc patch kafka shop-cluster -n "$NAMESPACE" --type merge -p "$(cat <<PATCH
+{
+  "spec": {
+    "kafka": {
+      "listeners": [
+        {"name": "plain", "port": 9092, "tls": false, "type": "internal"},
+        {"name": "tls", "port": 9093, "tls": true, "type": "internal"},
+        {
+          "name": "external", "port": 9094, "tls": false, "type": "loadbalancer",
+          "configuration": {
+            "bootstrap": {},
+            "brokers": [
+              {"broker": 0, "advertisedHost": "${elb_host}", "advertisedPort": 9094},
+              {"broker": 1, "advertisedHost": "${elb_host}", "advertisedPort": 9094},
+              {"broker": 2, "advertisedHost": "${elb_host}", "advertisedPort": 9094}
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+PATCH
+)"
+}
+
 skupper_deploy() {
     skupper_operator_setup
 
@@ -331,6 +380,7 @@ skupper_deploy() {
         skupper connector create external-shop-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         skupper connector create external-shop-cluster-apicurio 8080 --selector app=droneshop-apicurioregistry-kafkasql -n "$NAMESPACE"
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-asite.yaml" -n "$NAMESPACE"
+        _patch_kafka_advertised_host
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-a-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "B" ]; then
@@ -354,6 +404,7 @@ skupper_deploy() {
         skupper listener create external-shop-cluster-postgres-bsite --host external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-bsite.yaml" -n "$NAMESPACE"
+        _patch_kafka_advertised_host
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-b-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "C" ]; then
@@ -377,6 +428,7 @@ skupper_deploy() {
         skupper listener create external-shop-cluster-postgres-csite --host external-shop-cluster-postgres-csite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/instance-set=droneshopdb -n "$NAMESPACE"
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-csite.yaml" -n "$NAMESPACE"
+        _patch_kafka_advertised_host
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-c-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "DH" ]; then
@@ -515,6 +567,14 @@ skupper_console() {
     echo -e "${BLUE}Pod の起動を待っています...${RESET}"
     oc rollout status deployment/skupper-network-observer -n "$TARGET_NAMESPACE" --timeout=120s
     oc rollout status deployment/skupper-prometheus -n "$TARGET_NAMESPACE" --timeout=120s
+
+    # skupper-network-observer-tls は skupper-local-ca (サイトごとに固有の内部CA) が発行する
+    # 自己署名証明書のため、Route(reencrypt)に destinationCACertificate を明示しないと
+    # ルーターがバックエンド証明書を信頼できず 503 Service Unavailable になる
+    echo -e "${BLUE}Route の TLS 設定 (destinationCACertificate) を追加中...${RESET}"
+    CA_CERT_JSON=$(oc get secret skupper-local-ca -n "$TARGET_NAMESPACE" -o jsonpath='{.data.ca\.crt}' | base64 -d | jq -Rs .)
+    oc patch route skupper-network-observer -n "$TARGET_NAMESPACE" --type=json \
+        -p "[{\"op\":\"add\",\"path\":\"/spec/tls/destinationCACertificate\",\"value\":${CA_CERT_JSON}}]"
 
     CONSOLE_URL=$(oc get route skupper-network-observer -n "$TARGET_NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null)
     echo -e "${GREEN}Skupper コンソール URL: https://${CONSOLE_URL}${RESET}"

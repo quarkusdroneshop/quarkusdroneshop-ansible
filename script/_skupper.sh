@@ -75,6 +75,55 @@ if [ "$DOMAIN_CONFREM" != "yes" ]; then
     exit 1
 fi
 
+# Kafka の external(loadbalancer) リスナーの advertisedHost は、AWS ELB が
+# 再作成されるたびにホスト名が変わる(ELBを削除・再作成すると新しいランダムな
+# ホスト名が割り当てられる)ため、YAMLファイルに静的に書いた値はすぐに陳腐化し、
+# MirrorMaker2やSkupper経由の外部クライアントが NoBrokersAvailable /
+# UnknownHostException で接続できなくなる。
+# droneshop-cluster-kafka-bootstrap-listeners-*site.yaml を適用した直後に
+# 実際にプロビジョニングされたLBのホスト名を取得し、Kafka CRへ上書きパッチする。
+_patch_kafka_advertised_host() {
+    echo -e "${BLUE}  Load Balancer のホスト名を待機中...${RESET}"
+    local elb_host=""
+    for i in $(seq 1 60); do
+        elb_host=$(oc get svc shop-cluster-kafka-external-bootstrap -n "$NAMESPACE" \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+        if [ -n "$elb_host" ]; then
+            break
+        fi
+        sleep 5
+    done
+    if [ -z "$elb_host" ]; then
+        echo -e "${RED}  Load Balancer のホスト名取得に失敗しました。advertisedHost は手動で確認してください。${RESET}"
+        return 1
+    fi
+    echo -e "${GREEN}  Load Balancer ホスト名: ${elb_host}${RESET}"
+    oc patch kafka shop-cluster -n "$NAMESPACE" --type merge -p "$(cat <<PATCH
+{
+  "spec": {
+    "kafka": {
+      "listeners": [
+        {"name": "plain", "port": 9092, "tls": false, "type": "internal"},
+        {"name": "tls", "port": 9093, "tls": true, "type": "internal"},
+        {
+          "name": "external", "port": 9094, "tls": false, "type": "loadbalancer",
+          "configuration": {
+            "bootstrap": {},
+            "brokers": [
+              {"broker": 0, "advertisedHost": "${elb_host}", "advertisedPort": 9094},
+              {"broker": 1, "advertisedHost": "${elb_host}", "advertisedPort": 9094},
+              {"broker": 2, "advertisedHost": "${elb_host}", "advertisedPort": 9094}
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+PATCH
+)"
+}
+
 deploy() {
 
     oc project "$NAMESPACE"
@@ -123,6 +172,7 @@ deploy() {
 
         # KafkaClusterの再作成 (Skupper advertisedHost を asite の FQDN に設定)
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-asite.yaml" -n "$NAMESPACE"
+        _patch_kafka_advertised_host
 
         # MirrorMakerの設定
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-a-site.yaml" -n "$NAMESPACE"
@@ -161,6 +211,7 @@ deploy() {
         
         # KafkaClusterの再作成 (Skupper advertisedHost を bsite の FQDN に設定)
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-bsite.yaml" -n "$NAMESPACE"
+        _patch_kafka_advertised_host
 
         # MirrorMakerの設定
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-b-site.yaml" -n "$NAMESPACE"
@@ -198,6 +249,7 @@ deploy() {
 
         # KafkaClusterの再作成 (Skupper advertisedHost を csite の FQDN に設定)
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-csite.yaml" -n "$NAMESPACE"
+        _patch_kafka_advertised_host
 
         # MirrorMakerの設定
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-c-site.yaml" -n "$NAMESPACE"

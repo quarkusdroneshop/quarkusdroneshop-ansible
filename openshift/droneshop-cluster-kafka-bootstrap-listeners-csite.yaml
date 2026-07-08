@@ -34,17 +34,17 @@ spec:
         tls: false
         configuration:
           bootstrap:
-            advertisedHost: a7cd29e13fbd9419894e8db48453f61d-2134671011.us-east-2.elb.amazonaws.com
+            advertisedHost: ad24e21424a52470fb2c7f6fe350fb0e-2022201935.us-east-2.elb.amazonaws.com
             advertisedPort: 9094
           brokers:
             - broker: 0
-              advertisedHost: a7cd29e13fbd9419894e8db48453f61d-2134671011.us-east-2.elb.amazonaws.com
+              advertisedHost: ad24e21424a52470fb2c7f6fe350fb0e-2022201935.us-east-2.elb.amazonaws.com
               advertisedPort: 9094
             - broker: 1
-              advertisedHost: a7cd29e13fbd9419894e8db48453f61d-2134671011.us-east-2.elb.amazonaws.com
+              advertisedHost: ad24e21424a52470fb2c7f6fe350fb0e-2022201935.us-east-2.elb.amazonaws.com
               advertisedPort: 9094
             - broker: 2
-              advertisedHost: a7cd29e13fbd9419894e8db48453f61d-2134671011.us-east-2.elb.amazonaws.com
+              advertisedHost: ad24e21424a52470fb2c7f6fe350fb0e-2022201935.us-east-2.elb.amazonaws.com
               advertisedPort: 9094
   entityOperator:
     topicOperator: {}
