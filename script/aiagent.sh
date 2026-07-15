@@ -602,10 +602,10 @@ deploy() {
 
     # ── Kafka 接続確認 (Skupper 経由のためデプロイ不要) ──
     echo -e "${BLUE}[3/6] Skupper Kafka 接続確認...${RESET}"
-    if oc get service kafka-cluster-kafka-bootstrap -n "${AI_AGENT_NAMESPACE}" &>/dev/null; then
-        echo -e "${GREEN}  → Skupper 仮想 Service (kafka-cluster-kafka-bootstrap): 確認済み ✓${RESET}"
+    if oc get service shop-cluster-kafka-bootstrap -n "${AI_AGENT_NAMESPACE}" &>/dev/null; then
+        echo -e "${GREEN}  → Skupper 仮想 Service (shop-cluster-kafka-bootstrap): 確認済み ✓${RESET}"
     else
-        echo -e "${YELLOW}  ⚠ kafka-cluster-kafka-bootstrap Service が見つかりません。${RESET}"
+        echo -e "${YELLOW}  ⚠ shop-cluster-kafka-bootstrap Service が見つかりません。${RESET}"
         echo -e "${YELLOW}    Skupper リンクが未確立の可能性があります。デプロイは続行しますが、${RESET}"
         echo -e "${YELLOW}    Kafka 接続が必要な機能は Skupper 接続後に動作します。${RESET}"
     fi

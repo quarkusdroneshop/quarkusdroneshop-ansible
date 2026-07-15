@@ -1,0 +1,70 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: droneshopdb
+  namespace: quarkusdroneshop-demo
+spec:
+  image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi9-17.7-2547
+  postgresVersion: 17
+  instances:
+    - name: instance1
+      dataVolumeClaimSpec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: 2Gi
+      resources:
+        limits:
+          cpu: 300m
+        requests:
+          cpu: 200m
+      sidecars:
+        replicaCertCopy:
+          resources:
+            limits:
+              cpu: 300m
+            requests:
+              cpu: 200m
+  backups:
+    pgbackrest:
+      image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi9-2.56.0-2547
+      global:
+        repo1-retention-full: "1"
+        repo1-retention-full-type: count
+      repoHost:
+        resources:
+          limits:
+            cpu: 300m
+          requests:
+            cpu: 200m
+      repos:
+        - name: repo1
+          schedules:
+            full: "0 1 * * 0"
+            differential: "0 1 * * 1-6"
+          volume:
+            volumeClaimSpec:
+              accessModes:
+                - "ReadWriteOnce"
+              resources:
+                requests:
+                  storage: 2Gi
+      sidecars:
+        pgbackrest:
+          resources:
+            limits:
+              cpu: 200m
+            requests:
+              cpu: 100m
+        pgbackrestConfig:
+          resources:
+            limits:
+              cpu: 300m
+            requests:
+              cpu: 200m
+  users:
+    - name: droneshopadmin
+      databases:
+        - droneshopdb
+      options: "SUPERUSER"

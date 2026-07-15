@@ -11,6 +11,8 @@
 #   ./skupper.sh setup           - To setup the skupper and kafkacluster.
 #   ./skupper.sh deploy          - To deploy the skupper and kafkacluster.
 #   ./skupper.sh retoken         - To retoken the skupper and kafkacluster.
+#   ./skupper.sh migrate         - To reset a site after its cluster was replaced
+#                                   and reissue a fresh token to hand to the other sites.
 #   ./skupper.sh status          - To status the skupper and kafkacluster.
 #   ./skupper.sh cleanup         - To delete the skupper and kafkacluster.
 #
@@ -392,6 +394,98 @@ retoken() {
     fi
 }
 
+# サイトのクラスタ自体が入れ替わった場合(新しいOpenShiftクラスタに
+# 作り直された場合)、旧クラスタのSkupper site/tokenはもう存在しないため、
+# 「その場でretokenする」だけでは不十分。このクラスタ上でsiteを作り直し、
+# 新しいtokenを発行した上で、他サイトの運用者に新tokenファイルを渡して
+# 各自のクラスタでredeemし直してもらう必要がある。
+# 他クラスタへの自動ログイン/context切替は事故(誤って別クラスタに適用)の
+# リスクが高いため行わず、「今oc述職しているこのクラスタ」の作業だけを
+# 自動化し、他サイトへの配布手順は画面出力に留める。
+migrate() {
+    read -p "クラスタが入れ替わったのはどのサイトですか？(A/B/C/DH): " SITE_CONFREM
+
+    case "$SITE_CONFREM" in
+        A) SITE_LOWER="asite"; SITE_NS="$NAMESPACE"; TOKEN_FILE="skupper-token-a.yaml"; OTHER_TOKENS="skupper-token-b.yaml skupper-token-c.yaml" ;;
+        B) SITE_LOWER="bsite"; SITE_NS="$NAMESPACE"; TOKEN_FILE="skupper-token-b.yaml"; OTHER_TOKENS="skupper-token-a.yaml skupper-token-c.yaml" ;;
+        C) SITE_LOWER="csite"; SITE_NS="$NAMESPACE"; TOKEN_FILE="skupper-token-c.yaml"; OTHER_TOKENS="skupper-token-a.yaml skupper-token-b.yaml" ;;
+        DH) SITE_LOWER="rhdh"; SITE_NS="$RHDH_NAMESPACE"; TOKEN_FILE="skupper-token-rhdh.yaml"; OTHER_TOKENS="skupper-token-a.yaml skupper-token-b.yaml skupper-token-c.yaml" ;;
+        *) echo -e "${RED}無効なサイトです: ${SITE_CONFREM}${RESET}" >&2; exit 1 ;;
+    esac
+
+    echo -e "${YELLOW}現在の oc コンテキスト: $(oc whoami --show-server 2>/dev/null) / $(oc whoami 2>/dev/null)${RESET}"
+    echo -e "${YELLOW}このクラスタが新しい『サイト${SITE_CONFREM}』用クラスタで間違いないですか？${RESET}"
+    read -p "続行しますか？(yes/no): " MIGRATE_CONFIRM
+    if [ "$MIGRATE_CONFIRM" != "yes" ]; then
+        echo -e "${RED}処理を中断します。${RESET}"
+        exit 1
+    fi
+
+    if [ "$SITE_CONFREM" = "DH" ]; then
+        if ! oc get project "$RHDH_NAMESPACE" &>/dev/null; then
+            oc new-project "$RHDH_NAMESPACE"
+        fi
+    else
+        oc project "$SITE_NS"
+    fi
+
+    # --- 1. 旧siteの残骸があれば削除してリセット ---
+    echo -e "${BLUE}[1/4] 旧 Skupper site をリセット中 (存在する場合のみ)...${RESET}"
+    if skupper site status -n "$SITE_NS" &>/dev/null; then
+        skupper site delete -n "$SITE_NS"
+        sleep 5
+    else
+        echo -e "${GREEN}  → 既存 site なし。新規作成に進みます。${RESET}"
+    fi
+
+    # --- 2. 新クラスタでsiteを作り直す ---
+    echo -e "${BLUE}[2/4] Skupper site を作成中...${RESET}"
+    skupper site create "skupper-${SITE_LOWER}" -n "$SITE_NS"
+    skupper site update --enable-link-access -n "$SITE_NS"
+    skupper site status -n "$SITE_NS"
+
+    # --- 3. 新しいtokenを発行 (このクラスタ=新環境のURLが埋め込まれる) ---
+    echo -e "${BLUE}[3/4] 新しい Token を発行中...${RESET}"
+    skupper token issue "$REPO_ROOT/${TOKEN_FILE}" -r 3 -n "$SITE_NS"
+    echo -e "${GREEN}  → ${REPO_ROOT}/${TOKEN_FILE} を発行しました${RESET}"
+
+    # --- 4. 自クラスタ側の古いaccesstoken/linkを掃除 (他サイトの古いtokenは
+    #     このクラスタでは無効になるため削除し、後で最新のものをredeemする) ---
+    echo -e "${BLUE}[4/4] 自クラスタ側の古い accesstoken を削除中...${RESET}"
+    oc delete accesstokens.skupper.io --all -n "$SITE_NS" 2>/dev/null || true
+
+    echo ""
+    echo -e "${GREEN}=========================================================${RESET}"
+    echo -e "${GREEN} サイト ${SITE_CONFREM} の site/token リセットが完了しました${RESET}"
+    echo -e "${GREEN}=========================================================${RESET}"
+    echo -e "${YELLOW}次の手順を、他サイト (${OTHER_TOKENS}) の運用者に案内してください:${RESET}"
+    echo ""
+    echo -e "  1. ${BLUE}${REPO_ROOT}/${TOKEN_FILE}${RESET} を各サイトの運用者に配布する"
+    echo -e "     (Slack/Notion等、社内で決めた安全な経路で。トークンファイルには"
+    echo -e "      接続用URLと認証情報が含まれるため、公開リポジトリにコミットしないこと)"
+    echo -e "  2. 各サイトの運用者は、自分のクラスタにログインした状態で以下を実行:"
+    echo -e "       ${BLUE}oc delete accesstokens.skupper.io --all -n <自サイトのnamespace>${RESET}"
+    echo -e "       ${BLUE}skupper token redeem ${TOKEN_FILE} -n <自サイトのnamespace>${RESET}"
+    echo -e "  3. このクラスタ側でも、他サイトの最新トークンを受け取り次第 redeem する:"
+    for t in $OTHER_TOKENS; do
+        echo -e "       ${BLUE}skupper token redeem ${REPO_ROOT}/${t} -n ${SITE_NS}${RESET}"
+    done
+    echo -e "  4. 全サイトの redeem 完了後、双方で ${BLUE}./skupper.sh status${RESET} を実行しリンクを確認"
+    echo ""
+    echo -e "${YELLOW}Kafka Bootstrap/MirrorMaker のURLも入れ替わったクラスタでは変わるため、${RESET}"
+    echo -e "${YELLOW}必要に応じて以下も再適用してください (A/B/C site のみ):${RESET}"
+    if [ "$SITE_CONFREM" != "DH" ]; then
+        echo -e "       ${BLUE}oc apply -f ${REPO_ROOT}/openshift/droneshop-cluster-kafka-bootstrap-listeners-${SITE_LOWER}.yaml -n ${SITE_NS}${RESET}"
+        echo -e "       ${BLUE}oc apply -f ${REPO_ROOT}/openshift/kafka-mm2-${SITE_CONFREM,,}-site.yaml -n ${SITE_NS}${RESET}"
+        read -p "  上記のKafka Listener/MirrorMaker再適用を今すぐ実行しますか？(yes/no): " REAPPLY_CONFIRM
+        if [ "$REAPPLY_CONFIRM" = "yes" ]; then
+            oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-${SITE_LOWER}.yaml" -n "$SITE_NS"
+            _patch_kafka_advertised_host
+            oc apply -f "$REPO_ROOT/openshift/kafka-mm2-${SITE_CONFREM,,}-site.yaml" -n "$SITE_NS"
+        fi
+    fi
+}
+
 cleanup() {
 
     # Site含む全部削除
@@ -474,6 +568,9 @@ case "$1" in
     retoken)
         retoken
         ;;
+    migrate)
+        migrate
+        ;;
     status)
         status
         ;;
@@ -488,7 +585,7 @@ case "$1" in
         ;;
     *)
         echo -e "${RED}無効なコマンドです: $1${RESET}"
-        echo -e "${RED}使用方法: $0 {deploy|retoken|status|console|cleanup}${RESET}"
+        echo -e "${RED}使用方法: $0 {deploy|retoken|migrate|status|console|cleanup}${RESET}"
         exit 1
         ;;
 esac

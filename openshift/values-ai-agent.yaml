@@ -14,7 +14,7 @@ aiAgent:
     VLLM_MODEL_NAME: "granite-20b-code-instruct"
     OPENMETADATA_HOST: "http://openmetadata.openmetadata:8585"
     BUSINESS_API_URL: "http://business-api.ai-agent-platform:8080"
-    KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap.ai-agent-platform:9092"
+    KAFKA_BOOTSTRAP_SERVERS: "shop-cluster-kafka-bootstrap.ai-agent-platform:9092"
     LOG_LEVEL: "INFO"
   resources:
     requests:
