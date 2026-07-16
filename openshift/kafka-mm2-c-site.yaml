@@ -1,4 +1,4 @@
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaMirrorMaker2
 metadata:
   name: mm2-extended
@@ -6,15 +6,23 @@ metadata:
 spec:
   version: 4.1.0
   replicas: 1
-  connectCluster: "shop-csite"
   enableRestApi: true
-  clusters:
-    - alias: "shop-asite"
-      bootstrapServers: "external-shop-cluster-kafka-asite:9094"
-    - alias: "shop-bsite"
-      bootstrapServers: "external-shop-cluster-kafka-bsite:9094"  
-    - alias: "shop-csite"
-      bootstrapServers: "shop-cluster-kafka-bootstrap:9092"
+  # NOTE: v1beta2 の clusters[]/connectCluster/sourceCluster/targetCluster は
+  # v1 (A/B サイトで確認済みのストレージバージョン) では廃止されており、
+  # target (Connect自身の内部トピック用クラスタ) と各mirrorのsource が必須。
+  # C-site のOpenTLCサンドボックスは現在到達不能なため、この値は実クラスタで
+  # 検証できていない。A/B両サイトで確認された共通の命名規約
+  # (bootstrapServers: shop-cluster-kafka-bootstrap:9092、groupId:
+  # mirrormaker2-cluster 等)を踏襲しているが、C-siteが復旧し次第、
+  # 実際のConnect設定ファイル(/tmp/strimzi-connect.properties)で値を
+  # 照合すること。
+  target:
+    alias: "shop-csite"
+    bootstrapServers: "shop-cluster-kafka-bootstrap:9092"
+    configStorageTopic: "mirrormaker2-cluster-configs"
+    offsetStorageTopic: "mirrormaker2-cluster-offsets"
+    statusStorageTopic: "mirrormaker2-cluster-status"
+    groupId: "mirrormaker2-cluster"
   ports:
     - name: rest-api
       port: 8083
@@ -32,8 +40,9 @@ spec:
       org.apache.kafka.connect.mirror.MirrorClient: "DEBUG"
       org.apache.kafka.connect.mirror.OffsetSyncStore: "DEBUG"
   mirrors:
-    - sourceCluster: "shop-asite"
-      targetCluster: "shop-csite"
+    - source:
+        alias: "shop-asite"
+        bootstrapServers: "external-shop-cluster-kafka-asite:9094"
       topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
@@ -65,8 +74,9 @@ spec:
           config.storage.topic: mirrormaker2-cluster-configs
           offset.storage.topic: mirrormaker2-cluster-offsets
           status.storage.topic: mirrormaker2-cluster-status
-    - sourceCluster: "shop-bsite"
-      targetCluster: "shop-csite"
+    - source:
+        alias: "shop-bsite"
+        bootstrapServers: "external-shop-cluster-kafka-bsite:9094"
       topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:

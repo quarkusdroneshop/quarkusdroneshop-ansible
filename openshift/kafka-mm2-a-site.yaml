@@ -1,4 +1,4 @@
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaMirrorMaker2
 metadata:
   name: mm2-extended
@@ -6,13 +6,24 @@ metadata:
 spec:
   version: 4.1.0
   replicas: 1
-  connectCluster: "shop-asite"
   enableRestApi: true
-  clusters:
-    - alias: "shop-bsite"
-      bootstrapServers: "external-shop-cluster-kafka-bsite:9094"
-    - alias: "shop-asite"
-      bootstrapServers: "shop-cluster-kafka-bootstrap:9092"
+  # NOTE: v1beta2 の clusters[]/connectCluster/sourceCluster/targetCluster は
+  # v1 (このクラスタで現在有効なストレージバージョン) では廃止されており、
+  # target (Connect自身の内部トピック用クラスタ) と各mirrorのsource が必須。
+  # このファイルは元々 v1beta2 スタイルで作成され、CRDがv1に切り替わった後も
+  # 実クラスタ側のオブジェクトだけがtarget/sourceを欠いたまま動き続けていたため
+  # (削除以外の書き込みが無ければ既存オブジェクトへの検証は走らない)、
+  # 次回このマニフェストを適用すると同じ検証エラーで失敗する状態だった。
+  # 実クラスタに直接PATCHして復旧させた際の値と一致させてある
+  # (target.bootstrapServers/groupId等はPod内の実際のConnect設定ファイルから
+  # 確認した値)。
+  target:
+    alias: "shop-asite"
+    bootstrapServers: "shop-cluster-kafka-bootstrap:9092"
+    configStorageTopic: "mirrormaker2-cluster-configs"
+    offsetStorageTopic: "mirrormaker2-cluster-offsets"
+    statusStorageTopic: "mirrormaker2-cluster-status"
+    groupId: "mirrormaker2-cluster"
   ports:
     - name: rest-api
       port: 8083
@@ -30,8 +41,9 @@ spec:
       org.apache.kafka.connect.mirror.MirrorClient: "DEBUG"
       org.apache.kafka.connect.mirror.OffsetSyncStore: "DEBUG"
   mirrors:
-    - sourceCluster: "shop-bsite"
-      targetCluster: "shop-asite"
+    - source:
+        alias: "shop-bsite"
+        bootstrapServers: "external-shop-cluster-kafka-bsite:9094"
       topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
