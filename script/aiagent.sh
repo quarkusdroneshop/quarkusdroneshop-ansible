@@ -11,6 +11,7 @@
 #   ./script/aiagent.sh setup           - OpenShift AI Operator / 前提ミドルをインストール
 #   ./script/aiagent.sh deploy          - AI Agent Platform をデプロイ (dev overlay)
 #   ./script/aiagent.sh deploy-prod     - AI Agent Platform を本番デプロイ (prod overlay)
+#   ./script/aiagent.sh deploy-latest   - ai-agent-cicd パイプラインの最新ビルドイメージのみ反映
 #   ./script/aiagent.sh vllm            - vLLM モデルサービングをデプロイ
 #   ./script/aiagent.sh status          - 全コンポーネントの状態確認
 #   ./script/aiagent.sh logs            - AI Agent の最新ログを表示
@@ -708,6 +709,56 @@ deploy() {
     echo -e "${YELLOW}ログ確認    : ./script/aiagent.sh logs${RESET}"
 }
 
+# ─── deploy-latest: ai-agent-cicd パイプラインが最後にビルドしたイメージのみを
+# ai-agent-orchestrator Deployment に反映する ──────────────────────────────────
+# NOTE: `deploy` (oc apply -k overlays/dev) は kustomization.yaml が image tag を
+# 常に "dev" に固定しているため、内部レジストリの "dev" ImageStreamTag を
+# 更新しない限りパイプラインの最新ビルドを拾わない。またDeploymentのcontainers
+# 配列全体を丸ごと置き換えるパッチ(type=merge)を使うと env/ports/resources/probes
+# が消える事故になることを実際に確認済みのため、image フィールドだけをJSON Patch
+# (type=json) で更新する。
+deploy_latest_image() {
+    _require oc
+
+    echo -e "${BLUE}=== ai-agent-orchestrator: 最新ビルドイメージのみデプロイ ===${RESET}"
+
+    if ! oc get deployment ai-agent-orchestrator -n "${AI_AGENT_NAMESPACE}" &>/dev/null; then
+        echo -e "${RED}エラー: Deployment ai-agent-orchestrator が ${AI_AGENT_NAMESPACE} に見つかりません。${RESET}" >&2
+        echo -e "${YELLOW}先に './script/aiagent.sh deploy' を実行してください。${RESET}" >&2
+        exit 1
+    fi
+
+    # ai-agent-cicd パイプラインは各ビルドを "dev" とは別に、コミットSHAをタグ名
+    # としてイメージストリームへ push する ("dev" タグ自体はkustomizeが上書きし
+    # 続ける可変ポインタのため除外する)。タグの作成日時で最新を判定する。
+    local LATEST_TAG
+    LATEST_TAG=$(oc get imagestream ai-agent-orchestrator -n "${AI_AGENT_NAMESPACE}" \
+        -o jsonpath='{range .status.tags[*]}{.tag}{"\t"}{.items[0].created}{"\n"}{end}' 2>/dev/null \
+        | grep -v '^dev\s' \
+        | sort -t $'\t' -k2 -r \
+        | head -1 \
+        | cut -f1)
+
+    if [ -z "${LATEST_TAG}" ]; then
+        echo -e "${RED}エラー: ai-agent-orchestrator イメージストリームに ('dev' 以外の) タグが見つかりません。${RESET}" >&2
+        echo -e "${YELLOW}ai-agent-cicd パイプラインが少なくとも1回成功している必要があります。${RESET}" >&2
+        exit 1
+    fi
+
+    local IMAGE="image-registry.openshift-image-registry.svc:5000/${AI_AGENT_NAMESPACE}/ai-agent-orchestrator:${LATEST_TAG}"
+    echo -e "${GREEN}  最新ビルド: ${LATEST_TAG}${RESET}"
+    echo -e "${BLUE}  image: ${IMAGE}${RESET}"
+
+    oc patch deployment ai-agent-orchestrator -n "${AI_AGENT_NAMESPACE}" \
+        --type=json \
+        -p "[{\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/image\", \"value\": \"${IMAGE}\"}]"
+
+    echo -e "${BLUE}ロールアウト待機中...${RESET}"
+    oc rollout status deployment/ai-agent-orchestrator -n "${AI_AGENT_NAMESPACE}" --timeout=180s
+
+    echo -e "${GREEN}デプロイ完了: ai-agent-orchestrator は ${LATEST_TAG} で稼働中${RESET}"
+}
+
 # ─── deploy-prod: 本番デプロイ ─────────────────────────────────────────────────
 deploy_prod() {
     echo -e "${RED}⚠ 本番環境へのデプロイを実行します。${RESET}"
@@ -839,6 +890,9 @@ case "${1:-}" in
     deploy-prod)
         deploy_prod
         ;;
+    deploy-latest)
+        deploy_latest_image
+        ;;
     status)
         status
         ;;
@@ -856,6 +910,7 @@ case "${1:-}" in
         echo -e "  $0 vllm          vLLM モデルサービングをデプロイ (${MODEL_NAME})"
         echo -e "  $0 deploy        AI Agent Platform を dev 環境にデプロイ"
         echo -e "  $0 deploy-prod   AI Agent Platform を prod 環境にデプロイ (確認あり)"
+        echo -e "  $0 deploy-latest ai-agent-cicd パイプラインの最新ビルドイメージのみを反映"
         echo -e "  $0 status        全コンポーネントの状態と URL を表示"
         echo -e "  $0 logs [n]      AI Agent のログを表示 (デフォルト 100 行)"
         echo -e "  $0 cleanup       AI Agent Platform を削除"
