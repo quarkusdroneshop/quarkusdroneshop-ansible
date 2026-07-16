@@ -7,7 +7,7 @@ spec:
   image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi9-17.7-2547
   postgresVersion: 17
   instances:
-    - name: instance1
+    - name: droneshopdb
       dataVolumeClaimSpec:
         accessModes:
           - "ReadWriteOnce"
