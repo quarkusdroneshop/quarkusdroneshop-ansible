@@ -44,7 +44,11 @@ spec:
     - source:
         alias: "shop-asite"
         bootstrapServers: "external-shop-cluster-kafka-asite:9094"
-      topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
+      # NOTE: orders-test は AI Agent の delete_kafka_topic ツールによる
+      # 動作確認用の使い捨てトピックで、MM2が自身の内部チェックポイントに基づき
+      # 削除後も再作成し続けていた問題への対処として、パターンから明示的に
+      # 除外している(否定先読み)。実クラスタにも同じ変更を適用済み。
+      topicsPattern: "^(?!orders-test$)(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
