@@ -10,12 +10,12 @@ spec:
   # NOTE: v1beta2 の clusters[]/connectCluster/sourceCluster/targetCluster は
   # v1 (A/B サイトで確認済みのストレージバージョン) では廃止されており、
   # target (Connect自身の内部トピック用クラスタ) と各mirrorのsource が必須。
-  # C-site のOpenTLCサンドボックスは現在到達不能なため、この値は実クラスタで
-  # 検証できていない。A/B両サイトで確認された共通の命名規約
+  # C-site は sandbox850 として再構築され、外部公開ELBのホスト名/IPが変わった
+  # (droneshop-cluster-kafka-bootstrap-listeners-csite.yaml と
+  # datamesh-ai-agent-platform/deployment/kustomize/base/networkpolicy.yaml を
+  # 2026-07-17 に新ELBへ更新済み)。A/B両サイトで確認された共通の命名規約
   # (bootstrapServers: shop-cluster-kafka-bootstrap:9092、groupId:
-  # mirrormaker2-cluster 等)を踏襲しているが、C-siteが復旧し次第、
-  # 実際のConnect設定ファイル(/tmp/strimzi-connect.properties)で値を
-  # 照合すること。
+  # mirrormaker2-cluster 等)を踏襲している。
   target:
     alias: "shop-csite"
     bootstrapServers: "shop-cluster-kafka-bootstrap:9092"
