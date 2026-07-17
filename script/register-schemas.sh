@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Script Name: register-schemas.sh
-# Description: dataproducts/*/schema/*.avsc を Apicurio Service Registry に
+# Description: datamesh-dataproducts/*/schema/*.avsc を Apicurio Service Registry に
 #              登録する。認証は Keycloak (RHBK) のサービスアカウントクライアント
 #              (dataproducts-registry) から OIDC Client Credentials で取得した
 #              トークンを使用する。
@@ -20,7 +20,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-DATAPRODUCTS_DIR="$(cd "${REPO_ROOT}/../dataproducts" && pwd)"
+DATAPRODUCTS_DIR="$(cd "${REPO_ROOT}/../datamesh-dataproducts" && pwd)"
 
 : "${KEYCLOAK_TOKEN_URL:?KEYCLOAK_TOKEN_URL is required}"
 : "${REGISTRY_CLIENT_ID:?REGISTRY_CLIENT_ID is required}"

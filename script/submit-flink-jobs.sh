@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Script Name: submit-flink-jobs.sh
-# Description: dataproducts/*/flink/*.sql を dataproducts-flink Session Cluster
+# Description: datamesh-dataproducts/*/flink/*.sql を dataproducts-flink Session Cluster
 #              (openshift/dataproducts/flink-session-cluster.yaml) に SQL Client
 #              経由で投入する。依存順(OrderEvents が先)に投入する。
 #
@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-DATAPRODUCTS_DIR="$(cd "${REPO_ROOT}/../dataproducts" && pwd)"
+DATAPRODUCTS_DIR="$(cd "${REPO_ROOT}/../datamesh-dataproducts" && pwd)"
 NAMESPACE="${NAMESPACE:-quarkusdroneshop-demo}"
 FLINK_DEPLOYMENT="dataproducts-flink"
 
