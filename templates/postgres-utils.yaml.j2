@@ -163,6 +163,16 @@ spec:
         image: image-registry.openshift-image-registry.svc:5000/{{ target_project }}/postgres-utilites:latest
         imagePullPolicy: IfNotPresent
         name: postgres-utilites
+        livenessProbe:
+          exec:
+            command: ["sh", "-c", "pg_isready -h $PGHOSTNAME"]
+          initialDelaySeconds: 15
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command: ["sh", "-c", "pg_isready -h $PGHOSTNAME"]
+          initialDelaySeconds: 10
+          periodSeconds: 15
         resources: {}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
