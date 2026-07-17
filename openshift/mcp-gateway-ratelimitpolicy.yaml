@@ -1,0 +1,21 @@
+# ai-policy-gateway の cost limiter を補助する単純なレート制限。
+# Agent のツール呼び出しループが暴走した場合の下限の歯止めとして、
+# ユーザー(sub)単位で MCP サーバーへの呼び出し回数を制限する。
+# トークン課金など細かいコスト計算は引き続き ai-policy-gateway 側の責務とする。
+apiVersion: kuadrant.io/v1
+kind: RateLimitPolicy
+metadata:
+  name: mcp-gateway-ratelimit
+  namespace: __NAMESPACE__
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+  limits:
+    per-user-tool-calls:
+      rates:
+        - limit: 60
+          window: 1m
+      counters:
+        - expression: auth.identity.sub

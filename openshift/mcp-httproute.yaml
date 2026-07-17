@@ -1,0 +1,25 @@
+# クラスタ内の論理的にまとまった MCP サーバー群(mcp-server Service)への
+# ルーティング。個々の Tool(MCP Tool / Camel Tool / Git Tool / SQL Tool / Shell Tool)
+# はこの mcp-server の内部でディスパッチされる想定のため、HTTPRoute は 1 本のみ。
+# Gateway (__NAMESPACE__) と mcp-server 本体 (__APP_NAMESPACE__) は namespace が
+# 異なるため、backendRefs のクロス namespace 参照には
+# mcp-httproute-referencegrant.yaml (__APP_NAMESPACE__ 側) の ReferenceGrant が必要。
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-server
+  namespace: __NAMESPACE__
+spec:
+  parentRefs:
+    - name: mcp-gateway
+  hostnames:
+    - "mcp.__DOMAIN_NAME__"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: mcp-server
+          namespace: __APP_NAMESPACE__
+          port: 8000

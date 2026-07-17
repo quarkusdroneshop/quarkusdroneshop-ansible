@@ -1,0 +1,30 @@
+# 認証は Keycloak (realm: drone-platform) に全任せする。
+# issuerUrl を指定するだけで Authorino が Keycloak の JWKS を自動解決し、
+# トークンの署名検証を行う。Gateway 層はここで「誰であるか」までを確認し、
+# 「そのユーザーがどの Tool を叩けるか」の認可判断は行わない
+# (Planner Agent 後段の OPA Policy Engine の責務)。
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: mcp-gateway-auth
+  namespace: __NAMESPACE__
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+  rules:
+    authentication:
+      keycloak-oidc:
+        jwt:
+          issuerUrl: "https://__KEYCLOAK_HOST__/realms/drone-platform"
+    response:
+      success:
+        filters:
+          identity:
+            json:
+              properties:
+                sub:
+                  selector: auth.identity.sub
+                preferred_username:
+                  selector: auth.identity.preferred_username

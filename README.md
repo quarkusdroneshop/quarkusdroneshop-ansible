@@ -133,6 +133,12 @@ Pipeline 実行後は OpenShift コンソールの `quarkusdroneshop-cicd` プ�
 | `skupper status` | Skupper サイト / リンク / リスナー / コネクター状態確認 |
 | `skupper console` | Skupper Network Observer デプロイ |
 | `skupper cleanup` | Skupper 全リソース削除・MirrorMaker2 削除 |
+| `dataproducts setup` | Flink Kubernetes Operator インストール + Trino (Helm chart) デプロイ |
+| `dataproducts deploy` | Flink Session Cluster 起動 + `dataproducts/*/flink/*.sql` を依存順(OrderEvents → 後続)で投入 |
+| `dataproducts schemas` | `dataproducts/*/schema/*.avsc` を Apicurio Service Registry へ登録(Keycloak OIDC 認証) |
+| `dataproducts cleanup` | Flink Session Cluster・投入ジョブ・Trino (Helm) の削除 |
+
+`dataproducts` サブコマンドは、リポジトリルートの [`dataproducts/`](../dataproducts/README.md) に定義された 7 つのデータプロダクト(OrderEvents / Real-time Sales Trends / Drone Component Stock / Inventory Analytics / Assembly Lead Time QDCA10 / QDCA10pro / Customer 360)を Apache Flink・Apache Iceberg・Trino 上に構築するためのもの。設計方針(ドメイン越境はデータプロダクト経由に限定、Kafka を中心に据える、Apicurio Service Registry でスキーマ管理、認証は Keycloak に一元化・認可は Trino のアクセス制御)は [`dataproducts/README.md`](../dataproducts/README.md) を参照。
 
 ### `script/developer-hub.sh` — Red Hat Developer Hub (RHDH) 管理
 
@@ -146,7 +152,7 @@ Pipeline 実行後は OpenShift コンソールの `quarkusdroneshop-cicd` プ�
 | `system-token` | A/B/C 全クラスタの SA トークン取得・Secret 更新 |
 | `customimage` | カスタム RHDH イメージのビルド |
 | `resetcustombuild` | カスタムイメージのリセット＆再ビルド |
-| `update-plugin` | test-report プラグイン再ビルド・integrity ハッシュ更新・RHDH 再起動 |
+| `update-plugin` | test-report / data-catalog / kafka-topic-request / skupper-console プラグイン再ビルド・integrity ハッシュ更新・RHDH 再起動 |
 | `cleanup` | RHDH 全リソース削除 |
 
 ### `script/openmetadata.sh` — OpenMetadata 管理

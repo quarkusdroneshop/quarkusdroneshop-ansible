@@ -12,6 +12,8 @@
 #   ./script/ocpdeploy.sh setup                  - OCP 環境セットアップ（demo NS）
 #   ./script/ocpdeploy.sh cleanup                - demo NS の全リソース削除
 #
+#   MCP Gateway (Red Hat Connectivity Link) は ./script/connectivitylink.sh を使用
+#
 #   ./script/ocpdeploy.sh pipeline setup         - Tekton Operator インストール
 #   ./script/ocpdeploy.sh pipeline deploy        - Pipeline kustomize デプロイ
 #   ./script/ocpdeploy.sh pipeline config        - Demo ConfigMap 設定
@@ -63,6 +65,14 @@ usage() {
     echo "  $0 pipeline deploy        Pipeline kustomize デプロイ"
     echo "  $0 pipeline config        Demo ConfigMap 設定"
     echo "  $0 pipeline cleanup       CICD NS 削除"
+    echo ""
+    echo "  $0 dataproducts setup     Flink Kubernetes Operator インストール + Trino Helm デプロイ"
+    echo "  $0 dataproducts deploy    Flink Session Cluster 起動 + 全ジョブ投入 (依存順)"
+    echo "  $0 dataproducts schemas   Apicurio へスキーマ登録 (Keycloak OIDC 認証)"
+    echo "  $0 dataproducts cleanup   dataproducts 関連リソースの削除"
+    echo ""
+    echo "  MCP Gateway (Red Hat Connectivity Link) は ./script/connectivitylink.sh を使用"
+    echo "    ./script/connectivitylink.sh setup|deploy|status|cleanup"
 
 }
 
@@ -86,6 +96,15 @@ case "$1" in
             deploy|retoken|status|console|cleanup) ;;
             *)
                 echo -e "${RED}無効なサブコマンド: skupper $2${RESET}"
+                usage; exit 1
+                ;;
+        esac
+        ;;
+    dataproducts)
+        case "$2" in
+            setup|deploy|schemas|cleanup) ;;
+            *)
+                echo -e "${RED}無効なサブコマンド: dataproducts $2${RESET}"
                 usage; exit 1
                 ;;
         esac
@@ -608,6 +627,78 @@ skupper_cleanup() {
 }
 
 # =============================================================================
+# dataproducts サブコマンド
+#
+# データプロダクト基盤 (Flink / Iceberg / Trino) のうち、OperatorHub 上に
+# Operator が存在するものは Subscription として、存在しないもの (Trino) は
+# 公式 Helm チャートとして、いずれもこのスクリプトにまとめる。
+# 認証情報は Keycloak (RHBK, 既存の共通コンポーネント) に一元化し、
+# 個別サービスのユーザー/パスワードはハードコードしない。
+# =============================================================================
+
+dataproducts_setup() {
+    oc project "$NAMESPACE"
+
+    echo -e "${BLUE}Flink Kubernetes Operator をインストール中...${RESET}"
+    oc apply -f "$REPO_ROOT/openshift/flink-operator.yaml"
+    echo -e "${BLUE}Flink CRD の準備を待っています...${RESET}"
+    until oc get crd flinkdeployments.flink.apache.org &>/dev/null; do sleep 5; done
+    echo -e "${GREEN}  → Flink Operator 準備完了${RESET}"
+
+    # Trino には OperatorHub 上の公式 Operator が存在しないため Helm で導入する。
+    echo -e "${BLUE}Trino (Helm chart) をインストール中...${RESET}"
+    helm repo add trino https://trinodb.github.io/charts >/dev/null 2>&1 || true
+    helm repo update trino >/dev/null 2>&1
+
+    if ! oc get secret trino-oidc -n "$NAMESPACE" &>/dev/null; then
+        echo -e "${YELLOW}  ⚠ Secret 'trino-oidc' が未作成です。Keycloak に${RESET}"
+        echo -e "${YELLOW}     サービスアカウントクライアント (trino-coordinator) を作成した上で、${RESET}"
+        echo -e "${YELLOW}     KEYCLOAK_ISSUER_URL / TRINO_OIDC_CLIENT_ID / TRINO_OIDC_CLIENT_SECRET を${RESET}"
+        echo -e "${YELLOW}     'oc create secret generic trino-oidc --from-literal=...' で作成してから${RESET}"
+        echo -e "${YELLOW}     再実行してください。ここでは Trino のデプロイをスキップします。${RESET}"
+    else
+        oc apply -f "$REPO_ROOT/openshift/dataproducts/trino-access-control-rules.json" \
+            -n "$NAMESPACE" 2>/dev/null || \
+        oc create configmap trino-access-control \
+            --from-file=rules.json="$REPO_ROOT/openshift/dataproducts/trino-access-control-rules.json" \
+            -n "$NAMESPACE" --dry-run=client -o yaml | oc apply -f -
+
+        helm upgrade --install trino trino/trino \
+            -n "$NAMESPACE" \
+            -f "$REPO_ROOT/openshift/dataproducts/trino-values.yaml"
+        echo -e "${GREEN}  → Trino デプロイ完了${RESET}"
+    fi
+}
+
+dataproducts_deploy() {
+    oc project "$NAMESPACE"
+
+    echo -e "${BLUE}Flink Session Cluster (dataproducts-flink) を起動中...${RESET}"
+    oc apply -f "$REPO_ROOT/openshift/dataproducts/flink-session-cluster.yaml" -n "$NAMESPACE"
+
+    echo -e "${BLUE}依存順(OrderEvents → 後続プロダクト)でジョブを投入中...${RESET}"
+    NAMESPACE="$NAMESPACE" "$SCRIPT_DIR/submit-flink-jobs.sh"
+    echo -e "${GREEN}  → dataproducts の Flink ジョブ投入完了${RESET}"
+}
+
+dataproducts_schemas() {
+    if [ -z "${KEYCLOAK_TOKEN_URL:-}" ] || [ -z "${REGISTRY_CLIENT_ID:-}" ] \
+        || [ -z "${REGISTRY_CLIENT_SECRET:-}" ] || [ -z "${APICURIO_REGISTRY_URL:-}" ]; then
+        echo -e "${RED}KEYCLOAK_TOKEN_URL / REGISTRY_CLIENT_ID / REGISTRY_CLIENT_SECRET / APICURIO_REGISTRY_URL を${RESET}"
+        echo -e "${RED}環境変数で指定してください(Keycloak にサービスアカウントクライアントを作成した上で都度設定)。${RESET}"
+        exit 1
+    fi
+    "$SCRIPT_DIR/register-schemas.sh"
+}
+
+dataproducts_cleanup() {
+    oc delete flinkdeployment dataproducts-flink -n "$NAMESPACE" --ignore-not-found=true
+    oc delete job -l app=dataproducts -n "$NAMESPACE" --ignore-not-found=true
+    helm uninstall trino -n "$NAMESPACE" 2>/dev/null || true
+    oc delete configmap trino-access-control -n "$NAMESPACE" --ignore-not-found=true
+}
+
+# =============================================================================
 # Step 3: ディスパッチ
 # =============================================================================
 
@@ -628,6 +719,14 @@ case "$1" in
             deploy)  pipeline_deploy  ;;
             config)  pipeline_config  ;;
             cleanup) pipeline_cleanup ;;
+        esac
+        ;;
+    dataproducts)
+        case "$2" in
+            setup)   dataproducts_setup   ;;
+            deploy)  dataproducts_deploy  ;;
+            schemas) dataproducts_schemas ;;
+            cleanup) dataproducts_cleanup ;;
         esac
         ;;
 

@@ -1,0 +1,8 @@
+# rhcl-operator (kuadrant-operator) が Authorino/Limitador を実際に起動するための
+# トップレベル CR。これが無いと AuthPolicy/RateLimitPolicy は Accepted=True の
+# ままいつまでも Enforced=False (MissingResource: kuadrant is not installed) になる。
+apiVersion: kuadrant.io/v1beta1
+kind: Kuadrant
+metadata:
+  name: kuadrant
+  namespace: openshift-operators

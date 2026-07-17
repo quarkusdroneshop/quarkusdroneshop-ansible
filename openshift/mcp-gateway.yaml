@@ -1,0 +1,31 @@
+# MCP Gateway 本体。サイト(クラスタ)ごとに 1 つ、論理的にまとまった
+# MCP サーバー群(mcp-server Service)の手前に立てる。
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: openshift-gateway
+spec:
+  controllerName: openshift.io/gateway-controller/v1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mcp-gateway
+  namespace: __NAMESPACE__
+  labels:
+    app: mcp-gateway
+spec:
+  gatewayClassName: openshift-gateway
+  listeners:
+    - name: https
+      port: 443
+      protocol: HTTPS
+      hostname: "mcp.__DOMAIN_NAME__"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: mcp-gateway-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
