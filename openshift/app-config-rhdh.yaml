@@ -136,6 +136,23 @@ data:
               if:
                 allOf:
                   - isKind: component
+        internal.plugin-skupper-console:
+          mountPoints:
+            - mountPoint: entity.page.skupper-console/cards
+              importName: SkupperConsoleContent
+              config:
+                layout:
+                  gridColumn: "1 / -1"
+                if:
+                  allOf:
+                    - isKind: component
+          entityTabs:
+            - path: /skupper-console
+              title: Skupper Console
+              mountPoint: entity.page.skupper-console
+              if:
+                allOf:
+                  - isKind: component
       backend:
         defaultEnable: true
         disabledPlugins:

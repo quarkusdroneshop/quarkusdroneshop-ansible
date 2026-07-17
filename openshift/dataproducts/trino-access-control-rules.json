@@ -1,0 +1,55 @@
+{
+  "catalogs": [
+    { "user": "admin", "catalog": "iceberg", "allow": "all" },
+    { "group": "dataproducts-consumer", "catalog": "iceberg", "allow": "read-only" }
+  ],
+  "schemas": [
+    {
+      "group": "dataproducts-consumer",
+      "catalog": "iceberg",
+      "schema": "dataproducts",
+      "owner": false
+    }
+  ],
+  "tables": [
+    {
+      "group": "dataproducts-consumer",
+      "catalog": "iceberg",
+      "schema": "dataproducts",
+      "table": ".*",
+      "privileges": ["SELECT"]
+    }
+  ],
+  "columns": [
+    {
+      "group": "dataproducts-consumer",
+      "catalog": "iceberg",
+      "schema": "dataproducts",
+      "table": "customer_360",
+      "column": "customer_name",
+      "mask": "CONCAT(SUBSTR(customer_name, 1, 1), '***')"
+    },
+    {
+      "group": "dataproducts-consumer",
+      "catalog": "iceberg",
+      "schema": "dataproducts",
+      "table": "customer_360",
+      "column": "email",
+      "mask": "REGEXP_REPLACE(email, '(^.).*(@.*$)', '$1***$2')"
+    },
+    {
+      "group": "dataproducts-customer360-full",
+      "catalog": "iceberg",
+      "schema": "dataproducts",
+      "table": "customer_360",
+      "column": "customer_name"
+    },
+    {
+      "group": "dataproducts-customer360-full",
+      "catalog": "iceberg",
+      "schema": "dataproducts",
+      "table": "customer_360",
+      "column": "email"
+    }
+  ]
+}

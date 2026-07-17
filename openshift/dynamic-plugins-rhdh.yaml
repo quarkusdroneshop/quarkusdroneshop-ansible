@@ -122,20 +122,29 @@ data:
                     title: データカタログ
                     mountPoint: entity.page.data-catalog
 
-      # Kafka トピック作成依頼プラグイン（存在しなければAI Agentが新規作成）
+      # Kafka トピック作成依頼 Scaffolder アクション（存在しなければAI Agentが新規作成）
+      # Software Template (kafka-topic-request-template.yaml) の kafka:topic:request ステップから呼ばれる。
       # NOTE: integrity は script/developer-hub.sh update-plugin で実ビルド後に自動更新される。
-      # まだビルド・アップロードしていないため disabled: true にしておく
+      # まだ plugin-proxy-server へアップロードしていないため disabled: true にしておく
       # (存在しないtgzを参照したままRHDHを起動させない)。
-      - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-kafka-topic-request-dynamic-0.1.0.tgz'
+      - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-kafka-topic-request-scaffolder-actions-dynamic-0.1.0.tgz'
+        disabled: true
+        integrity: 'sha512-'
+
+      # Skupper ネットワークコンソール プラグイン（Skupper Network Observer を iframe 埋め込み）
+      # NOTE: integrity は script/developer-hub.sh update-plugin で実ビルド後に自動更新される。
+      # まだ plugin-proxy-server へアップロードしていないため disabled: true にしておく
+      # (存在しないtgzを参照したままRHDHを起動させない)。
+      - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-skupper-console-dynamic-0.1.0.tgz'
         disabled: true
         integrity: 'sha512-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
         pluginConfig:
           dynamicPlugins:
             frontend:
-              internal.plugin-kafka-topic-request:
+              internal.plugin-skupper-console:
                 mountPoints:
-                  - mountPoint: entity.page.kafka-topic-request/cards
-                    importName: KafkaTopicRequestContent
+                  - mountPoint: entity.page.skupper-console/cards
+                    importName: SkupperConsoleContent
                     config:
                       layout:
                         gridColumn: "1 / -1"
@@ -143,9 +152,9 @@ data:
                         allOf:
                           - isKind: component
                 entityTabs:
-                  - path: /kafka-topic-request
-                    title: Kafka Topic
-                    mountPoint: entity.page.kafka-topic-request
+                  - path: /skupper-console
+                    title: Skupper Console
+                    mountPoint: entity.page.skupper-console
                     if:
                       allOf:
                         - isKind: component

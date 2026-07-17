@@ -1,0 +1,39 @@
+# Flink Kubernetes Operator (openshift/flink-operator.yaml) が管理する
+# Session Cluster。dataproducts/*/flink/*.sql はこのクラスタに対して
+# scripts/submit-flink-jobs.sh から SQL Client 経由で投入する。
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: dataproducts-flink
+  namespace: quarkusdroneshop-demo
+spec:
+  image: apache/flink:1.19-java17
+  flinkVersion: v1_19
+  mode: standalone
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+    # スキーマ登録は Apicurio (schema/*.avsc)、認証は Keycloak (OIDC) を経由する。
+    # 具体的な REST URL / realm / client-id は環境ごとに Secret で注入する
+    # (values は `oc create secret generic dataproducts-flink-auth` で都度決定)。
+    security.kerberos.login.use-ticket-cache: "false"
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: "1024m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "1024m"
+      cpu: 1
+  podTemplate:
+    spec:
+      containers:
+        - name: flink-main-container
+          envFrom:
+            - secretRef:
+                # KAFKA_BOOTSTRAP_URLS / APICURIO_REGISTRY_URL / OIDC 関連の
+                # client-id・client-secret を保持する。値は Keycloak に
+                # サービスアカウントクライアント (dataproducts-flink) を
+                # 作成した上で `oc create secret` により注入する。
+                name: dataproducts-flink-auth
+                optional: true

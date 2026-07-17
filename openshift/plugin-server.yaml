@@ -33,11 +33,11 @@ spec:
                 --sort=name --mtime='UTC 2024-01-01' \
                 --transform s,^,package/, dist-scalprum package.json
               echo "data-catalog OK"
-              cd /opt/app-root/src/dynamic-plugins/dist/internal-plugin-kafka-topic-request
-              tar czf /tarball/internal-plugin-kafka-topic-request-dynamic-0.1.0.tgz \
+              cd /opt/app-root/src/dynamic-plugins/dist/internal-plugin-kafka-topic-request-scaffolder-actions
+              tar czf /tarball/internal-plugin-kafka-topic-request-scaffolder-actions-dynamic-0.1.0.tgz \
                 --sort=name --mtime='UTC 2024-01-01' \
-                --transform s,^,package/, dist-scalprum package.json
-              echo "kafka-topic-request OK"
+                --transform s,^,package/, dist node_modules package.json
+              echo "kafka-topic-request-scaffolder-actions OK"
           volumeMounts:
             - name: tarball
               mountPath: /tarball

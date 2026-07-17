@@ -1,0 +1,46 @@
+# Trino には OperatorHub 上の公式 Operator が存在しないため、
+# 公式 Helm チャート (https://trinodb.github.io/charts) で deploy する。
+# インストール手順自体は ocpdeploy.sh `dataproducts setup` にまとめるが、
+# Operator ではない点を明示しておく。
+#
+# helm repo add trino https://trinodb.github.io/charts
+# helm upgrade --install trino trino/trino -n quarkusdroneshop-demo -f trino-values.yaml
+
+image:
+  tag: "460"
+
+server:
+  workers: 2
+  config:
+    # 認証: Keycloak (RHBK) に対する OIDC。実際の issuer/client-id/secret は
+    # Keycloak にサービスアカウントクライアント (trino-coordinator) を作成した後、
+    # Secret (trino-oidc) として注入する。値は都度決定する。
+    authenticationType: "OAUTH2"
+  additionalConfigProperties:
+    - http-server.authentication.oauth2.issuer=${ENV:KEYCLOAK_ISSUER_URL}
+    - http-server.authentication.oauth2.client-id=${ENV:TRINO_OIDC_CLIENT_ID}
+    - http-server.authentication.oauth2.client-secret=${ENV:TRINO_OIDC_CLIENT_SECRET}
+    # 認可: File-based System Access Control。将来的に OPA (access-control.type=OPA) へ移行可能。
+    - access-control.name=file
+    - security.config-file=/etc/trino/access-control/rules.json
+
+envFrom:
+  - secretRef:
+      name: trino-oidc
+
+catalogs:
+  iceberg: |
+    connector.name=iceberg
+    # Iceberg REST/Hive カタログの URL・認証情報は環境ごとに決定し Secret で注入する。
+    iceberg.catalog.type=rest
+    iceberg.rest-catalog.uri=${ENV:ICEBERG_REST_CATALOG_URL}
+
+additionalVolumes:
+  - name: trino-access-control
+    configMap:
+      name: trino-access-control
+
+additionalVolumeMounts:
+  - name: trino-access-control
+    mountPath: /etc/trino/access-control
+    readOnly: true
