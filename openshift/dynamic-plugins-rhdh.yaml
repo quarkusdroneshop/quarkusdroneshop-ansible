@@ -122,3 +122,31 @@ data:
                     title: データカタログ
                     mountPoint: entity.page.data-catalog
 
+      # Kafka トピック作成依頼プラグイン（存在しなければAI Agentが新規作成）
+      # NOTE: integrity は script/developer-hub.sh update-plugin で実ビルド後に自動更新される。
+      # まだビルド・アップロードしていないため disabled: true にしておく
+      # (存在しないtgzを参照したままRHDHを起動させない)。
+      - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-kafka-topic-request-dynamic-0.1.0.tgz'
+        disabled: true
+        integrity: 'sha512-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              internal.plugin-kafka-topic-request:
+                mountPoints:
+                  - mountPoint: entity.page.kafka-topic-request/cards
+                    importName: KafkaTopicRequestContent
+                    config:
+                      layout:
+                        gridColumn: "1 / -1"
+                      if:
+                        allOf:
+                          - isKind: component
+                entityTabs:
+                  - path: /kafka-topic-request
+                    title: Kafka Topic
+                    mountPoint: entity.page.kafka-topic-request
+                    if:
+                      allOf:
+                        - isKind: component
+

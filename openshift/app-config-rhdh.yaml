@@ -119,6 +119,23 @@ data:
               if:
                 allOf:
                   - isKind: component
+        internal.plugin-kafka-topic-request:
+          mountPoints:
+            - mountPoint: entity.page.kafka-topic-request/cards
+              importName: KafkaTopicRequestContent
+              config:
+                layout:
+                  gridColumn: "1 / -1"
+                if:
+                  allOf:
+                    - isKind: component
+          entityTabs:
+            - path: /kafka-topic-request
+              title: Kafka Topic
+              mountPoint: entity.page.kafka-topic-request
+              if:
+                allOf:
+                  - isKind: component
       backend:
         defaultEnable: true
         disabledPlugins:

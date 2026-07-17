@@ -17,7 +17,7 @@
 #   ./script/developer-hub.sh cleanup         - To delete the application.
 #   ./script/developer-hub.sh customimage     - The creation of a customised RHDH image.
 #   ./script/developer-hub.sh resetcustombuild - Reset and rebuild the custom RHDH image from scratch.
-#   ./script/developer-hub.sh update-plugin    - Rebuild test-report plugin, update integrity hash, restart RHDH.
+#   ./script/developer-hub.sh update-plugin    - Rebuild test-report/data-catalog/kafka-topic-request plugins, update integrity hashes, restart RHDH.
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed and configured
@@ -997,6 +997,11 @@ update_plugin() {
         cd "$dh_dir/plugins/data-catalog"
         "$dh_dir/node_modules/.bin/backstage-cli" package build
         npx --yes @red-hat-developer-hub/cli@latest plugin export
+
+        # kafka-topic-request ビルド
+        cd "$dh_dir/plugins/kafka-topic-request"
+        "$dh_dir/node_modules/.bin/backstage-cli" package build
+        npx --yes @red-hat-developer-hub/cli@latest plugin export
     )
     echo -e "${GREEN}  → ビルド完了${RESET}"
 
@@ -1025,25 +1030,30 @@ update_plugin() {
     echo -e "${GREEN}  → プラグインサーバー起動: ${server_pod}${RESET}"
 
     echo -e "${BLUE}[4/5] integrity ハッシュを計算中...${RESET}"
-    local hash_test_report hash_data_catalog
+    local hash_test_report hash_data_catalog hash_kafka_topic_request
     hash_test_report=$(oc exec -n "$RHDH_NAMESPACE" "$server_pod" -- sh -c \
         'sha512sum /tarball/internal-plugin-test-report-dynamic-0.1.0.tgz | awk "{print \$1}" | xxd -r -p | base64 -w0')
     hash_data_catalog=$(oc exec -n "$RHDH_NAMESPACE" "$server_pod" -- sh -c \
         'sha512sum /tarball/internal-plugin-data-catalog-dynamic-0.1.0.tgz | awk "{print \$1}" | xxd -r -p | base64 -w0')
+    hash_kafka_topic_request=$(oc exec -n "$RHDH_NAMESPACE" "$server_pod" -- sh -c \
+        'sha512sum /tarball/internal-plugin-kafka-topic-request-dynamic-0.1.0.tgz | awk "{print \$1}" | xxd -r -p | base64 -w0')
     local integrity_test_report="sha512-${hash_test_report}"
     local integrity_data_catalog="sha512-${hash_data_catalog}"
+    local integrity_kafka_topic_request="sha512-${hash_kafka_topic_request}"
     echo -e "${GREEN}  → test-report integrity: ${integrity_test_report}${RESET}"
     echo -e "${GREEN}  → data-catalog integrity: ${integrity_data_catalog}${RESET}"
+    echo -e "${GREEN}  → kafka-topic-request integrity: ${integrity_kafka_topic_request}${RESET}"
 
     echo -e "${BLUE}[5/5] dynamic-plugins-rhdh.yaml の integrity を更新して RHDH を再起動中...${RESET}"
 
     # test-report の integrity を更新（tgzファイル名の次の行のみ置換）
-    python3 - "$dynamic_plugins_yaml" "$integrity_test_report" "$integrity_data_catalog" <<'PYEOF'
+    python3 - "$dynamic_plugins_yaml" "$integrity_test_report" "$integrity_data_catalog" "$integrity_kafka_topic_request" <<'PYEOF'
 import sys, re
 
 yaml_file = sys.argv[1]
 hash_test = sys.argv[2]
 hash_data = sys.argv[3]
+hash_kafka_topic_request = sys.argv[4]
 
 with open(yaml_file) as f:
     content = f.read()
@@ -1058,6 +1068,17 @@ content = re.sub(
 content = re.sub(
     r"(internal-plugin-data-catalog[^\n]*\n(?:[^\n]*\n){0,3}?\s*integrity:)\s*'[^']*'",
     lambda m: m.group(1) + f" '{hash_data}'",
+    content
+)
+# kafka-topic-request ブロック内の integrity を更新し、ビルド済みになったので disabled: false にする
+content = re.sub(
+    r"(internal-plugin-kafka-topic-request[^\n]*\n)\s*disabled:\s*true",
+    lambda m: m.group(1) + "        disabled: false",
+    content
+)
+content = re.sub(
+    r"(internal-plugin-kafka-topic-request[^\n]*\n(?:[^\n]*\n){0,3}?\s*integrity:)\s*'[^']*'",
+    lambda m: m.group(1) + f" '{hash_kafka_topic_request}'",
     content
 )
 
