@@ -4,8 +4,8 @@
 # Description: Force delete OpenShift project(namespace)
 # Author: Noriaki Mushino
 # Date Created: 2025-05-25
-# Last Modified: 2026-05-28
-# Version: 2.0
+# Last Modified: 2026-07-18
+# Version: 2.1
 #
 # Prerequisites:
 #   - OpenShift CLI (oc) is installed
@@ -22,14 +22,24 @@
 
 set -euo pipefail
 
+RED="\033[31m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+YELLOW="\033[33m"
+RESET="\033[0m"
+
+usage() {
+    echo -e "${YELLOW}使用方法:${RESET}"
+    echo "  $0 <namespace>"
+}
+
 # -----------------------------------------------------------------------------
 # Parameter Check
 # -----------------------------------------------------------------------------
 if [ $# -ne 1 ]; then
-  echo "[ERROR] Namespace is required."
+  echo -e "${RED}[ERROR] Namespace is required.${RESET}"
   echo
-  echo "Usage:"
-  echo "  $0 <namespace>"
+  usage
   echo
   exit 1
 fi
@@ -60,32 +70,33 @@ echo
 # Prerequisite Check
 # -----------------------------------------------------------------------------
 if ! command -v oc >/dev/null 2>&1; then
-  echo "[ERROR] oc command not found."
+  echo -e "${RED}[ERROR] oc command not found.${RESET}"
   exit 1
 fi
 
 if ! command -v jq >/dev/null 2>&1; then
-  echo "[ERROR] jq command not found."
+  echo -e "${RED}[ERROR] jq command not found.${RESET}"
   exit 1
 fi
 
 # -----------------------------------------------------------------------------
 # Login Check
 # -----------------------------------------------------------------------------
-echo "[INFO] Checking OpenShift login..."
+echo -e "${BLUE}[INFO] Checking OpenShift login...${RESET}"
 
 if ! oc whoami >/dev/null 2>&1; then
-  echo "[ERROR] Not logged in to OpenShift."
+  echo -e "${RED}[ERROR] Not logged in to OpenShift.${RESET}"
   exit 1
 fi
+echo "OpenShift にログイン済み: $(oc whoami)"
 
 # -----------------------------------------------------------------------------
 # Namespace Existence Check
 # -----------------------------------------------------------------------------
-echo "[INFO] Checking namespace existence..."
+echo -e "${BLUE}[INFO] Checking namespace existence...${RESET}"
 
 if ! oc get namespace "${NAMESPACE}" >/dev/null 2>&1; then
-  echo "[ERROR] Namespace ${NAMESPACE} does not exist."
+  echo -e "${RED}[ERROR] Namespace ${NAMESPACE} does not exist.${RESET}"
   exit 1
 fi
 
@@ -94,12 +105,12 @@ fi
 # -----------------------------------------------------------------------------
 PHASE=$(oc get namespace "${NAMESPACE}" -o jsonpath='{.status.phase}')
 
-echo "[INFO] Namespace status: ${PHASE}"
+echo -e "${BLUE}[INFO] Namespace status: ${PHASE}${RESET}"
 
 if [ "${PHASE}" != "Terminating" ]; then
   echo
-  echo "[WARN] Namespace is not in Terminating state."
-  echo "[WARN] Normal deletion should be attempted first:"
+  echo -e "${YELLOW}[WARN] Namespace is not in Terminating state.${RESET}"
+  echo -e "${YELLOW}[WARN] Normal deletion should be attempted first:${RESET}"
   echo
   echo "       oc delete project ${NAMESPACE}"
   echo
@@ -108,14 +119,14 @@ fi
 # -----------------------------------------------------------------------------
 # Backup Original JSON
 # -----------------------------------------------------------------------------
-echo "[INFO] Exporting namespace JSON..."
+echo -e "${BLUE}[INFO] Exporting namespace JSON...${RESET}"
 
 oc get namespace "${NAMESPACE}" -o json > "${TMP_FILE}"
 
 # -----------------------------------------------------------------------------
 # Remove Finalizers
 # -----------------------------------------------------------------------------
-echo "[INFO] Removing finalizers..."
+echo -e "${BLUE}[INFO] Removing finalizers...${RESET}"
 
 jq '
 .spec.finalizers = []
@@ -126,7 +137,7 @@ mv "${TMP_FILE}.tmp" "${TMP_FILE}"
 # -----------------------------------------------------------------------------
 # Force Finalize Namespace
 # -----------------------------------------------------------------------------
-echo "[INFO] Sending finalize request..."
+echo -e "${BLUE}[INFO] Sending finalize request...${RESET}"
 
 oc replace --raw "/api/v1/namespaces/${NAMESPACE}/finalize" \
   -f "${TMP_FILE}"
@@ -135,16 +146,16 @@ oc replace --raw "/api/v1/namespaces/${NAMESPACE}/finalize" \
 # Verification
 # -----------------------------------------------------------------------------
 echo
-echo "[INFO] Checking deletion status..."
+echo -e "${BLUE}[INFO] Checking deletion status...${RESET}"
 
 sleep 5
 
 if oc get namespace "${NAMESPACE}" >/dev/null 2>&1; then
-  echo "[WARN] Namespace still exists."
-  echo "[WARN] Additional stuck resources or APIService issues may exist."
+  echo -e "${YELLOW}[WARN] Namespace still exists.${RESET}"
+  echo -e "${YELLOW}[WARN] Additional stuck resources or APIService issues may exist.${RESET}"
 else
-  echo "[SUCCESS] Namespace ${NAMESPACE} has been force deleted."
+  echo -e "${GREEN}[SUCCESS] Namespace ${NAMESPACE} has been force deleted.${RESET}"
 fi
 
 echo
-echo "[INFO] Completed."
+echo -e "${BLUE}[INFO] Completed.${RESET}"

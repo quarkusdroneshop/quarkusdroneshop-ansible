@@ -4,8 +4,8 @@
 # Description: This script deploys OpenMetadata to OpenShift.
 # Author: Noriaki Mushino
 # Date Created: 2026-06-24
-# Last Modified: 2026-06-24
-# Version: 1.0
+# Last Modified: 2026-07-18
+# Version: 1.1
 #
 # Usage:
 #   ./script/openmetadata.sh deploy    - Deploy OpenMetadata and its dependencies.
@@ -24,21 +24,44 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OPENMETADATASPACE="openmetadata"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[0;33m'
-RESET='\033[0m'
+RED="\033[31m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+YELLOW="\033[33m"
+RESET="\033[0m"
 
-# ロゴの表示
+usage() {
+    echo -e "${YELLOW}使用方法:${RESET}"
+    echo "  $0 deploy                 OpenMetadata と依存関係をデプロイ"
+    echo "  $0 cleanup                OpenMetadata をアンインストール"
+}
+
+# =============================================================================
+# Step 1: コマンド検証（無効なら即終了）
+# =============================================================================
+
+case "${1:-}" in
+    deploy|cleanup) ;;
+    *)
+        echo -e "${RED}無効なコマンドです: ${1:-}${RESET}"
+        usage; exit 1
+        ;;
+esac
+
+# =============================================================================
+# Step 2: ロゴ表示・OCP 接続確認
+# =============================================================================
+
 figlet "droneshop"
 
-# ログイン確認
+oc status
+oc version
+
 if ! oc whoami &>/dev/null; then
-    echo -e "${RED}エラー: OpenShift にログインしていません。${RESET}" >&2
+    echo -e "${RED}OpenShift にログインしていません。まず 'oc login' を実行してください。${RESET}" >&2
     exit 1
 fi
-echo -e "${GREEN}OpenShift にログイン済み: $(oc whoami)${RESET}"
+echo "OpenShift にログイン済み: $(oc whoami)"
 
 deploy() {
     echo -e "${BLUE}セットアップ開始...${RESET}"
@@ -95,16 +118,11 @@ cleanup() {
     fi
 }
 
-case "${1:-}" in
-    deploy)
-        deploy
-        ;;
-    cleanup)
-        cleanup
-        ;;
-    *)
-        echo -e "${RED}無効なコマンドです: ${1:-}${RESET}"
-        echo -e "${RED}使用方法: $0 {deploy|cleanup}${RESET}"
-        exit 1
-        ;;
+# =============================================================================
+# Step 3: ディスパッチ
+# =============================================================================
+
+case "$1" in
+    deploy)  deploy  ;;
+    cleanup) cleanup ;;
 esac

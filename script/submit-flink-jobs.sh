@@ -12,6 +12,18 @@
 
 set -euo pipefail
 
+RED="\033[31m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+YELLOW="\033[33m"
+RESET="\033[0m"
+
+if ! oc whoami &>/dev/null; then
+    echo -e "${RED}OpenShift にログインしていません。まず 'oc login' を実行してください。${RESET}" >&2
+    exit 1
+fi
+echo "OpenShift にログイン済み: $(oc whoami)"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DATAPRODUCTS_DIR="$(cd "${REPO_ROOT}/../datamesh-dataproducts" && pwd)"
@@ -34,7 +46,7 @@ if [ ${#TARGETS[@]} -eq 0 ]; then
     TARGETS=("${DEFAULT_ORDER[@]}")
 fi
 
-echo "Flink Session Cluster (${FLINK_DEPLOYMENT}) の Rest Service を待機中..."
+echo -e "${BLUE}Flink Session Cluster (${FLINK_DEPLOYMENT}) の Rest Service を待機中...${RESET}"
 until oc get flinkdeployment "${FLINK_DEPLOYMENT}" -n "${NAMESPACE}" \
     -o jsonpath='{.status.jobManagerDeploymentStatus}' 2>/dev/null | grep -q "READY"; do
     sleep 5
@@ -44,7 +56,7 @@ for product in "${TARGETS[@]}"; do
     for sql in "${DATAPRODUCTS_DIR}/${product}"/flink/*.sql; do
         [ -e "$sql" ] || continue
         job_name="dataproducts-$(basename "$sql" .sql)"
-        echo "投入中: ${product}/$(basename "$sql")"
+        echo -e "${BLUE}投入中: ${product}/$(basename "$sql")${RESET}"
 
         oc create configmap "${job_name}-sql" \
             --from-file="job.sql=${sql}" \
@@ -72,4 +84,4 @@ for product in "${TARGETS[@]}"; do
     done
 done
 
-echo "全ジョブの投入完了(投入順: ${TARGETS[*]})"
+echo -e "${GREEN}全ジョブの投入完了(投入順: ${TARGETS[*]})${RESET}"

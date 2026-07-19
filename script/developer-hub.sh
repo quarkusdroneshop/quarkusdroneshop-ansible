@@ -4,8 +4,8 @@
 # Description: This script sets up the developer-hub image and application skeleton.
 # Author: Noriaki Mushino
 # Date Created: 2025-03-30
-# Last Modified: 2026-07-04
-# Version: 2.2
+# Last Modified: 2026-07-18
+# Version: 2.3
 #
 # Usage:
 #   ./script/developer-hub.sh setup           - To setup the environment.
@@ -31,6 +31,7 @@
 set -euo pipefail
 
 RHDH_NAMESPACE="quarkusdroneshop-rhdh"
+OM_NAMESPACE="openmetadata"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # script/ から見たリポジトリルート（openshift/ などはここ基準）
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -42,19 +43,47 @@ BLUE="\033[34m"
 YELLOW="\033[33m"
 RESET="\033[0m"
 
-# ロゴの表示
+usage() {
+    echo -e "${YELLOW}使用方法:${RESET}"
+    echo "  $0 setup                     環境セットアップ"
+    echo "  $0 deploy                    アプリケーションのデプロイ"
+    echo "  $0 keycloak                  RHDH 用 Keycloak realm/client/user セットアップ"
+    echo "  $0 pipeline                  Pipeline (Tekton) セットアップ"
+    echo "  $0 regithubtoken             GitHub トークンの再発行"
+    echo "  $0 target-token <domain>     ターゲットクラスターの永続トークンを作成"
+    echo "  $0 system-token              a/b/c-cluster の SA トークンを取得して secrets を更新"
+    echo "  $0 customimage               カスタム RHDH イメージの作成"
+    echo "  $0 resetcustombuild          カスタム RHDH イメージのリセット・再ビルド"
+    echo "  $0 update-plugin             test-report/data-catalog/kafka-topic-request-scaffolder-actions/skupper-console プラグインの再ビルド"
+    echo "  $0 cleanup                   アプリケーションの削除"
+}
+
+# =============================================================================
+# Step 1: コマンド検証（無効なら即終了）
+# =============================================================================
+
+case "${1:-}" in
+    setup|deploy|keycloak|pipeline|regithubtoken|customimage|resetcustombuild|update-plugin|target-token|system-token|cleanup) ;;
+    *)
+        echo -e "${RED}無効なコマンドです: ${1:-（引数なし）}${RESET}"
+        usage; exit 1
+        ;;
+esac
+
+# =============================================================================
+# Step 2: ロゴ表示・OCP 接続確認
+# =============================================================================
+
 figlet "droneshop"
 
-# OpenShift にログインしているか確認（最初に実行）
+oc status
+oc version
+
 if ! oc whoami &>/dev/null; then
     echo -e "${RED}OpenShift にログインしていません。まず 'oc login' を実行してください。${RESET}" >&2
     exit 1
 fi
-echo -e "${GREEN}OpenShift にログイン済み: $(oc whoami)${RESET}"
-
-# 前処理
-oc status
-oc version
+echo "OpenShift にログイン済み: $(oc whoami)"
 
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 
@@ -641,6 +670,8 @@ setup() {
         || echo -e "${YELLOW}Project $RHDH_NAMESPACE already exists.${RESET}"
     oc new-project rhdh-operator 2>/dev/null \
         || echo -e "${YELLOW}Project rhdh-operator already exists.${RESET}"
+    oc new-project "$OM_NAMESPACE" 2>/dev/null \
+        || echo -e "${YELLOW}Project $OM_NAMESPACE already exists.${RESET}"
 
     # オペレータが準備できるまで待機（固定sleep廃止）
     echo -e "${BLUE}オペレータの準備を待機中...${RESET}"
@@ -999,6 +1030,7 @@ update_plugin() {
         npx --yes @red-hat-developer-hub/cli@latest plugin export
 
         # kafka-topic-request-scaffolder-actions ビルド
+        cd "$dh_dir"
         mkdir -p dist-types/plugins/kafka-topic-request-scaffolder-actions
         npx tsc -p plugins/kafka-topic-request-scaffolder-actions/tsconfig.json \
             --declaration --emitDeclarationOnly \
@@ -1139,45 +1171,20 @@ cleanup() {
     echo -e "${GREEN}クリーンナップ完了${RESET}"
 }
 
-case "${1:-}" in
-    setup)
-        setup
-        ;;
-    deploy)
-        deploy
-        ;;
-    keycloak)
-        keycloak
-        ;;
-    pipeline)
-        pipeline "$@"
-        ;;
-    regithubtoken)
-        regithubtoken
-        ;;
-    customimage)
-        customimage
-        ;;
-    resetcustombuild)
-        resetcustombuild
-        ;;
-    update-plugin)
-        update_plugin
-        ;;
-    target-token)
-        target_token "$@"
-        ;;
-    system-token)
-        system_token
-        ;;
-    cleanup)
-        cleanup
-        ;;
-    *)
-        echo -e "${RED}無効なコマンドです: ${1:-（引数なし）}${RESET}"
-        echo -e "${RED}使用方法: $0 {setup|deploy|keycloak|pipeline|regithubtoken|target-token|system-token|customimage|resetcustombuild|update-plugin|cleanup}${RESET}"
-        echo -e "${YELLOW}  target-token <cluster-domain>  ターゲットクラスターの永続トークンを作成${RESET}"
-        echo -e "${YELLOW}  system-token                   a/b/c-cluster の SA トークンを取得して secrets を更新${RESET}"
-        exit 1
-        ;;
+# =============================================================================
+# Step 3: ディスパッチ
+# =============================================================================
+
+case "$1" in
+    setup)            setup             ;;
+    deploy)           deploy            ;;
+    keycloak)         keycloak          ;;
+    pipeline)         pipeline "$@"     ;;
+    regithubtoken)    regithubtoken     ;;
+    customimage)      customimage       ;;
+    resetcustombuild) resetcustombuild  ;;
+    update-plugin)    update_plugin     ;;
+    target-token)     target_token "$@" ;;
+    system-token)     system_token      ;;
+    cleanup)          cleanup           ;;
 esac

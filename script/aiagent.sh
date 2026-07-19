@@ -4,8 +4,8 @@
 # Description: Datamesh AI Agent Platform を OpenShift AI 上にデプロイする
 # Author: Noriaki Mushino
 # Date Created: 2026-06-26
-# Last Modified: 2026-06-26
-# Version: 1.0
+# Last Modified: 2026-07-18
+# Version: 1.1
 #
 # Usage:
 #   ./script/aiagent.sh setup           - OpenShift AI Operator / 前提ミドルをインストール
@@ -44,24 +44,53 @@ MODEL_NAME="${VLLM_MODEL_NAME:-Qwen/Qwen3-8B}"
 MODEL_DISPLAY_NAME="${VLLM_MODEL_DISPLAY_NAME:-qwen3-8b}"
 
 # ─── カラー定義 ────────────────────────────────────────────────────────────────
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-RESET='\033[0m'
+RED="\033[31m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+YELLOW="\033[33m"
+CYAN="\033[36m"
+RESET="\033[0m"
 
-# ─── ロゴ ──────────────────────────────────────────────────────────────────────
+usage() {
+    echo -e "${YELLOW}使用方法:${RESET}"
+    echo "  $0 setup         OpenShift AI / Streams for Apache Kafka / Tekton Operator をインストール"
+    echo "  $0 vllm          vLLM モデルサービングをデプロイ (${MODEL_NAME})"
+    echo "  $0 deploy        AI Agent Platform を dev 環境にデプロイ"
+    echo "  $0 deploy-prod   AI Agent Platform を prod 環境にデプロイ (確認あり)"
+    echo "  $0 deploy-latest ai-agent-cicd パイプラインの最新ビルドイメージのみを反映"
+    echo "  $0 status        全コンポーネントの状態と URL を表示"
+    echo "  $0 logs [n]      AI Agent のログを表示 (デフォルト 100 行)"
+    echo "  $0 cleanup       AI Agent Platform を削除"
+}
+
+# =============================================================================
+# Step 1: コマンド検証（無効なら即終了）
+# =============================================================================
+
+case "${1:-}" in
+    setup|vllm|deploy|deploy-prod|deploy-latest|status|logs|cleanup) ;;
+    *)
+        echo -e "${RED}無効なコマンドです: ${1:-（引数なし）}${RESET}"
+        usage; exit 1
+        ;;
+esac
+
+# =============================================================================
+# Step 2: ロゴ表示・OCP 接続確認
+# =============================================================================
+
 figlet "DS AI Agent" 2>/dev/null || echo "=== Datamesh AI Agent Platform ==="
 echo -e "${CYAN}Datamesh AI Agent Platform — OpenShift AI Deployment${RESET}"
 echo ""
 
-# ─── ログイン確認 ──────────────────────────────────────────────────────────────
+oc status
+oc version
+
 if ! oc whoami &>/dev/null; then
-    echo -e "${RED}エラー: OpenShift にログインしていません。まず 'oc login' を実行してください。${RESET}" >&2
+    echo -e "${RED}OpenShift にログインしていません。まず 'oc login' を実行してください。${RESET}" >&2
     exit 1
 fi
-echo -e "${GREEN}OpenShift にログイン済み: $(oc whoami)${RESET}"
+echo "OpenShift にログイン済み: $(oc whoami)"
 
 DOMAIN_NAME=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}' | cut -d'.' -f2-)
 APPS_DOMAIN="apps.${DOMAIN_NAME}"
@@ -876,44 +905,17 @@ cleanup() {
     echo -e "${GREEN}クリーンアップ完了${RESET}"
 }
 
-# ─── コマンド dispatch ──────────────────────────────────────────────────────────
-case "${1:-}" in
-    setup)
-        setup
-        ;;
-    vllm)
-        vllm
-        ;;
-    deploy)
-        deploy "dev"
-        ;;
-    deploy-prod)
-        deploy_prod
-        ;;
-    deploy-latest)
-        deploy_latest_image
-        ;;
-    status)
-        status
-        ;;
-    logs)
-        logs "$@"
-        ;;
-    cleanup)
-        cleanup
-        ;;
-    *)
-        echo -e "${RED}無効なコマンドです: ${1:-（引数なし）}${RESET}"
-        echo ""
-        echo -e "${YELLOW}使用方法:${RESET}"
-        echo -e "  $0 setup         OpenShift AI / Streams for Apache Kafka / Tekton Operator をインストール"
-        echo -e "  $0 vllm          vLLM モデルサービングをデプロイ (${MODEL_NAME})"
-        echo -e "  $0 deploy        AI Agent Platform を dev 環境にデプロイ"
-        echo -e "  $0 deploy-prod   AI Agent Platform を prod 環境にデプロイ (確認あり)"
-        echo -e "  $0 deploy-latest ai-agent-cicd パイプラインの最新ビルドイメージのみを反映"
-        echo -e "  $0 status        全コンポーネントの状態と URL を表示"
-        echo -e "  $0 logs [n]      AI Agent のログを表示 (デフォルト 100 行)"
-        echo -e "  $0 cleanup       AI Agent Platform を削除"
-        exit 1
-        ;;
+# =============================================================================
+# Step 3: ディスパッチ
+# =============================================================================
+
+case "$1" in
+    setup)         setup               ;;
+    vllm)          vllm                ;;
+    deploy)        deploy "dev"        ;;
+    deploy-prod)   deploy_prod         ;;
+    deploy-latest) deploy_latest_image ;;
+    status)        status              ;;
+    logs)          logs "$@"           ;;
+    cleanup)       cleanup             ;;
 esac

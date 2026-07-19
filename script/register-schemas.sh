@@ -18,6 +18,12 @@
 
 set -euo pipefail
 
+RED="\033[31m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+YELLOW="\033[33m"
+RESET="\033[0m"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DATAPRODUCTS_DIR="$(cd "${REPO_ROOT}/../datamesh-dataproducts" && pwd)"
@@ -27,7 +33,7 @@ DATAPRODUCTS_DIR="$(cd "${REPO_ROOT}/../datamesh-dataproducts" && pwd)"
 : "${REGISTRY_CLIENT_SECRET:?REGISTRY_CLIENT_SECRET is required}"
 : "${APICURIO_REGISTRY_URL:?APICURIO_REGISTRY_URL is required}"
 
-echo "Keycloak からアクセストークンを取得中..."
+echo -e "${BLUE}Keycloak からアクセストークンを取得中...${RESET}"
 ACCESS_TOKEN=$(curl -sf -X POST "$KEYCLOAK_TOKEN_URL" \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     -d "grant_type=client_credentials&client_id=${REGISTRY_CLIENT_ID}&client_secret=${REGISTRY_CLIENT_SECRET}" \
@@ -38,14 +44,14 @@ for avsc in "${DATAPRODUCTS_DIR}"/*/schema/*.avsc; do
     artifact_id="$(basename "$avsc" .avsc)-value"
     group="dataproducts"
 
-    echo "登録中: group=${group} artifactId=${artifact_id} (${avsc})"
+    echo -e "${BLUE}登録中: group=${group} artifactId=${artifact_id} (${avsc})${RESET}"
     curl -sf -X POST "${APICURIO_REGISTRY_URL}/apis/registry/v3/groups/${group}/artifacts" \
         -H "Authorization: Bearer ${ACCESS_TOKEN}" \
         -H "Content-Type: application/json; artifactType=AVRO" \
         -H "X-Registry-ArtifactId: ${artifact_id}" \
         -H "X-Registry-ArtifactType: AVRO" \
         --data-binary @"${avsc}" \
-        || echo "  ⚠ 登録に失敗、または既に同一内容が登録済みの可能性があります"
+        || echo -e "${YELLOW}  ⚠ 登録に失敗、または既に同一内容が登録済みの可能性があります${RESET}"
 done
 
-echo "スキーマ登録完了"
+echo -e "${GREEN}スキーマ登録完了${RESET}"
