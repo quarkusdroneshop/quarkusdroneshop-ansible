@@ -11,6 +11,10 @@ spec:
       requests:
         storage: 1Gi
 
+  # serviceName が無いと Crunchy Postgres Operator は ClusterIP Service を
+  # 一切作成しない(仕様どおりの挙動。バグではない)。Route から参照するために必須。
+  serviceName: pgadmin4
+
   users:
     - username: {{ pgadmin_setup_email }}
       role: User

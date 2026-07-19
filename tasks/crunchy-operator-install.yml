@@ -102,12 +102,39 @@
     - postgres
     - helm
 
-- name: Create Crunchy PGAdmin instance 
+- name: Create Crunchy PGAdmin instance
   kubernetes.core.k8s:
     state: present
     namespace: "{{ project_namespace }}"
     apply: true
     definition: "{{ lookup('template', 'pgadmin.yaml.j2') }}"
+  when: not delete_deployment|bool
+  tags:
+    - postgres
+    - helm
+
+# serviceName を設定しても、Operator が実際に Service を作成するまでには
+# reconcile の数秒〜十数秒のラグがある。Route はこの Service を参照するため、
+# 存在を確認してから作成する。
+- name: Wait for pgAdmin Service to be created
+  shell: "{{ oc_location }} get svc pgadmin4 -n {{ project_namespace }}"
+  register: r_pgadmin_svc
+  changed_when: false
+  retries: 20
+  delay: 15
+  until: r_pgadmin_svc.rc == 0
+  when: not delete_deployment|bool
+  ignore_errors: true
+  tags:
+    - postgres
+    - helm
+
+- name: Create pgAdmin Route
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ project_namespace }}"
+    apply: true
+    definition: "{{ lookup('template', 'pgadmin-route.yaml.j2') }}"
   when: not delete_deployment|bool
   tags:
     - postgres

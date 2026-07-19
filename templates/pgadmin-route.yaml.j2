@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pgadmin4
+  namespace: {{ project_namespace }}
+spec:
+  to:
+    kind: Service
+    name: pgadmin4
+  port:
+    targetPort: 5050
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
