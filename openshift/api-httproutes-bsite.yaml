@@ -1,0 +1,85 @@
+# Bサイト(qdca10 / qdca10pro / inventory)の REST API を
+# api.__DOMAIN_NAME__ 経由で公開する HTTPRoute。
+# Service 名は実クラスタで確認済み: qdca10 / qdca10pro / inventory (port 8080)。
+# PathPrefix マッチはデフォルトではプレフィックスを剥がさずそのまま backend に転送する
+# ため、URLRewrite (ReplacePrefixMatch) でアプリ側の実パス(/ 始まり)に書き換える。
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-qdca10
+  namespace: __NAMESPACE__
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      sectionName: api-https
+  hostnames:
+    - "api.__DOMAIN_NAME__"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/qdca10
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: qdca10
+          namespace: __APP_NAMESPACE__
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-qdca10pro
+  namespace: __NAMESPACE__
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      sectionName: api-https
+  hostnames:
+    - "api.__DOMAIN_NAME__"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/qdca10pro
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: qdca10pro
+          namespace: __APP_NAMESPACE__
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-inventory
+  namespace: __NAMESPACE__
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      sectionName: api-https
+  hostnames:
+    - "api.__DOMAIN_NAME__"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/inventory
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: inventory
+          namespace: __APP_NAMESPACE__
+          port: 8080

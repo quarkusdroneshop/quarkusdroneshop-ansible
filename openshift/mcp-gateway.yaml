@@ -1,5 +1,8 @@
 # MCP Gateway 本体。サイト(クラスタ)ごとに 1 つ、論理的にまとまった
-# MCP サーバー群(mcp-server Service)の手前に立てる。
+# MCP サーバー群(mcp-server Service)、および各ドメインサービスの REST/GraphQL API の
+# 手前に立てる。MCP Tool 用トラフィック(mcp.<domain>)と通常の API 連携トラフィック
+# (api.<domain>)を hostname で区別しつつ、同一の Gateway(= 同一の
+# AuthPolicy/RateLimitPolicy によるガードレール)を適用する。
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
@@ -21,6 +24,21 @@ spec:
       port: 443
       protocol: HTTPS
       hostname: "mcp.__DOMAIN_NAME__"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: mcp-gateway-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # REST/GraphQL API 連携(counter/web/qdca10/qdca10pro/inventory/homeoffice-backend 等)
+    # 用のリスナー。証明書は検証環境のため mcp 用の自己署名証明書を流用している。
+    # 実運用では api.<domain> 用の証明書を別途用意すること。
+    - name: api-https
+      port: 443
+      protocol: HTTPS
+      hostname: "api.__DOMAIN_NAME__"
       tls:
         mode: Terminate
         certificateRefs:

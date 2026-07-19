@@ -1,0 +1,32 @@
+# Cサイト(quarkusdroneshop-homeoffice)の GraphQL API を
+# api.__DOMAIN_NAME__ 経由で公開する HTTPRoute。
+# Service 名は実クラスタで確認済み: homeoffice-backend (port 8080)。
+# SmallRye GraphQL のデフォルトエンドポイントパスは /graphql。
+# PathPrefix マッチはデフォルトではプレフィックスを剥がさずそのまま backend に転送する
+# ため、URLRewrite (ReplacePrefixMatch) でアプリ側の実パス (/graphql) に書き換える。
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-homeoffice-graphql
+  namespace: __NAMESPACE__
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      sectionName: api-https
+  hostnames:
+    - "api.__DOMAIN_NAME__"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /graphql/homeoffice
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /graphql
+      backendRefs:
+        - name: homeoffice-backend
+          namespace: __APP_NAMESPACE__
+          port: 8080

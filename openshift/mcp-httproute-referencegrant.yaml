@@ -1,11 +1,15 @@
-# Gateway/HTTPRoute は __NAMESPACE__ (connectivitylink) に、mcp-server 本体の
+# Gateway/HTTPRoute は __NAMESPACE__ (connectivitylink) に、mcp-server や
+# 各ドメインサービス(counter/web/qdca10/qdca10pro/inventory/homeoffice-backend 等)の
 # Service は __APP_NAMESPACE__ (quarkusdroneshop-demo) に存在する。
 # Gateway API はデフォルトでクロス namespace の backendRef を許可しないため、
 # アプリ側 namespace に ReferenceGrant を置いて明示的に許可する。
+# name を指定しないことで、対象 namespace 内の全 Service への参照を許可する
+# (API Gateway 経由で公開する REST/GraphQL API を追加するたびに ReferenceGrant を
+# 個別追加しなくて済むようにするため)。
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
-  name: mcp-gateway-to-mcp-server
+  name: mcp-gateway-to-app-services
   namespace: __APP_NAMESPACE__
 spec:
   from:
@@ -15,4 +19,3 @@ spec:
   to:
     - group: ""
       kind: Service
-      name: mcp-server
