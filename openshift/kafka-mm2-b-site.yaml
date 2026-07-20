@@ -68,9 +68,7 @@ spec:
           refresh.topics.enabled: true
           refresh.groups.enabled: true
           auto.create.topics.enable: true
-          security.protocol: SASL_PLAINTEXT
-          sasl.mechanism: SCRAM-SHA-512
-          sasl.jaas.config: "${SASL_JAAS_CONFIG}"
+          security.protocol: PLAINTEXT
           producer.request.timeout.ms: 60000
           consumer.request.timeout.ms: 60000
           consumer.metadata.fetch.timeout.ms: 60000
