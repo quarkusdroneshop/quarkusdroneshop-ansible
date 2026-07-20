@@ -28,6 +28,7 @@ psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "create table dr
                            item varchar(255),
                            lineItemStatus varchar(255),
                            price numeric(19, 2),
+                           name varchar(255),
                            primary key (id)
 );"
 
@@ -48,6 +49,7 @@ psql -h ${PGHOSTNAME} -p 5432 -U droneshopadmin droneshopdb  -c "create table dr
                              type varchar(255) not null,
                              timestamp timestamp not null,
                              payload varchar(8000),
+                             tracingSpanContext varchar(256),
                              primary key (id)
 );"
 
