@@ -127,3 +127,16 @@ spec:
   config:
     retention.ms: 604800000
     segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: homeoffice-orders-retry
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824

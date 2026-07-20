@@ -28,3 +28,8 @@ spec:
                secretKeyRef:
                  name: droneshopdb-pguser-droneshopadmin
                  key: password
+           # Retry ボタンから qdca10-in / qdca10pro-in (asite) へ直接 publish するための
+           # asite Kafka 外部リスナー (PLAINTEXT)。ELB ホスト名は asite 再作成時に
+           # script/update-elb-hosts.sh 相当の手順で更新が必要。
+           - name: ASITE_KAFKA_EXTERNAL_BOOTSTRAP_URLS
+             value: "ae42096ad3a18451a915ac60a245d477-1996748417.us-east-2.elb.amazonaws.com:9094"
