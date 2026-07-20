@@ -43,7 +43,7 @@ spec:
     - source:
         alias: "shop-asite"
         bootstrapServers: "external-shop-cluster-kafka-asite:9094"
-      topicsPattern: "^(?!orders-test$)(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
+      topicsPattern: "^(dataproduct.*|qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
@@ -77,7 +77,7 @@ spec:
     - source:
         alias: "shop-bsite"
         bootstrapServers: "external-shop-cluster-kafka-bsite:9094"
-      topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
+      topicsPattern: "^(dataproduct.*|qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true

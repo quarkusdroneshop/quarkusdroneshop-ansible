@@ -12,8 +12,6 @@
 #   ./script/ocpdeploy.sh setup                  - OCP 環境セットアップ（demo NS）
 #   ./script/ocpdeploy.sh cleanup                - demo NS の全リソース削除
 #
-#   MCP Gateway (Red Hat Connectivity Link) は ./script/connectivitylink.sh を使用
-#
 #   ./script/ocpdeploy.sh pipeline setup         - Tekton Operator インストール
 #   ./script/ocpdeploy.sh pipeline deploy        - Pipeline kustomize デプロイ
 #   ./script/ocpdeploy.sh pipeline config        - Demo ConfigMap 設定
@@ -67,13 +65,12 @@ usage() {
     echo "  $0 pipeline cleanup       CICD NS 削除"
     echo ""
     echo "  $0 dataproducts setup     Flink Kubernetes Operator インストール + Trino Helm デプロイ"
-    echo "  $0 dataproducts deploy    Flink Session Cluster 起動 + 全ジョブ投入 (依存順)"
+    echo "  $0 dataproducts deploy [--site asite|bsite|csite] [product...]"
+    echo "                            Flink Session Cluster 起動 + Lakekeeper + スキーマ登録 + ジョブ投入 (依存順、未指定時は全プロダクト)"
+    echo "                            --site は order-events のソーストピック選択に使用 (未指定時は接続中クラスターから自動判定)"
     echo "  $0 dataproducts schemas   Apicurio へスキーマ登録 (Keycloak OIDC 認証)"
+    echo "  $0 dataproducts lakekeeper Lakekeeper OSS (Iceberg REST Catalog) をこのサイトに構築"
     echo "  $0 dataproducts cleanup   dataproducts 関連リソースの削除"
-    echo ""
-    echo "  MCP Gateway (Red Hat Connectivity Link) は ./script/connectivitylink.sh を使用"
-    echo "    ./script/connectivitylink.sh setup|deploy|status|cleanup"
-
 }
 
 # =============================================================================
@@ -102,7 +99,7 @@ case "$1" in
         ;;
     dataproducts)
         case "$2" in
-            setup|deploy|schemas|cleanup) ;;
+            setup|deploy|schemas|lakekeeper|cleanup) ;;
             *)
                 echo -e "${RED}無効なサブコマンド: dataproducts $2${RESET}"
                 usage; exit 1
@@ -181,6 +178,13 @@ ocp_setup() {
 
     # Tekton Operator の準備（pipeline deploy 等は引き続き `pipeline deploy` で手動実行）
     pipeline_setup
+
+    # データプロダクト基盤 (Flink Operator / MinIO / Keycloak クライアント / Trino)
+    # の準備（Flink Job 投入は引き続き `dataproducts deploy` で手動実行）。
+    # Iceberg REST Catalog (Lakekeeper OSS) は Data Mesh のドメイン分散原則に
+    # 基づき、サイトごとに `dataproducts lakekeeper` で個別に構築する
+    # (`dataproducts setup` には含まれない)。
+    dataproducts_setup
 }
 
 ocp_cleanup() {
@@ -666,7 +670,135 @@ skupper_cleanup() {
 # 公式 Helm チャートとして、いずれもこのスクリプトにまとめる。
 # 認証情報は Keycloak (RHBK, 既存の共通コンポーネント) に一元化し、
 # 個別サービスのユーザー/パスワードはハードコードしない。
+#
+# 旧 provision-dataproducts-keycloak.sh / submit-flink-jobs.sh /
+# register-schemas.sh はここに統合済み (このファイル単体で完結する)。
 # =============================================================================
+
+DATAPRODUCTS_DIR="$(cd "$REPO_ROOT/../datamesh-dataproducts" && pwd)"
+
+# ファイル名からの機械的な artifactId 導出 (<basename>-value) では
+# 各 flink/*.sql が参照する value.avro-confluent.subject と一致しないものが
+# あるため、明示的にマッピングする。
+dataproducts_artifact_id_for() {
+    case "$(basename "$1")" in
+        component-stock-event.avsc) echo "component-stock-events-value" ;;
+        sales-trend.avsc)           echo "sales-trends-value" ;;
+        *)                          echo "$(basename "$1" .avsc)-value" ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
+# Keycloak (既存の RHBK) に dataproducts 用サービスアカウントクライアントを
+# 作成 (既存なら再利用) し、Trino OIDC / Apicurio スキーマ登録に必要な
+# Secret (dataproducts-flink-auth / trino-oidc) を生成する。
+# ---------------------------------------------------------------------------
+dataproducts_provision_keycloak() {
+    local keycloak_namespace="${KEYCLOAK_NAMESPACE:-keycloak}"
+    local realm="${KEYCLOAK_REALM:-sso}"
+
+    if ! oc get keycloakrealmimport "${realm}" -n "${keycloak_namespace}" &>/dev/null \
+        && ! oc get secret keycloak-initial-admin -n "${keycloak_namespace}" &>/dev/null; then
+        echo -e "${RED}Keycloak realm '${realm}' または Secret 'keycloak-initial-admin' が ${keycloak_namespace} に見つかりません。${RESET}" >&2
+        exit 1
+    fi
+
+    local kc_host kc_base keycloak_issuer_url keycloak_token_url
+    kc_host="$(oc get route keycloak -n "${keycloak_namespace}" -o jsonpath='{.spec.host}')"
+    kc_base="https://${kc_host}"
+    keycloak_issuer_url="${kc_base}/realms/${realm}"
+    keycloak_token_url="${keycloak_issuer_url}/protocol/openid-connect/token"
+
+    echo -e "${BLUE}Keycloak (${kc_base}) の管理者トークンを取得中...${RESET}"
+    local kc_admin_user kc_admin_pass admin_token
+    kc_admin_user="$(oc get secret keycloak-initial-admin -n "${keycloak_namespace}" -o jsonpath='{.data.username}' | base64 -d)"
+    kc_admin_pass="$(oc get secret keycloak-initial-admin -n "${keycloak_namespace}" -o jsonpath='{.data.password}' | base64 -d)"
+    admin_token="$(curl -sk -X POST "${kc_base}/realms/master/protocol/openid-connect/token" \
+        -d "grant_type=password&client_id=admin-cli&username=${kc_admin_user}&password=${kc_admin_pass}" \
+        | python3 -c 'import sys, json; print(json.load(sys.stdin)["access_token"])')"
+
+    if [ -z "${admin_token}" ]; then
+        echo -e "${RED}Keycloak 管理者トークンの取得に失敗しました。${RESET}" >&2
+        exit 1
+    fi
+
+    # Keycloak クライアントを作成 (既存なら再利用) し、client secret を標準出力に返す。
+    _dataproducts_ensure_kc_client() {
+        local client_id="$1"
+        local standard_flow="$2"   # true/false: ブラウザログインを許可するか
+
+        local existing uuid
+        existing="$(curl -sk "${kc_base}/admin/realms/${realm}/clients?clientId=${client_id}" \
+            -H "Authorization: Bearer ${admin_token}")"
+        uuid="$(echo "${existing}" | python3 -c 'import sys,json; a=json.load(sys.stdin); print(a[0]["id"] if a else "")')"
+
+        if [ -z "${uuid}" ]; then
+            echo -e "${BLUE}  Keycloak client '${client_id}' を作成中...${RESET}" >&2
+            curl -sk -X POST "${kc_base}/admin/realms/${realm}/clients" \
+                -H "Authorization: Bearer ${admin_token}" \
+                -H "Content-Type: application/json" \
+                -d "{\"clientId\":\"${client_id}\",\"protocol\":\"openid-connect\",\"publicClient\":false,\"serviceAccountsEnabled\":true,\"standardFlowEnabled\":${standard_flow},\"directAccessGrantsEnabled\":false,\"redirectUris\":[\"*\"]}" \
+                >&2
+            existing="$(curl -sk "${kc_base}/admin/realms/${realm}/clients?clientId=${client_id}" \
+                -H "Authorization: Bearer ${admin_token}")"
+            uuid="$(echo "${existing}" | python3 -c 'import sys,json; a=json.load(sys.stdin); print(a[0]["id"] if a else "")')"
+        else
+            echo -e "${YELLOW}  Keycloak client '${client_id}' は既に存在します。再利用します。${RESET}" >&2
+        fi
+
+        curl -sk "${kc_base}/admin/realms/${realm}/clients/${uuid}/client-secret" \
+            -H "Authorization: Bearer ${admin_token}" \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["value"])'
+    }
+
+    echo -e "${BLUE}dataproducts-registry (Apicurio スキーマ登録用) クライアントを準備中...${RESET}"
+    local registry_client_secret
+    registry_client_secret="$(_dataproducts_ensure_kc_client "dataproducts-registry" "false")"
+
+    echo -e "${BLUE}trino-coordinator (Trino OIDC 用) クライアントを準備中...${RESET}"
+    local trino_oidc_client_secret
+    trino_oidc_client_secret="$(_dataproducts_ensure_kc_client "trino-coordinator" "true")"
+
+    local apicurio_route apicurio_registry_url
+    apicurio_route="$(oc get route -n "$NAMESPACE" -l app=droneshop-apicurioregistry -o jsonpath='{.items[0].spec.host}' 2>/dev/null || true)"
+    if [ -z "${apicurio_route}" ]; then
+        apicurio_route="$(oc get route -n "$NAMESPACE" -o jsonpath='{range .items[*]}{.spec.host}{"\n"}{end}' | grep -i apicurio | head -1)"
+    fi
+    apicurio_registry_url="http://${apicurio_route}"
+
+    echo -e "${BLUE}Secret 'dataproducts-flink-auth' を作成中...${RESET}"
+    oc create secret generic dataproducts-flink-auth -n "$NAMESPACE" \
+        --from-literal=KAFKA_BOOTSTRAP_URLS="shop-cluster-kafka-bootstrap:9092" \
+        --from-literal=APICURIO_REGISTRY_URL="${apicurio_registry_url}" \
+        --from-literal=KEYCLOAK_TOKEN_URL="${keycloak_token_url}" \
+        --from-literal=REGISTRY_CLIENT_ID="dataproducts-registry" \
+        --from-literal=REGISTRY_CLIENT_SECRET="${registry_client_secret}" \
+        --dry-run=client -o yaml | oc apply -f -
+
+    # coordinator/worker 間の内部通信認証用シェアードシークレット。
+    # 既存の Secret があれば使い回し、新規作成時のみ生成する
+    # (helm upgrade のたびに変わるとローリング時に不整合が起きるため)。
+    local internal_shared_secret
+    if oc get secret trino-oidc -n "$NAMESPACE" &>/dev/null; then
+        internal_shared_secret="$(oc get secret trino-oidc -n "$NAMESPACE" -o jsonpath='{.data.INTERNAL_SHARED_SECRET}' 2>/dev/null | base64 -d || true)"
+    fi
+    if [ -z "${internal_shared_secret:-}" ]; then
+        internal_shared_secret="$(openssl rand -hex 32)"
+    fi
+
+    echo -e "${BLUE}Secret 'trino-oidc' を作成中...${RESET}"
+    oc create secret generic trino-oidc -n "$NAMESPACE" \
+        --from-literal=KEYCLOAK_ISSUER_URL="${keycloak_issuer_url}" \
+        --from-literal=TRINO_OIDC_CLIENT_ID="trino-coordinator" \
+        --from-literal=TRINO_OIDC_CLIENT_SECRET="${trino_oidc_client_secret}" \
+        --from-literal=ICEBERG_REST_CATALOG_URL="http://dataproducts-lakekeeper:8181/catalog" \
+        --from-literal=INTERNAL_SHARED_SECRET="${internal_shared_secret}" \
+        --dry-run=client -o yaml | oc apply -f -
+
+    echo -e "${GREEN}Keycloak クライアント / Secret のプロビジョニング完了${RESET}"
+    echo "  APICURIO_REGISTRY_URL=${apicurio_registry_url}"
+    echo "  KEYCLOAK_TOKEN_URL=${keycloak_token_url}"
+}
 
 dataproducts_setup() {
     oc project "$NAMESPACE"
@@ -677,57 +809,445 @@ dataproducts_setup() {
     until oc get crd flinkdeployments.flink.apache.org &>/dev/null; do sleep 5; done
     echo -e "${GREEN}  → Flink Operator 準備完了${RESET}"
 
-    # Trino には OperatorHub 上の公式 Operator が存在しないため Helm で導入する。
+    echo -e "${BLUE}Flink 用 ServiceAccount / RBAC を作成中...${RESET}"
+    oc apply -f "$REPO_ROOT/openshift/dataproducts/flink-rbac.yaml" -n "$NAMESPACE"
+
+    # ---------------------------------------------------------------
+    # MinIO (Iceberg 用オブジェクトストレージ) + バケット初期化
+    # 公式 Helm チャート (minio/minio) で導入する。
+    # ---------------------------------------------------------------
+    echo -e "${BLUE}MinIO (Iceberg 用オブジェクトストレージ) をデプロイ中...${RESET}"
+    if ! oc get secret dataproducts-minio-auth -n "$NAMESPACE" &>/dev/null; then
+        # rootUser / rootPassword は minio/minio チャートの existingSecret が
+        # 要求するキー名。Iceberg REST Catalog もこのキー名を参照する。
+        oc create secret generic dataproducts-minio-auth -n "$NAMESPACE" \
+            --from-literal=rootUser=dataproducts \
+            --from-literal=rootPassword="$(openssl rand -hex 16)"
+    fi
+    helm repo add minio https://charts.min.io/ >/dev/null 2>&1 || true
+    helm repo update minio >/dev/null 2>&1
+    # チャートは runAsUser/fsGroup: 1000 を使うため、OpenShift の
+    # restricted-v2 デフォレンジと衝突する。専用 SA (minio-sa, チャートが
+    # 生成) に anyuid SCC を付与する必要がある。
+    oc adm policy add-scc-to-user anyuid -z minio-sa -n "$NAMESPACE" 2>/dev/null || true
+    helm upgrade --install minio minio/minio \
+        -n "$NAMESPACE" \
+        -f "$REPO_ROOT/openshift/dataproducts/minio-values.yaml"
+    echo -e "${BLUE}  MinIO の起動を待っています...${RESET}"
+    oc rollout status deployment/dataproducts-minio -n "$NAMESPACE" --timeout=180s
+
+    echo -e "${BLUE}  Iceberg 用バケットを初期化中...${RESET}"
+    oc delete job dataproducts-minio-init-bucket -n "$NAMESPACE" --ignore-not-found=true
+    oc apply -f "$REPO_ROOT/openshift/dataproducts/minio-init-bucket-job.yaml" -n "$NAMESPACE"
+    oc wait --for=condition=complete job/dataproducts-minio-init-bucket -n "$NAMESPACE" --timeout=180s
+    echo -e "${GREEN}  → MinIO 準備完了${RESET}"
+
+    # Iceberg REST Catalog (Lakekeeper OSS) は `dataproducts lakekeeper` で
+    # サイトごとに個別デプロイする (Data Mesh のドメイン分散原則に基づき、
+    # 単一の共有カタログではなくサイトごとに自己完結させる)。
+
+    # ---------------------------------------------------------------
+    # Keycloak (既存) にサービスアカウントクライアントを作成し、
+    # Trino OIDC / Apicurio スキーマ登録に必要な Secret を自動生成する。
+    # ---------------------------------------------------------------
+    echo -e "${BLUE}Keycloak クライアント (dataproducts-registry / trino-coordinator) をプロビジョニング中...${RESET}"
+    dataproducts_provision_keycloak
+
+    dataproducts_trino_setup
+
+    echo -e "${GREEN}dataproducts setup 完了 (Flink Operator / MinIO / Keycloak クライアント / Trino)${RESET}"
+    echo -e "${YELLOW}  ※ Iceberg REST Catalog (Lakekeeper) は対象外。必要なら './script/ocpdeploy.sh dataproducts lakekeeper' を実行${RESET}"
+}
+
+# Trino (Helm chart) — OperatorHub に公式 Operator が存在しないため Helm で導入する。
+# dataproducts_setup / dataproducts_deploy の両方から呼ばれる。
+dataproducts_trino_setup() {
     echo -e "${BLUE}Trino (Helm chart) をインストール中...${RESET}"
     helm repo add trino https://trinodb.github.io/charts >/dev/null 2>&1 || true
     helm repo update trino >/dev/null 2>&1
 
-    if ! oc get secret trino-oidc -n "$NAMESPACE" &>/dev/null; then
-        echo -e "${YELLOW}  ⚠ Secret 'trino-oidc' が未作成です。Keycloak に${RESET}"
-        echo -e "${YELLOW}     サービスアカウントクライアント (trino-coordinator) を作成した上で、${RESET}"
-        echo -e "${YELLOW}     KEYCLOAK_ISSUER_URL / TRINO_OIDC_CLIENT_ID / TRINO_OIDC_CLIENT_SECRET を${RESET}"
-        echo -e "${YELLOW}     'oc create secret generic trino-oidc --from-literal=...' で作成してから${RESET}"
-        echo -e "${YELLOW}     再実行してください。ここでは Trino のデプロイをスキップします。${RESET}"
-    else
-        oc apply -f "$REPO_ROOT/openshift/dataproducts/trino-access-control-rules.json" \
-            -n "$NAMESPACE" 2>/dev/null || \
-        oc create configmap trino-access-control \
-            --from-file=rules.json="$REPO_ROOT/openshift/dataproducts/trino-access-control-rules.json" \
-            -n "$NAMESPACE" --dry-run=client -o yaml | oc apply -f -
+    # File-based access control のルールはチャート組み込みの accessControl 設定
+    # (trino-values.yaml) から Helm が configmap を自動生成するため、
+    # ここで手動 configmap を作る必要はない。
 
-        helm upgrade --install trino trino/trino \
-            -n "$NAMESPACE" \
-            -f "$REPO_ROOT/openshift/dataproducts/trino-values.yaml"
-        echo -e "${GREEN}  → Trino デプロイ完了${RESET}"
+    helm upgrade --install trino trino/trino \
+        -n "$NAMESPACE" \
+        -f "$REPO_ROOT/openshift/dataproducts/trino-values.yaml"
+    echo -e "${GREEN}  → Trino デプロイ完了${RESET}"
+}
+
+# 依存順: OrderEvents をハブとして先に投入し、それに依存するプロダクトを後段で投入する。
+DATAPRODUCTS_DEFAULT_ORDER=(
+    "order-events"
+    "real-time-sales-trends"
+    "drone-component-stock"
+    "inventory-analytics"
+    "assembly-lead-time-qdca10"
+    "assembly-lead-time-qdca10pro"
+    "customer-360"
+)
+
+# datamesh-dataproducts/*/flink/*.sql を dataproducts-flink Session Cluster に
+# SQL Client 経由で投入する。引数を指定するとそのプロダクトのみ投入する。
+dataproducts_submit_flink_jobs() {
+    local targets=("$@")
+    if [ ${#targets[@]} -eq 0 ]; then
+        targets=("${DATAPRODUCTS_DEFAULT_ORDER[@]}")
     fi
+    local flink_deployment="dataproducts-flink"
+
+    # order-events は 3 サイト分の生トピックを横断参照するため、投入先サイト
+    # (DATAPRODUCTS_SITE: asite|bsite|csite, 未指定時は接続中クラスターから自動判定) によって
+    # 「自サイト発行 (無 prefix)」と「MirrorMaker2 でミラーされたトピック
+    # (shop-<site>. prefix)」の組み合わせが変わる。
+    local orders_in_topic orders_up_topic eighty_six_topic
+    case "${DATAPRODUCTS_SITE:-csite}" in
+        asite)
+            orders_in_topic="orders-in"
+            orders_up_topic="shop-bsite.orders-up"
+            eighty_six_topic="shop-bsite.eighty-six"
+            ;;
+        bsite)
+            orders_in_topic="shop-asite.orders-in"
+            orders_up_topic="orders-up"
+            eighty_six_topic="eighty-six"
+            ;;
+        csite)
+            orders_in_topic="shop-asite.orders-in"
+            orders_up_topic="shop-bsite.orders-up"
+            eighty_six_topic="shop-bsite.eighty-six"
+            ;;
+        *)
+            echo -e "${RED}不正な --site 値: ${DATAPRODUCTS_SITE} (asite|bsite|csite のいずれか)${RESET}" >&2
+            exit 1
+            ;;
+    esac
+
+    # order-events の sink (dataproduct-order-events) は現状 asite でのみ
+    # 稼働している。asite 以外では MirrorMaker2 でミラーされたトピック名
+    # (shop-asite.dataproduct-order-events) を参照する必要がある
+    # (assembly-lead-time-qdca10 / qdca10pro など、order-events を
+    # コンシュームするプロダクトが bsite/csite に投入される場合に使用)。
+    local order_events_topic
+    case "${DATAPRODUCTS_SITE:-csite}" in
+        asite) order_events_topic="dataproduct-order-events" ;;
+        *)     order_events_topic="shop-asite.dataproduct-order-events" ;;
+    esac
+
+    # 各サイトの Apicurio Service Registry は完全に独立しているため、
+    # MirrorMaker2 でミラーされた Avro (avro-confluent) レコードに埋め込まれた
+    # schema-id は、ミラー先サイトの Registry では別のスキーマを指してしまい
+    # デシリアライズが壊れる (ArrayIndexOutOfBoundsException 等)。そのため
+    # order-events 由来のレコードをデシリアライズする際は、実際にそのレコードを
+    # シリアライズした asite の Registry URL を明示的に使う必要がある。
+    local order_events_registry_url
+    case "${DATAPRODUCTS_SITE:-csite}" in
+        asite) order_events_registry_url="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.APICURIO_REGISTRY_URL}' | base64 -d)" ;;
+        *)     order_events_registry_url="http://droneshop-apicurioregistry-kafkasql.quarkusdroneshop-demo.router-default.apps.ocp.zgjl6.sandbox780.opentlc.com" ;;
+    esac
+
+    echo -e "${BLUE}Flink Session Cluster (${flink_deployment}) の Rest Service を待機中...${RESET}"
+    until oc get flinkdeployment "${flink_deployment}" -n "$NAMESPACE" \
+        -o jsonpath='{.status.jobManagerDeploymentStatus}' 2>/dev/null | grep -q "READY"; do
+        sleep 5
+    done
+
+    local product sql job_name confirm
+    for product in "${targets[@]}"; do
+        # 誤ったサイトへの投入を防ぐため、プロダクトごとに投入先サイトを確認する。
+        read -rp "$(echo -e "${YELLOW}『${product}』を ${DATAPRODUCTS_SITE} に投入してよいですか？(yes/no/skip): ${RESET}")" confirm
+        if [ "$confirm" = "skip" ] || [ "$confirm" = "no" ]; then
+            echo -e "${YELLOW}  → ${product} をスキップしました${RESET}"
+            continue
+        fi
+        if [ "$confirm" != "yes" ]; then
+            echo -e "${RED}  → 'yes' 以外が入力されたため中断します${RESET}"
+            exit 1
+        fi
+
+        # shop-cluster は auto.create.topics.enable: false のため、sink トピックは
+        # ジョブ投入前に明示作成する。
+        if [ "$product" = "order-events" ]; then
+            oc apply -f "$REPO_ROOT/openshift/dataproducts/order-events-topic.yaml" -n "$NAMESPACE"
+        fi
+        if [ "$product" = "assembly-lead-time-qdca10" ] || [ "$product" = "assembly-lead-time-qdca10pro" ]; then
+            oc apply -f "$REPO_ROOT/openshift/dataproducts/qdca10-lead-time-topic.yaml" -n "$NAMESPACE"
+        fi
+
+        for sql in "${DATAPRODUCTS_DIR}/${product}"/flink/*.sql; do
+            [ -e "$sql" ] || continue
+            job_name="dataproducts-$(basename "$sql" .sql)"
+            echo -e "${BLUE}投入中: ${product}/$(basename "$sql") → ${DATAPRODUCTS_SITE}${RESET}"
+
+            oc create configmap "${job_name}-sql" \
+                --from-file="job.sql=${sql}" \
+                -n "$NAMESPACE" \
+                --dry-run=client -o yaml | oc apply -f -
+
+            # Pod は spec が不変のため、内容が前回と同一だと oc apply が無変更として
+            # 何もせず「configured」と表示するだけでジョブが再投入されない。
+            # 毎回確実に再投入するため、既存 Pod を先に削除する。
+            oc delete pod "${job_name}" -n "$NAMESPACE" --ignore-not-found=true --wait=true
+
+            # SQL Client はローカルで DDL/DML をプラン化するため、Session Cluster と
+            # 同じ Kafka connector / Avro-Confluent format jar が実行前に
+            # /opt/flink/lib に必要 (base image には含まれない)。また
+            # FLINK_REST_HOST 環境変数は通常の docker-entrypoint.sh 経由でしか
+            # flink-conf.yaml に反映されないため、直接呼び出す場合は
+            # -Drest.address / -Dexecution.target を明示する必要がある。
+            oc run "${job_name}" \
+                --image=apache/flink:1.19-java17 \
+                --restart=Never \
+                --namespace="$NAMESPACE" \
+                --overrides="
+{
+  \"spec\": {
+    \"containers\": [{
+      \"name\": \"${job_name}\",
+      \"image\": \"apache/flink:1.19-java17\",
+      \"command\": [\"/bin/sh\", \"-c\", \"set -e; curl -fL -o /opt/flink/lib/flink-sql-connector-kafka.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.2.0-1.19/flink-sql-connector-kafka-3.2.0-1.19.jar; curl -fL -o /opt/flink/lib/flink-sql-avro-confluent-registry.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.19.1/flink-sql-avro-confluent-registry-1.19.1.jar; envsubst < /etc/flink-sql/job.sql > /tmp/job.sql; /opt/flink/bin/sql-client.sh -Dexecution.target=remote -Drest.address=${flink_deployment}-rest.${NAMESPACE}.svc -Drest.port=8081 -f /tmp/job.sql\"],
+      \"env\": [
+        {\"name\": \"FLINK_REST_HOST\", \"value\": \"${flink_deployment}-rest.${NAMESPACE}.svc\"},
+        {\"name\": \"KAFKA_BOOTSTRAP_URLS\", \"valueFrom\": {\"secretKeyRef\": {\"name\": \"dataproducts-flink-auth\", \"key\": \"KAFKA_BOOTSTRAP_URLS\", \"optional\": true}}},
+        {\"name\": \"APICURIO_REGISTRY_URL\", \"valueFrom\": {\"secretKeyRef\": {\"name\": \"dataproducts-flink-auth\", \"key\": \"APICURIO_REGISTRY_URL\", \"optional\": true}}},
+        {\"name\": \"ORDERS_IN_TOPIC\", \"value\": \"${orders_in_topic}\"},
+        {\"name\": \"ORDERS_UP_TOPIC\", \"value\": \"${orders_up_topic}\"},
+        {\"name\": \"EIGHTY_SIX_TOPIC\", \"value\": \"${eighty_six_topic}\"},
+        {\"name\": \"ORDER_EVENTS_TOPIC\", \"value\": \"${order_events_topic}\"},
+        {\"name\": \"ORDER_EVENTS_REGISTRY_URL\", \"value\": \"${order_events_registry_url}\"}
+      ],
+      \"volumeMounts\": [{\"name\": \"sql\", \"mountPath\": \"/etc/flink-sql\"}]
+    }],
+    \"volumes\": [{\"name\": \"sql\", \"configMap\": {\"name\": \"${job_name}-sql\"}}]
+  }
+}" \
+                --dry-run=client -o yaml | oc apply -f -
+        done
+    done
+
+    echo -e "${GREEN}ジョブの投入完了${RESET}"
 }
 
 dataproducts_deploy() {
     oc project "$NAMESPACE"
 
+    # --site <asite|bsite|csite> を先頭から取り除き、残りをプロダクトの
+    # 絞り込みフィルタとして dataproducts_submit_flink_jobs に渡す。
+    # 例: dataproducts deploy --site asite order-events
+    # --site 省略時は現在ログイン中のクラスタドメイン (DOMAIN_NAME) から自動判定する
+    # (黙って csite にフォールバックすると誤ったトピックへ投入する事故につながるため)。
+    DATAPRODUCTS_SITE=""
+    local args=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --site)
+                DATAPRODUCTS_SITE="$2"
+                shift 2
+                ;;
+            *)
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$DATAPRODUCTS_SITE" ]; then
+        case "$DOMAIN_NAME" in
+            *zgjl6.sandbox780*)  DATAPRODUCTS_SITE="asite" ;;
+            *659hh.sandbox2372*|*2cqhd.sandbox2372*) DATAPRODUCTS_SITE="bsite" ;;
+            *44gnd.sandbox850*) DATAPRODUCTS_SITE="csite" ;;
+            *)
+                echo -e "${RED}現在のクラスタ (${DOMAIN_NAME}) がどのサイトか自動判定できません。${RESET}" >&2
+                echo -e "${RED}--site asite|bsite|csite を明示的に指定してください。${RESET}" >&2
+                exit 1
+                ;;
+        esac
+        echo -e "${YELLOW}--site 未指定のため、クラスタドメインから自動判定しました${RESET}"
+    fi
+    export DATAPRODUCTS_SITE
+    echo -e "${BLUE}対象サイト: ${DATAPRODUCTS_SITE} (${DOMAIN_NAME})${RESET}"
+
     echo -e "${BLUE}Flink Session Cluster (dataproducts-flink) を起動中...${RESET}"
     oc apply -f "$REPO_ROOT/openshift/dataproducts/flink-session-cluster.yaml" -n "$NAMESPACE"
 
+    echo -e "${BLUE}Flink Web Dashboard 用 Route を作成中...${RESET}"
+    echo -e "${BLUE}  dataproducts-flink-rest Service の準備を待っています...${RESET}"
+    until oc get svc dataproducts-flink-rest -n "$NAMESPACE" &>/dev/null; do sleep 5; done
+    oc create route edge dataproducts-flink-console \
+        --service=dataproducts-flink-rest --port=8081 \
+        -n "$NAMESPACE" --dry-run=client -o yaml | oc apply -f -
+    echo -e "${GREEN}  → https://$(oc get route dataproducts-flink-console -n "$NAMESPACE" -o jsonpath='{.spec.host}')${RESET}"
+
+    echo -e "${BLUE}Lakekeeper OSS (Iceberg REST Catalog) をデプロイ中...${RESET}"
+    dataproducts_lakekeeper_setup
+
+    echo -e "${BLUE}Apicurio へスキーマを登録中...${RESET}"
+    # args で絞り込まれたプロダクトのみ登録 (未指定時は全プロダクト)。
+    dataproducts_schemas "${args[@]}"
+
     echo -e "${BLUE}依存順(OrderEvents → 後続プロダクト)でジョブを投入中...${RESET}"
-    NAMESPACE="$NAMESPACE" "$SCRIPT_DIR/submit-flink-jobs.sh"
-    echo -e "${GREEN}  → dataproducts の Flink ジョブ投入完了${RESET}"
+    # 引数で対象プロダクトを絞り込める (例: dataproducts deploy customer-360)。
+    # 未指定時は DATAPRODUCTS_DEFAULT_ORDER の全プロダクトを投入する。
+    dataproducts_submit_flink_jobs "${args[@]}"
+    echo -e "${GREEN}dataproducts deploy 完了 (Flink Session Cluster / Lakekeeper / スキーマ登録 / ジョブ投入)${RESET}"
+}
+
+# Flink の value.format=avro-confluent は Apicurio の ccompat (Confluent互換)
+# API 経由でスキーマを解決する。Registry REST API v2 で group=dataproducts に
+# 登録しても ccompat の subjects 一覧には出てこない (group スコープが ccompat の
+# フラットな subject 名前空間にマッピングされないため)。そのため ccompat API
+# (/apis/ccompat/v6/subjects/{subject}/versions) に直接登録する。
+dataproducts_register_schemas() {
+    # 引数でプロダクトを絞り込める (例: order-events)。未指定時は全プロダクトの
+    # スキーマを登録する。
+    local products=("$@")
+    if [ ${#products[@]} -eq 0 ]; then
+        products=("${DATAPRODUCTS_DEFAULT_ORDER[@]}")
+    fi
+
+    local access_token
+    access_token="$(curl -sf -X POST "$KEYCLOAK_TOKEN_URL" \
+        -H 'Content-Type: application/x-www-form-urlencoded' \
+        -d "grant_type=client_credentials&client_id=${REGISTRY_CLIENT_ID}&client_secret=${REGISTRY_CLIENT_SECRET}" \
+        | python3 -c 'import sys, json; print(json.load(sys.stdin)["access_token"])')"
+
+    local product avsc artifact_id schema_json
+    for product in "${products[@]}"; do
+        for avsc in "${DATAPRODUCTS_DIR}/${product}"/schema/*.avsc; do
+            [ -e "$avsc" ] || continue
+            artifact_id="$(dataproducts_artifact_id_for "$avsc")"
+
+            echo -e "${BLUE}登録中: subject=${artifact_id} (${avsc})${RESET}"
+            schema_json="$(python3 -c "import json,sys; print(json.dumps({'schema': open(sys.argv[1]).read()}))" "${avsc}")"
+            curl -sf -X POST "${APICURIO_REGISTRY_URL}/apis/ccompat/v6/subjects/${artifact_id}/versions" \
+                -H "Authorization: Bearer ${access_token}" \
+                -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+                --data-binary "${schema_json}" \
+                || echo -e "${YELLOW}  ⚠ 登録に失敗、または既に同一内容が登録済みの可能性があります${RESET}"
+        done
+    done
+
+    echo -e "${GREEN}スキーマ登録完了${RESET}"
 }
 
 dataproducts_schemas() {
+    # dataproducts_setup() (dataproducts_provision_keycloak) が作成した
+    # Secret 'dataproducts-flink-auth' から自動的に読み取る。
+    # 環境変数で明示指定されていればそちらを優先する。
+    if [ -z "${KEYCLOAK_TOKEN_URL:-}" ] && oc get secret dataproducts-flink-auth -n "$NAMESPACE" &>/dev/null; then
+        KEYCLOAK_TOKEN_URL="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.KEYCLOAK_TOKEN_URL}' | base64 -d)"
+        REGISTRY_CLIENT_ID="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.REGISTRY_CLIENT_ID}' | base64 -d)"
+        REGISTRY_CLIENT_SECRET="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.REGISTRY_CLIENT_SECRET}' | base64 -d)"
+        APICURIO_REGISTRY_URL="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.APICURIO_REGISTRY_URL}' | base64 -d)"
+        export KEYCLOAK_TOKEN_URL REGISTRY_CLIENT_ID REGISTRY_CLIENT_SECRET APICURIO_REGISTRY_URL
+    fi
+
     if [ -z "${KEYCLOAK_TOKEN_URL:-}" ] || [ -z "${REGISTRY_CLIENT_ID:-}" ] \
         || [ -z "${REGISTRY_CLIENT_SECRET:-}" ] || [ -z "${APICURIO_REGISTRY_URL:-}" ]; then
         echo -e "${RED}KEYCLOAK_TOKEN_URL / REGISTRY_CLIENT_ID / REGISTRY_CLIENT_SECRET / APICURIO_REGISTRY_URL を${RESET}"
-        echo -e "${RED}環境変数で指定してください(Keycloak にサービスアカウントクライアントを作成した上で都度設定)。${RESET}"
+        echo -e "${RED}環境変数で指定するか、先に './script/ocpdeploy.sh dataproducts setup' を実行してください。${RESET}"
         exit 1
     fi
-    "$SCRIPT_DIR/register-schemas.sh"
+    dataproducts_register_schemas "$@"
+}
+
+# Lakekeeper OSS (Iceberg REST Catalog 実装) を対象サイトにのみ導入する。
+# tabulario/iceberg-rest (メタデータ非永続の生マニフェスト) の置き換え。
+# 全サイト共通の dataproducts_setup には含めず、明示的に呼んだサイトにのみ
+# 構築する (現状は asite のみを想定)。
+dataproducts_lakekeeper_setup() {
+    oc project "$NAMESPACE"
+
+    if ! oc get secret dataproducts-minio-auth -n "$NAMESPACE" &>/dev/null; then
+        echo -e "${RED}Secret 'dataproducts-minio-auth' がありません。先に './script/ocpdeploy.sh dataproducts setup' を実行してください。${RESET}" >&2
+        exit 1
+    fi
+
+    echo -e "${BLUE}Lakekeeper OSS (Helm chart) をインストール中...${RESET}"
+    helm repo add lakekeeper https://lakekeeper.github.io/lakekeeper-charts/ >/dev/null 2>&1 || true
+    helm repo update lakekeeper >/dev/null 2>&1
+    # catalog イメージは uid 65532 (distroless nonroot) で動くため
+    # OpenShift の restricted-v2 デフォレンジと衝突する。チャートが生成する
+    # 専用 SA (dataproducts-lakekeeper, fullnameOverride 由来) に
+    # anyuid SCC を付与する (db-migration Job にも同じ SA が使われる)。
+    oc adm policy add-scc-to-user anyuid -z dataproducts-lakekeeper -n "$NAMESPACE" 2>/dev/null || true
+    helm upgrade --install lakekeeper lakekeeper/lakekeeper \
+        -n "$NAMESPACE" \
+        -f "$REPO_ROOT/openshift/dataproducts/lakekeeper-values.yaml"
+    oc rollout status deployment/dataproducts-lakekeeper -n "$NAMESPACE" --timeout=240s
+
+    local lk_url="http://dataproducts-lakekeeper:8181"
+    echo -e "${BLUE}Lakekeeper をブートストラップ中...${RESET}"
+    local bootstrap_ok=false
+    for _ in $(seq 1 30); do
+        code="$(oc run lakekeeper-bootstrap-$RANDOM --image=curlimages/curl --restart=Never -n "$NAMESPACE" --rm -i --command -- \
+            curl -s -o /dev/null -w '%{http_code}' -X POST "${lk_url}/management/v1/bootstrap" \
+            -H 'Content-Type: application/json' \
+            -d '{"accept-terms-of-use": true}' 2>/dev/null < /dev/null | grep -oE '^[0-9]{3}')"
+        # 204: ブートストラップ成功 / 400 (CatalogAlreadyBootstrapped): 実行済みで
+        # 冪等に成功扱いにできる / 409: 念のため許容
+        if [ "$code" = "204" ] || [ "$code" = "400" ] || [ "$code" = "409" ]; then
+            bootstrap_ok=true
+            break
+        fi
+        sleep 5
+    done
+    if [ "$bootstrap_ok" != "true" ]; then
+        echo -e "${RED}Lakekeeper のブートストラップに失敗しました。${RESET}" >&2
+        exit 1
+    fi
+    echo -e "${GREEN}  → ブートストラップ完了${RESET}"
+
+    echo -e "${BLUE}デフォルトウェアハウス (dataproducts-warehouse, MinIO 上) を登録中...${RESET}"
+    local root_user root_pass
+    root_user="$(oc get secret dataproducts-minio-auth -n "$NAMESPACE" -o jsonpath='{.data.rootUser}' | base64 -d)"
+    root_pass="$(oc get secret dataproducts-minio-auth -n "$NAMESPACE" -o jsonpath='{.data.rootPassword}' | base64 -d)"
+    local warehouse_json
+    warehouse_json=$(cat <<EOF
+{
+  "warehouse-name": "dataproducts",
+  "storage-profile": {
+    "type": "s3",
+    "bucket": "dataproducts-warehouse",
+    "key-prefix": "iceberg",
+    "endpoint": "http://dataproducts-minio:9000",
+    "region": "us-east-1",
+    "path-style-access": true,
+    "flavor": "s3-compat",
+    "sts-enabled": false
+  },
+  "storage-credential": {
+    "type": "s3",
+    "credential-type": "access-key",
+    "aws-access-key-id": "${root_user}",
+    "aws-secret-access-key": "${root_pass}"
+  }
+}
+EOF
+)
+    oc run lakekeeper-warehouse-$RANDOM --image=curlimages/curl --restart=Never -n "$NAMESPACE" --rm -i --command -- \
+        curl -s -X POST "${lk_url}/management/v1/warehouse" \
+        -H 'Content-Type: application/json' \
+        -d "${warehouse_json}" \
+        < /dev/null \
+        || echo -e "${YELLOW}  ⚠ ウェアハウス登録に失敗、または既に登録済みの可能性があります${RESET}"
+
+    echo -e "${GREEN}dataproducts lakekeeper 完了 (REST Catalog: ${lk_url}/catalog, warehouse: dataproducts)${RESET}"
 }
 
 dataproducts_cleanup() {
+    oc delete route dataproducts-flink-console -n "$NAMESPACE" --ignore-not-found=true
     oc delete flinkdeployment dataproducts-flink -n "$NAMESPACE" --ignore-not-found=true
     oc delete job -l app=dataproducts -n "$NAMESPACE" --ignore-not-found=true
     helm uninstall trino -n "$NAMESPACE" 2>/dev/null || true
+    helm uninstall minio -n "$NAMESPACE" 2>/dev/null || true
+    helm uninstall lakekeeper -n "$NAMESPACE" 2>/dev/null || true
     oc delete configmap trino-access-control -n "$NAMESPACE" --ignore-not-found=true
+    oc delete job dataproducts-minio-init-bucket -n "$NAMESPACE" --ignore-not-found=true
+    # Secret (dataproducts-minio-auth / dataproducts-flink-auth / trino-oidc) と
+    # Keycloak クライアント (dataproducts-registry / trino-coordinator) は
+    # 認証情報の再生成コストが高いため cleanup では削除しない。
+    # 完全に作り直したい場合は個別に削除すること。
 }
 
 # =============================================================================
@@ -756,8 +1276,9 @@ case "$1" in
     dataproducts)
         case "$2" in
             setup)   dataproducts_setup   ;;
-            deploy)  dataproducts_deploy  ;;
-            schemas) dataproducts_schemas ;;
+            deploy)  dataproducts_deploy "${@:3}"  ;;
+            schemas) dataproducts_schemas "${@:3}" ;;
+            lakekeeper) dataproducts_lakekeeper_setup ;;
             cleanup) dataproducts_cleanup ;;
         esac
         ;;

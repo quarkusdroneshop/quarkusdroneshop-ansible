@@ -1,0 +1,54 @@
+# Flink Kubernetes Operator が FlinkDeployment (dataproducts-flink) の
+# JobManager/TaskManager Pod を作成するために使う ServiceAccount。
+# Operator の Subscription (openshift/flink-operator.yaml) 自体には
+# 対象 namespace 用の RBAC は含まれないため、ここで用意する。
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flink
+  namespace: quarkusdroneshop-demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flink
+  namespace: quarkusdroneshop-demo
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "configmaps", "services", "endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flink
+  namespace: quarkusdroneshop-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: flink
+subjects:
+  - kind: ServiceAccount
+    name: flink
+    namespace: quarkusdroneshop-demo
+---
+# OpenShift の SCC 制約対応 (Flink コンテナは非rootの固定UIDで動く想定のため anyuid を許可)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flink-anyuid
+  namespace: quarkusdroneshop-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: flink
+    namespace: quarkusdroneshop-demo

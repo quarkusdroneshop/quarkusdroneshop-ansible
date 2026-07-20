@@ -1,0 +1,34 @@
+# shop-cluster は auto.create.topics.enable: false のため、
+# qdca10-lead-time-job.sql / qdca10pro-lead-time-job.sql の sink はジョブ投入前に
+# 明示的に作成しておく必要がある。
+# K8s リソース名は '_' を使えないため、metadata.name はハイフン区切りにし、
+# 実際の Kafka トピック名 (アンダースコア) は spec.topicName で指定する。
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: qdca10-lead-time
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  topicName: qdca10_lead_time
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: qdca10pro-lead-time
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  topicName: qdca10pro_lead_time
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824

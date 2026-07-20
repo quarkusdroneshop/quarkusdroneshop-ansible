@@ -80,7 +80,7 @@ data:
       # Test Report プラグイン（内部HTTPサーバーからtgz配信）
       - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-test-report-dynamic-0.1.0.tgz'
         disabled: false
-        integrity: 'sha512-QQ/q+nRQI4tOHYce9TL6RPVfVVPUPCnXYfYgM5k0uYY9Yu5qFaKaG4nS7lHcIOjTV6k3T6yM0HuMlNwLFm5+ZQ=='
+        integrity: 'sha512-k9GVw339n4G6tTHKTp5sB6NMsoMO7W1F7XDqmxMMJS9HBh8/t3Z3MVJQUecj6xaXg9udgagsg79xo+HabkE7Tw=='
         pluginConfig:
           dynamicPlugins:
             frontend:

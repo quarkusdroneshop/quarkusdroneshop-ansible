@@ -1,6 +1,6 @@
 # Flink Kubernetes Operator (openshift/flink-operator.yaml) が管理する
 # Session Cluster。dataproducts/*/flink/*.sql はこのクラスタに対して
-# scripts/submit-flink-jobs.sh から SQL Client 経由で投入する。
+# ./script/ocpdeploy.sh dataproducts deploy から SQL Client 経由で投入する。
 apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment
 metadata:
@@ -11,11 +11,21 @@ spec:
   flinkVersion: v1_19
   mode: standalone
   flinkConfiguration:
-    taskmanager.numberOfTaskSlots: "2"
+    # order-events だけで 3 本の常駐ストリーミングジョブ (ORDER_PLACED /
+    # LINE_ITEM_STATUS_CHANGED / ORDER_CANCELLED) が同時稼働し、後続の
+    # データプロダクトも追加されるため、TaskManager 1 台・2 スロットでは
+    # 不足する ("Could not acquire the minimum required resources")。
+    taskmanager.numberOfTaskSlots: "8"
     # スキーマ登録は Apicurio (schema/*.avsc)、認証は Keycloak (OIDC) を経由する。
     # 具体的な REST URL / realm / client-id は環境ごとに Secret で注入する
     # (values は `oc create secret generic dataproducts-flink-auth` で都度決定)。
     security.kerberos.login.use-ticket-cache: "false"
+    # rest.address 未設定だと JobManager が内部的な REST 自己呼び出し
+    # (ジョブ投入時など) を rest.bind-address のデフォルトである
+    # 0.0.0.0:8081 に対して行おうとして "Connection refused: /0.0.0.0:8081"
+    # で失敗する。明示的に到達可能なアドレスを指定する。
+    rest.address: dataproducts-flink-rest.quarkusdroneshop-demo.svc
+    rest.bind-address: 0.0.0.0
   serviceAccount: flink
   jobManager:
     resource:
@@ -27,6 +37,25 @@ spec:
       cpu: 1
   podTemplate:
     spec:
+      # ベースの apache/flink イメージには Kafka connector / Avro-Confluent format
+      # の jar が含まれていないため、initContainer でダウンロードして
+      # /opt/flink/lib に追加する (base image の lib をコピーした上で追加する)。
+      initContainers:
+        - name: add-connectors
+          image: apache/flink:1.19-java17
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              cp /opt/flink/lib/*.jar /flink-libs/
+              curl -fL -o /flink-libs/flink-sql-connector-kafka.jar \
+                https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.2.0-1.19/flink-sql-connector-kafka-3.2.0-1.19.jar
+              curl -fL -o /flink-libs/flink-sql-avro-confluent-registry.jar \
+                https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.19.1/flink-sql-avro-confluent-registry-1.19.1.jar
+          volumeMounts:
+            - name: flink-libs
+              mountPath: /flink-libs
       containers:
         - name: flink-main-container
           envFrom:
@@ -37,3 +66,9 @@ spec:
                 # 作成した上で `oc create secret` により注入する。
                 name: dataproducts-flink-auth
                 optional: true
+          volumeMounts:
+            - name: flink-libs
+              mountPath: /opt/flink/lib
+      volumes:
+        - name: flink-libs
+          emptyDir: {}

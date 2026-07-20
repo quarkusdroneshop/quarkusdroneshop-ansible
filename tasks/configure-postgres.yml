@@ -182,6 +182,73 @@
   ignore_errors: yes
   when: not delete_deployment|bool
 
+# pgAdminのPVC(pgadmin4.db)は、OpenShiftが制約付きSCCで
+# Pod再起動のたびに割り当てるUIDが変わるため、以前の起動時のUIDで
+# 所有されたままだと os.chmod() が権限エラーになり
+# CrashLoopBackOff する (グループ権限があっても chmod は所有者のみ可能なため)。
+# 事前にファイルを削除しておき、今回のPodのUIDで作り直させることで回避する。
+- name: Wait for pgadmin PVC to be created
+  shell: |
+    set -o pipefail && {{ oc_location }} get pvc -n {{ project_namespace }} \
+      -l postgres-operator.crunchydata.com/role=pgadmin \
+      -o jsonpath='{.items[0].metadata.name}'
+  register: pgadmin_pvc_name
+  when: not delete_deployment|bool
+  until: pgadmin_pvc_name.stdout | length > 0
+  retries: 30
+  delay: 10
+  args:
+    executable: /bin/bash
+
+- name: Reset pgadmin4.db ownership via temporary debug pod
+  when: not delete_deployment|bool and pgadmin_pvc_name.stdout | length > 0
+  block:
+    - name: Create pgadmin PVC debug pod
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: pgadmin-pvc-permfix
+            namespace: "{{ project_namespace }}"
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: debug
+                image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                command: ["sleep", "300"]
+                volumeMounts:
+                  - name: data
+                    mountPath: /var/lib/pgadmin
+            volumes:
+              - name: data
+                persistentVolumeClaim:
+                  claimName: "{{ pgadmin_pvc_name.stdout }}"
+
+    - name: Wait for debug pod to be running
+      shell: |
+        set -o pipefail && {{ oc_location }} get pod pgadmin-pvc-permfix -n {{ project_namespace }} \
+          -o jsonpath='{.status.phase}'
+      register: pgadmin_debug_pod_phase
+      until: pgadmin_debug_pod_phase.stdout == "Running"
+      retries: 30
+      delay: 5
+      args:
+        executable: /bin/bash
+
+    - name: Remove pgadmin4.db so it is recreated with the current pod's UID
+      command: "{{ oc_location }} exec pgadmin-pvc-permfix -n {{ project_namespace }} -- rm -f /var/lib/pgadmin/pgadmin4.db"
+      ignore_errors: yes
+
+    - name: Delete pgadmin PVC debug pod
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Pod
+        name: pgadmin-pvc-permfix
+        namespace: "{{ project_namespace }}"
+
 - name: Waiting for pgadmin to deploy
   shell: |
     set -o pipefail && {{ oc_location }} get pod  | grep -E 'crunchy-pgadmin4-[0-9a-z][0-9a-z].*-[0-9a-z]{5}' | grep Running  | wc -l

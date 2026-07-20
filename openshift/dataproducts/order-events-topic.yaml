@@ -1,0 +1,15 @@
+# shop-cluster は auto.create.topics.enable: false のため、order-events-job.sql の
+# sink (dataproduct-order-events) はジョブ投入前に明示的に作成しておく必要がある。
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: dataproduct-order-events
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824

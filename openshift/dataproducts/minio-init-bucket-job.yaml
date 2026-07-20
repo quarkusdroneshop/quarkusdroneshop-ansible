@@ -1,0 +1,26 @@
+# dataproducts-minio に Iceberg 用バケット (dataproducts-warehouse) を作成する。
+# MinIO は起動時にバケットを自動生成しないため、mc (MinIO Client) で明示的に作成する。
+# 何度実行しても安全 (mc mb --ignore-existing)。
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dataproducts-minio-init-bucket
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:latest
+          envFrom:
+            - secretRef:
+                name: dataproducts-minio-auth
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              mc alias set dataproducts http://dataproducts-minio:9000 "$rootUser" "$rootPassword"
+              mc mb --ignore-existing dataproducts/dataproducts-warehouse
+              echo "bucket ready"

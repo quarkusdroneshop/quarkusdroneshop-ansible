@@ -1,0 +1,34 @@
+# Iceberg REST Catalog のオブジェクトストレージ (S3 互換) として使う MinIO。
+# 公式 Helm チャート (https://charts.min.io/) で導入する。
+#
+# helm repo add minio https://charts.min.io/
+# helm upgrade --install minio minio/minio -n quarkusdroneshop-demo -f minio-values.yaml
+
+# デモ用途のため distributed (デフォルト16台) ではなく standalone 1台構成にする。
+mode: standalone
+replicas: 1
+
+# 既存の Service 名 (dataproducts-minio) を維持し、Iceberg REST Catalog 側の
+# CATALOG_S3_ENDPOINT 等の参照を変更せずに済むようにする。
+fullnameOverride: dataproducts-minio
+
+# 認証情報は dataproducts_provision_minio_secret (script/ocpdeploy.sh) が
+# 作成する Secret 'dataproducts-minio-auth' を再利用する
+# (キー rootUser / rootPassword はこのチャートが要求する名前)。
+existingSecret: dataproducts-minio-auth
+
+persistence:
+  enabled: true
+  size: 20Gi
+
+service:
+  type: ClusterIP
+  port: "9000"
+
+# minioAPIPort/minioConsolePort (コンテナの実リスンポート) はデフォルト
+# 9000/9001 のままとし、consoleService もデフォルト (9001) を使う。
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m

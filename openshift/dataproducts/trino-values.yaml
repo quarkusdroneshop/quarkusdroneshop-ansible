@@ -16,13 +16,21 @@ server:
     # Keycloak にサービスアカウントクライアント (trino-coordinator) を作成した後、
     # Secret (trino-oidc) として注入する。値は都度決定する。
     authenticationType: "OAUTH2"
-  additionalConfigProperties:
-    - http-server.authentication.oauth2.issuer=${ENV:KEYCLOAK_ISSUER_URL}
-    - http-server.authentication.oauth2.client-id=${ENV:TRINO_OIDC_CLIENT_ID}
-    - http-server.authentication.oauth2.client-secret=${ENV:TRINO_OIDC_CLIENT_SECRET}
-    # 認可: File-based System Access Control。将来的に OPA (access-control.type=OPA) へ移行可能。
-    - access-control.name=file
-    - security.config-file=/etc/trino/access-control/rules.json
+  # http-server.authentication.type はコーディネーターの config.properties にしか
+  # 描画されないため (worker は外部向け HTTP API を持たない)、oauth2.* を
+  # 全ノード共通の additionalConfigProperties に入れると worker 側で
+  # "was not used" エラーになる。coordinatorExtraConfig でコーディネーター限定にする。
+  coordinatorExtraConfig: |
+    http-server.authentication.oauth2.issuer=${ENV:KEYCLOAK_ISSUER_URL}
+    http-server.authentication.oauth2.client-id=${ENV:TRINO_OIDC_CLIENT_ID}
+    http-server.authentication.oauth2.client-secret=${ENV:TRINO_OIDC_CLIENT_SECRET}
+
+# additionalConfigProperties はチャートのトップレベルキー
+# (server: 配下ではない。誤ってネストすると config.properties に反映されない)。
+# coordinator/worker 共通で必要なものだけをここに置く。
+additionalConfigProperties:
+  # OAuth2 有効化時は coordinator/worker 間の内部通信にも共有シークレットが必要
+  - internal-communication.shared-secret=${ENV:INTERNAL_SHARED_SECRET}
 
 envFrom:
   - secretRef:
@@ -35,12 +43,15 @@ catalogs:
     iceberg.catalog.type=rest
     iceberg.rest-catalog.uri=${ENV:ICEBERG_REST_CATALOG_URL}
 
-additionalVolumes:
-  - name: trino-access-control
-    configMap:
-      name: trino-access-control
-
-additionalVolumeMounts:
-  - name: trino-access-control
-    mountPath: /etc/trino/access-control
-    readOnly: true
+# File-based System Access Control (trino-access-control-rules.json) は
+# Trino 460 の columns.mask 形式と非互換 (UncheckedIOException: Failed to
+# convert JSON tree node) で coordinator が起動しなかったため、いったん無効化。
+# customer-360 データプロダクトのマスキングルールを有効化する際に、
+# 現行の Trino バージョンに合わせて trino-access-control-rules.json を
+# 修正した上で再度有効化すること。
+# accessControl:
+#   type: configmap
+#   configFile: "rules.json"
+#   rules:
+#     rules.json: |-
+#       (openshift/dataproducts/trino-access-control-rules.json の内容)

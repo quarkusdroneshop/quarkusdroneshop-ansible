@@ -1,0 +1,28 @@
+# Lakekeeper OSS (Iceberg REST Catalog 実装) を公式 Helm チャートで導入する。
+# tabulario/iceberg-rest (生マニフェスト、メタデータ非永続) からの置き換え。
+#
+# helm repo add lakekeeper https://lakekeeper.github.io/lakekeeper-charts/
+# helm upgrade --install lakekeeper lakekeeper/lakekeeper -n quarkusdroneshop-demo -f lakekeeper-values.yaml
+
+# 既存の "dataproducts-*" 命名規則に合わせる
+fullnameOverride: dataproducts-lakekeeper
+
+lakekeeper:
+  edition: core   # OSS 版 (Plus はライセンスが必要)
+
+# 認可は allowall (デフォルト) を使用し、OpenFGA は導入しない
+# (このデモでは不要な複雑さを避ける)。
+authz:
+  backend: allowall
+internalOpenFGA: false
+
+# メタデータ用 Postgres はチャート組み込みのものを使う
+# (tabulario/iceberg-rest はメタデータが Pod 再起動で消えていたが、
+#  こちらは永続化される)。
+postgresql:
+  enabled: true
+
+catalog:
+  replicas: 1
+  service:
+    externalPort: 8181
