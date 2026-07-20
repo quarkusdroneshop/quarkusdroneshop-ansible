@@ -17,8 +17,13 @@ spec:
   # 実クラスタに直接PATCHして復旧させた際の値と一致させてある
   # (target.bootstrapServers/groupId等はPod内の実際のConnect設定ファイルから
   # 確認した値)。
+  #
+  # NOTE: ファイル名は「b-site → a-site」のミラー方向を表す
+  # (target=asiteのため、実際にはasiteクラスタに適用するファイル。
+  # デプロイ先クラスタ名とファイル名が一致しない点に注意。
+  # script/ocpdeploy.sh 側もこの対応関係で参照している)。
   target:
-    alias: "shop-bsite"
+    alias: "shop-asite"
     bootstrapServers: "shop-cluster-kafka-bootstrap:9092"
     configStorageTopic: "mirrormaker2-cluster-configs"
     offsetStorageTopic: "mirrormaker2-cluster-offsets"
@@ -42,14 +47,14 @@ spec:
       org.apache.kafka.connect.mirror.OffsetSyncStore: "DEBUG"
   mirrors:
     - source:
-        alias: "shop-asite"
-        bootstrapServers: "external-shop-cluster-kafka-asite:9094"
+        alias: "shop-bsite"
+        bootstrapServers: "external-shop-cluster-kafka-bsite:9094"
       topicsPattern: "^(qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
         config:
-          bootstrap.servers: "external-shop-cluster-kafka-asite:9094"
+          bootstrap.servers: "external-shop-cluster-kafka-bsite:9094"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"
