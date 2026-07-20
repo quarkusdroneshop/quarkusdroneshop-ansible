@@ -119,40 +119,33 @@ data:
               if:
                 allOf:
                   - isKind: component
-        internal.plugin-kafka-topic-request:
-          mountPoints:
-            - mountPoint: entity.page.kafka-topic-request/cards
-              importName: KafkaTopicRequestContent
-              config:
-                layout:
-                  gridColumn: "1 / -1"
-                if:
-                  allOf:
-                    - isKind: component
-          entityTabs:
-            - path: /kafka-topic-request
-              title: Kafka Topic
-              mountPoint: entity.page.kafka-topic-request
-              if:
-                allOf:
-                  - isKind: component
-        internal.plugin-skupper-console:
-          mountPoints:
-            - mountPoint: entity.page.skupper-console/cards
-              importName: SkupperConsoleContent
-              config:
-                layout:
-                  gridColumn: "1 / -1"
-                if:
-                  allOf:
-                    - isKind: component
-          entityTabs:
-            - path: /skupper-console
-              title: Skupper Console
-              mountPoint: entity.page.skupper-console
-              if:
-                allOf:
-                  - isKind: component
+        # internal.plugin-kafka-topic-request (旧プラグイン) は
+        # kafka-topic-request-scaffolder-actions (バックエンドのみ、フロントエンド
+        # モジュールなし) に置き換わり、ソースからも削除済み。
+        # この設定ブロックが残っていると、存在しないフロントエンドモジュールを
+        # RHDHがマウントしようとして "Attempt to get module 'PluginRoot' ..." の
+        # コンソールエラーになるため削除。
+        #
+        # internal.plugin-skupper-console は tgz が未生成 (Dockerfile / plugin-server.yaml
+        # のパッケージング未対応) のため、有効化するまでコメントアウトしておく。
+        # 有効化する際は、対応するtgzをビルド・integrityを更新のうえ、以下を復活させる。
+        # internal.plugin-skupper-console:
+        #   mountPoints:
+        #     - mountPoint: entity.page.skupper-console/cards
+        #       importName: SkupperConsoleContent
+        #       config:
+        #         layout:
+        #           gridColumn: "1 / -1"
+        #         if:
+        #           allOf:
+        #             - isKind: component
+        #   entityTabs:
+        #     - path: /skupper-console
+        #       title: Skupper Console
+        #       mountPoint: entity.page.skupper-console
+        #       if:
+        #         allOf:
+        #           - isKind: component
       backend:
         defaultEnable: true
         disabledPlugins:
@@ -201,6 +194,9 @@ data:
 
         - type: url
           target: https://github.com/quarkusdroneshop/developerhub-skeleton/blob/main/template.yaml
+
+        - type: url
+          target: https://github.com/quarkusdroneshop/developerhub-skeleton/blob/main/kafka-topic-request-template.yaml
 
       ui:
         create:

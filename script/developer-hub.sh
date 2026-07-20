@@ -134,14 +134,15 @@ _check_db_password_match() {
     if [ "$psql_pw_b64" == "$rhdh_pw_b64" ]; then
         echo -e "${GREEN}  → OK: DBパスワードは一致しています${RESET}"
     else
-        echo -e "${RED}  ⚠ 警告: DBパスワードが一致していません！${RESET}" >&2
-        echo -e "${YELLOW}    ${psql_secret} (実際のPostgreSQLパスワード) と ${RESET}" >&2
-        echo -e "${YELLOW}    ${rhdh_secret} の APP_CONFIG_backend_database_connection_password が異なります。${RESET}" >&2
-        echo -e "${YELLOW}    backstage-backend が 'password authentication failed' でクラッシュループします。${RESET}" >&2
-        echo -e "${YELLOW}    修正例:${RESET}" >&2
-        echo -e "${YELLOW}      PW_B64=\$(oc get secret ${psql_secret} -o jsonpath='{.data.POSTGRES_PASSWORD}')${RESET}" >&2
-        echo -e "${YELLOW}      oc patch secret ${rhdh_secret} --type=json -p=\"[{\\\"op\\\":\\\"replace\\\",\\\"path\\\":\\\"/data/APP_CONFIG_backend_database_connection_password\\\",\\\"value\\\":\\\"\$PW_B64\\\"}]\"${RESET}" >&2
-        echo -e "${YELLOW}      oc rollout restart deployment/backstage-developer-hub${RESET}" >&2
+        echo -e "${YELLOW}  ⚠ DBパスワードが一致していません。${rhdh_secret} を実パスワードへ自動修正します...${RESET}" >&2
+        echo -e "${YELLOW}    (secrets-rhdh.yaml にハードコードされた既定値が oc apply で毎回上書きしてしまうため)${RESET}" >&2
+
+        oc patch secret "$rhdh_secret" -n "$RHDH_NAMESPACE" --type=json \
+            -p="[{\"op\":\"replace\",\"path\":\"/data/APP_CONFIG_backend_database_connection_password\",\"value\":\"${psql_pw_b64}\"}]"
+
+        echo -e "${BLUE}  → ${rhdh_secret} を修正しました。backstage-developer-hub を再起動します...${RESET}"
+        oc rollout restart deployment/backstage-developer-hub -n "$RHDH_NAMESPACE" 2>/dev/null || true
+        echo -e "${GREEN}  → DBパスワードの自動修正が完了しました${RESET}"
     fi
 }
 
@@ -181,13 +182,19 @@ deploy() {
         -e "s|K8S_CLUSTER_NAME: [^\"[:space:]][^[:space:]]*|K8S_CLUSTER_NAME: \"${CLUSTER_DOMAIN}\"|" \
         -e "s|K8S_CLUSTER_URL: \"[^\"]*\"|K8S_CLUSTER_URL: \"${CLUSTER_API_URL}\"|" \
         -e "s|K8S_CLUSTER_URL: [^\"[:space:]][^[:space:]]*|K8S_CLUSTER_URL: \"${CLUSTER_API_URL}\"|" \
+        -e "s|OPENMETADATA_URL: \"http://openmetadata-openmetadata\.apps\.[^\"]*\"|OPENMETADATA_URL: \"http://openmetadata-openmetadata.${APPS_DOMAIN}\"|" \
+        -e "s|OPENMETADATA_URL: http://openmetadata-openmetadata\.apps\.[^[:space:]]*|OPENMETADATA_URL: \"http://openmetadata-openmetadata.${APPS_DOMAIN}\"|" \
+        -e "s|OM_HTTPS_URL: \"https://om-proxy-openmetadata\.apps\.[^\"]*\"|OM_HTTPS_URL: \"https://om-proxy-openmetadata.${APPS_DOMAIN}\"|" \
+        -e "s|OM_HTTPS_URL: https://om-proxy-openmetadata\.apps\.[^[:space:]]*|OM_HTTPS_URL: \"https://om-proxy-openmetadata.${APPS_DOMAIN}\"|" \
+        -e "s|OM_PROXY_URL: \"https://om-proxy-openmetadata\.apps\.[^\"]*\"|OM_PROXY_URL: \"https://om-proxy-openmetadata.${APPS_DOMAIN}\"|" \
+        -e "s|OM_PROXY_URL: https://om-proxy-openmetadata\.apps\.[^[:space:]]*|OM_PROXY_URL: \"https://om-proxy-openmetadata.${APPS_DOMAIN}\"|" \
         "$REPO_ROOT/openshift/secrets-rhdh.yaml"
     rm -f "$REPO_ROOT/openshift/secrets-rhdh.yaml.bak"
 
-    # 置換後、主要4項目が実際に現在のクラスタードメインを指しているか検証する
+    # 置換後、主要項目が実際に現在のクラスタードメインを指しているか検証する
     # (クォート有無以外の予期しない不一致でも、ここで気づけるようにする)
     local _mismatch=0
-    for _key in BASE_URL AUTH_OIDC_METADATA_URL K8S_CLUSTER_NAME K8S_CLUSTER_URL; do
+    for _key in BASE_URL AUTH_OIDC_METADATA_URL K8S_CLUSTER_NAME K8S_CLUSTER_URL OPENMETADATA_URL OM_HTTPS_URL OM_PROXY_URL; do
         if ! grep -q "^  ${_key}:.*${CLUSTER_DOMAIN}" "$REPO_ROOT/openshift/secrets-rhdh.yaml"; then
             echo -e "${RED}  ⚠ 警告: secrets-rhdh.yaml の ${_key} が現在のクラスタードメイン(${CLUSTER_DOMAIN})を指していません${RESET}" >&2
             _mismatch=1
@@ -207,6 +214,28 @@ deploy() {
             git commit -m "Auto-update clusterDomain=${APPS_DOMAIN}" && \
             git push origin main) || true
     fi
+
+    # 各アプリリポジトリの catalog-info.yaml には openmetadata/explore-url 等、
+    # クラスタードメインを含むURLが直接ハードコードされている。
+    # サンドボックス環境はクラスタが変わるたびにドメインも変わるため、
+    # デプロイの度に古いドメインを現在のドメインへ自動置換してpushする。
+    local _app_repo _catalog_info _old_domain_pattern
+    _old_domain_pattern='ocp\.[a-z0-9]+\.sandbox[0-9]+\.opentlc\.com'
+    for _app_repo in quarkusdroneshop-web quarkusdroneshop-counter quarkusdroneshop-homeoffice \
+        quarkusdroneshop-homeoffice-ui quarkusdroneshop-inventory quarkusdroneshop-qdca10 \
+        quarkusdroneshop-qdca10pro quarkusdroneshop-reward; do
+        _catalog_info="$REPO_ROOT/../${_app_repo}/catalog-info.yaml"
+        [ -f "$_catalog_info" ] || continue
+
+        if grep -qE "$_old_domain_pattern" "$_catalog_info" && ! grep -q "${CLUSTER_DOMAIN}" "$_catalog_info"; then
+            sed -i.bak -E "s|${_old_domain_pattern}|${CLUSTER_DOMAIN}|g" "$_catalog_info"
+            rm -f "${_catalog_info}.bak"
+            echo -e "${BLUE}${_app_repo}/catalog-info.yaml のドメインを ${CLUSTER_DOMAIN} に更新しました${RESET}"
+            (cd "$(dirname "$_catalog_info")" && git add catalog-info.yaml && \
+                git commit -m "Auto-update OpenMetadata explore-url domain to ${CLUSTER_DOMAIN}" && \
+                git push origin main) || true
+        fi
+    done
 
     if oc get backstage developer-hub -n "$RHDH_NAMESPACE" &>/dev/null; then
         oc replace -f "$REPO_ROOT/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
@@ -994,6 +1023,13 @@ system_token() {
     echo -e "${BLUE}RHDHクラスター (${RHDH_API}) に切り替えて適用中...${RESET}"
     oc login "$RHDH_API" -u admin --insecure-skip-tls-verify 2>/dev/null || true
     oc apply -f "$SECRETS_FILE" -n "$RHDH_NAMESPACE"
+
+    # secrets-rhdh.yaml にはハードコードされた既定のDBパスワードが含まれており、
+    # 上のoc applyで再びPostgreSQL Operatorの実パスワードと食い違ってしまう
+    # (backstage-backend が 'password authentication failed' でクラッシュループする)
+    # ため、適用直後に自動修正する。
+    _check_db_password_match
+
     oc rollout restart deployment/backstage-developer-hub -n "$RHDH_NAMESPACE"
     echo -e "${GREEN}全クラスターのトークン設定完了。RHDH を再起動しました${RESET}"
 }

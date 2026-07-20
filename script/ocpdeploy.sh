@@ -312,7 +312,30 @@ pipeline_cleanup() {
 # Skupper サブコマンド
 # =============================================================================
 
+# NAMESPACE(既定: quarkusdroneshop-demo) がクラスタ上に存在しない場合、
+# RHDHのみをデプロイした環境（quarkusdroneshop-demo は作成していない）である
+# 可能性が高い。その場合に無言で失敗させず、対象namespaceを対話式で確認する。
+_resolve_skupper_namespace() {
+    if oc get project "$NAMESPACE" &>/dev/null; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}⚠ namespace '${NAMESPACE}' が存在しません。${RESET}" >&2
+    if oc get project "$RHDH_NAMESPACE" &>/dev/null; then
+        echo -e "${YELLOW}  '${RHDH_NAMESPACE}' は存在するため、RHDHのみのデプロイ環境の可能性があります。${RESET}" >&2
+    fi
+    read -rp "Skupperの対象namespaceを入力してください (デフォルト: ${RHDH_NAMESPACE}): " _ns_input
+    NAMESPACE="${_ns_input:-$RHDH_NAMESPACE}"
+
+    if ! oc get project "$NAMESPACE" &>/dev/null; then
+        echo -e "${RED}ERROR: namespace '${NAMESPACE}' も存在しません。処理を中止します。${RESET}" >&2
+        exit 1
+    fi
+    echo -e "${GREEN}  → namespace '${NAMESPACE}' を使用します${RESET}"
+}
+
 skupper_operator_setup() {
+    _resolve_skupper_namespace
     oc project "$NAMESPACE"
 
     echo -e "${BLUE}Skupper Operator をインストール中...${RESET}"
@@ -381,7 +404,7 @@ skupper_deploy() {
         skupper site create skupper-asite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
-        skupper token issue "$REPO_ROOT/skupper-token-a.yaml" -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-a.yaml" -r 3 -e 1h -n "$NAMESPACE"
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
@@ -400,13 +423,16 @@ skupper_deploy() {
         skupper connector create external-shop-cluster-apicurio 8080 --selector app=droneshop-apicurioregistry-kafkasql -n "$NAMESPACE"
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-asite.yaml" -n "$NAMESPACE"
         _patch_kafka_advertised_host
-        oc apply -f "$REPO_ROOT/openshift/kafka-mm2-a-site.yaml" -n "$NAMESPACE"
+        # NOTE: kafka-mm2-*-site.yaml のファイル名は「ミラーの向き」を表す
+        # (デプロイ先クラスタ名ではない)。asiteクラスタには
+        # target=asite (b-site → a-site 向き) の kafka-mm2-b-site.yaml を適用する。
+        oc apply -f "$REPO_ROOT/openshift/kafka-mm2-b-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "B" ]; then
         skupper site create skupper-bsite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
-        skupper token issue "$REPO_ROOT/skupper-token-b.yaml" -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-b.yaml" -r 3 -e 1h -n "$NAMESPACE"
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
@@ -424,13 +450,16 @@ skupper_deploy() {
         skupper connector create external-shop-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/cluster=droneshopdb -n "$NAMESPACE"
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-bsite.yaml" -n "$NAMESPACE"
         _patch_kafka_advertised_host
-        oc apply -f "$REPO_ROOT/openshift/kafka-mm2-b-site.yaml" -n "$NAMESPACE"
+        # NOTE: kafka-mm2-*-site.yaml のファイル名は「ミラーの向き」を表す
+        # (デプロイ先クラスタ名ではない)。bsiteクラスタには
+        # target=bsite (a-site → b-site 向き) の kafka-mm2-a-site.yaml を適用する。
+        oc apply -f "$REPO_ROOT/openshift/kafka-mm2-a-site.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "C" ]; then
         skupper site create skupper-csite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
         skupper site status
-        skupper token issue "$REPO_ROOT/skupper-token-c.yaml" -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-c.yaml" -r 3 -e 1h -n "$NAMESPACE"
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
@@ -460,7 +489,7 @@ skupper_deploy() {
         skupper site create skupper-rhdh -n "$RHDH_NAMESPACE"
         skupper site update --enable-link-access -n "$RHDH_NAMESPACE"
         skupper site status -n "$RHDH_NAMESPACE"
-        skupper token issue "$REPO_ROOT/skupper-token-rhdh.yaml" -r 3 -n "$RHDH_NAMESPACE"
+        skupper token issue "$REPO_ROOT/skupper-token-rhdh.yaml" -r 3 -e 1h -n "$RHDH_NAMESPACE"
 
         read -p "LINK を作成しますか？(yes/no): " LINK_CONFREM
         if [ "$LINK_CONFREM" != "yes" ]; then
@@ -493,29 +522,30 @@ skupper_deploy() {
 }
 
 skupper_retoken() {
+    _resolve_skupper_namespace
     read -p "どのサイトで LINK を再作成しますか？(A/B/C/DH): " SITE_CONFREM
 
     if [ "$SITE_CONFREM" = "A" ]; then
-        skupper token issue "$REPO_ROOT/skupper-token-a.yaml" -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-a.yaml" -r 3 -e 1h -n "$NAMESPACE"
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
         skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "B" ]; then
-        skupper token issue "$REPO_ROOT/skupper-token-b.yaml" -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-b.yaml" -r 3 -e 1h -n "$NAMESPACE"
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
         skupper token redeem "$REPO_ROOT/skupper-token-c.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "C" ]; then
-        skupper token issue "$REPO_ROOT/skupper-token-c.yaml" -r 3
+        skupper token issue "$REPO_ROOT/skupper-token-c.yaml" -r 3 -e 1h -n "$NAMESPACE"
         oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
         skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$NAMESPACE"
         skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "DH" ]; then
         # DHサイトは quarkusdroneshop-rhdh namespace が対象
-        skupper token issue "$REPO_ROOT/skupper-token-rhdh.yaml" -r 3 -n "$RHDH_NAMESPACE"
+        skupper token issue "$REPO_ROOT/skupper-token-rhdh.yaml" -r 3 -e 1h -n "$RHDH_NAMESPACE"
         oc delete accesstokens.skupper.io --all -n "$RHDH_NAMESPACE"
         skupper token redeem "$REPO_ROOT/skupper-token-a.yaml" -n "$RHDH_NAMESPACE"
         skupper token redeem "$REPO_ROOT/skupper-token-b.yaml" -n "$RHDH_NAMESPACE"
@@ -554,6 +584,7 @@ skupper_status() {
     # -n を省略すると現在のカレントプロジェクトを見てしまい、site が
     # 実際にあるnamespaceと食い違って「site が見つからない」となるため、
     # deploy/retoken 同様どのサイトを見るか確認してから対象namespaceを決める
+    _resolve_skupper_namespace
     read -p "どのサイトのステータスを確認しますか？(A/B/C/DH): " SITE_CONFREM
     if [ "$SITE_CONFREM" = "DH" ]; then
         STATUS_NAMESPACE="$RHDH_NAMESPACE"
@@ -600,6 +631,7 @@ skupper_console() {
 }
 
 skupper_cleanup() {
+    _resolve_skupper_namespace
     oc delete kafkamirrormaker2 --all -n "$NAMESPACE"
     oc delete accesstokens.skupper.io --all -n "$NAMESPACE"
     skupper listener delete external-shop-cluster-kafka-asite -n "$NAMESPACE"

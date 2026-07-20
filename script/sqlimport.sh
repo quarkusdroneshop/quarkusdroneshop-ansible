@@ -32,8 +32,11 @@ OPENMETADATA_EXPORT_DIR="${REPO_ROOT}/../openmetadata-export"
 DEVELOPERHUB_EXPORT_DIR="${REPO_ROOT}/../developerhub-export"
 
 OPENMETADATA_NAMESPACE="${OPENMETADATA_NAMESPACE:-openmetadata}"
+OPENMETADATA_DEPLOYMENT="${OPENMETADATA_DEPLOYMENT:-openmetadata}"
+OPENMETADATA_MYSQL_SECRET="${OPENMETADATA_MYSQL_SECRET:-mysql}"
 DEVELOPERHUB_NAMESPACE="${DEVELOPERHUB_NAMESPACE:-quarkusdroneshop-rhdh}"
 DEVELOPERHUB_POD="${DEVELOPERHUB_POD:-backstage-psql-developer-hub-0}"
+DEVELOPERHUB_DEPLOYMENT="${DEVELOPERHUB_DEPLOYMENT:-backstage-developer-hub}"
 
 RED="\033[31m"
 GREEN="\033[32m"
@@ -137,29 +140,217 @@ confirm_or_abort() {
     fi
 }
 
+# QRTZ_*/FLW_EVENT_DEPLOYMENT/rdf_index_job/search_index_job は、mysqldumpの
+# CREATE TABLE文がOpenMetadataマイグレーションのcharset(utf8mb3)と食い違い、
+# DROPだけ成功してCREATEが失敗し、テーブルごと消えてしまうことがある。
+# その場合にOpenMetadataコンテナ内の正規マイグレーションSQL相当の定義で
+# 再作成するためのスキーマ。既存テーブル(QRTZ_TRIGGERS等)に合わせてutf8mb3固定。
+_OM_RESTORE_MISSING_TABLES_SQL='
+SET FOREIGN_KEY_CHECKS=0;
+
+CREATE TABLE IF NOT EXISTS QRTZ_JOB_DETAILS(
+SCHED_NAME VARCHAR(120) NOT NULL,
+JOB_NAME VARCHAR(190) NOT NULL,
+JOB_GROUP VARCHAR(190) NOT NULL,
+DESCRIPTION VARCHAR(250) NULL,
+JOB_CLASS_NAME VARCHAR(250) NOT NULL,
+IS_DURABLE VARCHAR(1) NOT NULL,
+IS_NONCONCURRENT VARCHAR(1) NOT NULL,
+IS_UPDATE_DATA VARCHAR(1) NOT NULL,
+REQUESTS_RECOVERY VARCHAR(1) NOT NULL,
+JOB_DATA BLOB NULL,
+PRIMARY KEY (SCHED_NAME,JOB_NAME,JOB_GROUP))
+ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS QRTZ_SIMPLE_TRIGGERS (
+SCHED_NAME VARCHAR(120) NOT NULL,
+TRIGGER_NAME VARCHAR(190) NOT NULL,
+TRIGGER_GROUP VARCHAR(190) NOT NULL,
+REPEAT_COUNT BIGINT(7) NOT NULL,
+REPEAT_INTERVAL BIGINT(12) NOT NULL,
+TIMES_TRIGGERED BIGINT(10) NOT NULL,
+PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP)
+REFERENCES QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP))
+ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS QRTZ_CRON_TRIGGERS (
+SCHED_NAME VARCHAR(120) NOT NULL,
+TRIGGER_NAME VARCHAR(190) NOT NULL,
+TRIGGER_GROUP VARCHAR(190) NOT NULL,
+CRON_EXPRESSION VARCHAR(120) NOT NULL,
+TIME_ZONE_ID VARCHAR(80),
+PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP)
+REFERENCES QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP))
+ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS QRTZ_SIMPROP_TRIGGERS
+  (
+    SCHED_NAME VARCHAR(120) NOT NULL,
+    TRIGGER_NAME VARCHAR(190) NOT NULL,
+    TRIGGER_GROUP VARCHAR(190) NOT NULL,
+    STR_PROP_1 VARCHAR(512) NULL,
+    STR_PROP_2 VARCHAR(512) NULL,
+    STR_PROP_3 VARCHAR(512) NULL,
+    INT_PROP_1 INT NULL,
+    INT_PROP_2 INT NULL,
+    LONG_PROP_1 BIGINT NULL,
+    LONG_PROP_2 BIGINT NULL,
+    DEC_PROP_1 NUMERIC(13,4) NULL,
+    DEC_PROP_2 NUMERIC(13,4) NULL,
+    BOOL_PROP_1 VARCHAR(1) NULL,
+    BOOL_PROP_2 VARCHAR(1) NULL,
+    PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+    FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP)
+    REFERENCES QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP))
+ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS QRTZ_BLOB_TRIGGERS (
+SCHED_NAME VARCHAR(120) NOT NULL,
+TRIGGER_NAME VARCHAR(190) NOT NULL,
+TRIGGER_GROUP VARCHAR(190) NOT NULL,
+BLOB_DATA BLOB NULL,
+PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+INDEX (SCHED_NAME,TRIGGER_NAME, TRIGGER_GROUP),
+FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP)
+REFERENCES QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP))
+ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS FLW_EVENT_DEPLOYMENT (ID_ VARCHAR(255) NOT NULL, NAME_ VARCHAR(255) NULL, CATEGORY_ VARCHAR(255) NULL, DEPLOY_TIME_ datetime(3) NULL, TENANT_ID_ VARCHAR(255) NULL, PARENT_DEPLOYMENT_ID_ VARCHAR(255) NULL, CONSTRAINT PK_FLW_EVENT_DEPLOYMENT PRIMARY KEY (ID_)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS rdf_index_job (
+    id VARCHAR(36) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    jobConfiguration JSON NOT NULL,
+    totalRecords BIGINT NOT NULL DEFAULT 0,
+    processedRecords BIGINT NOT NULL DEFAULT 0,
+    successRecords BIGINT NOT NULL DEFAULT 0,
+    failedRecords BIGINT NOT NULL DEFAULT 0,
+    stats JSON,
+    createdBy VARCHAR(256) NOT NULL,
+    createdAt BIGINT NOT NULL,
+    startedAt BIGINT,
+    completedAt BIGINT,
+    updatedAt BIGINT NOT NULL,
+    errorMessage TEXT,
+    PRIMARY KEY (id),
+    INDEX idx_rdf_index_job_status (status),
+    INDEX idx_rdf_index_job_created (createdAt DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS search_index_job (
+    id VARCHAR(36) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    jobConfiguration JSON NOT NULL,
+    targetIndexPrefix VARCHAR(255),
+    stagedIndexMapping JSON,
+    totalRecords BIGINT NOT NULL DEFAULT 0,
+    processedRecords BIGINT NOT NULL DEFAULT 0,
+    successRecords BIGINT NOT NULL DEFAULT 0,
+    failedRecords BIGINT NOT NULL DEFAULT 0,
+    stats JSON,
+    createdBy VARCHAR(256) NOT NULL,
+    createdAt BIGINT NOT NULL,
+    startedAt BIGINT,
+    completedAt BIGINT,
+    updatedAt BIGINT NOT NULL,
+    errorMessage TEXT,
+    registrationDeadline BIGINT,
+    registeredServerCount INT,
+    PRIMARY KEY (id),
+    INDEX idx_search_index_job_status (status),
+    INDEX idx_search_index_job_created (createdAt DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+SET FOREIGN_KEY_CHECKS=1;
+'
+
 import_openmetadata() {
     local dump_file
     dump_file="$(select_dump_file "$OPENMETADATA_EXPORT_DIR")"
     echo -e "${GREEN}選択されたファイル: $(basename "$dump_file")${RESET}"
-    echo -e "${YELLOW}デフォルトパスワードは、 openmetadata_password です${RESET}"
     echo -e "${YELLOW}※ このダンプは mysqldump --all-databases 形式のため、root ユーザーでの投入が必要です。${RESET}"
-    confirm_or_abort "namespace '${OPENMETADATA_NAMESPACE}' の mysql-0 へインポートします。よろしいですか？"
+    echo -e "${YELLOW}※ 以下の手順で実行します:${RESET}"
+    echo -e "${YELLOW}  [1/7] OpenMetadataを一時停止${RESET}"
+    echo -e "${YELLOW}  [2/7] openmetadata_db を DROP/CREATE で完全リセット${RESET}"
+    echo -e "${YELLOW}  [3/7] OpenMetadataを起動し、マイグレーションで正規スキーマ(177テーブル)を作成${RESET}"
+    echo -e "${YELLOW}  [4/7] 再度停止${RESET}"
+    echo -e "${YELLOW}  [5/7] ダンプを流し込み(--force、内部テーブルのcharset不一致を自動修復)${RESET}"
+    echo -e "${YELLOW}  [6/7] OpenMetadataを再開${RESET}"
+    echo -e "${YELLOW}  [7/7] Search Indexing を再実行してOpenSearchのExplore/リネージ表示を復旧${RESET}"
+    echo -e "${RED}  ※ 現在のOpenMetadataのデータは完全に失われます。${RESET}"
+    confirm_or_abort "namespace '${OPENMETADATA_NAMESPACE}' の openmetadata_db を完全リセットしてインポートします。よろしいですか？"
 
-    echo -e "${BLUE}ポートフォワードを起動中...${RESET}"
-    oc port-forward pod/mysql-0 -n "$OPENMETADATA_NAMESPACE" 3306:3306 > /dev/null 2>&1 &
-    local pf_pid=$!
-    trap 'kill "$pf_pid" 2>/dev/null || true' EXIT
+    local root_pw
+    root_pw="$(oc get secret "$OPENMETADATA_MYSQL_SECRET" -n "$OPENMETADATA_NAMESPACE" \
+        -o jsonpath='{.data.mysql-root-password}' 2>/dev/null | base64 -d)"
+    if [ -z "$root_pw" ]; then
+        echo -e "${RED}ERROR: ${OPENMETADATA_MYSQL_SECRET} secret から mysql-root-password を取得できませんでした${RESET}" >&2
+        exit 1
+    fi
 
-    for _ in {1..10}; do
-        nc -z 127.0.0.1 3306 && break
-        sleep 1
-    done
+    echo -e "${BLUE}[1/7] OpenMetadata を一時停止中...${RESET}"
+    oc scale deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --replicas=0
+    oc wait --for=delete pod -l app.kubernetes.io/name=openmetadata \
+        -n "$OPENMETADATA_NAMESPACE" --timeout=120s 2>/dev/null || true
 
-    echo -e "${BLUE}MySQL にインポート中...${RESET}"
-    mysql -h 127.0.0.1 -P 3306 -u root -p < "$dump_file"
+    # 何が起きても最後は必ずOpenMetadataを再開する
+    trap 'echo -e "${BLUE}OpenMetadata を再開中...${RESET}"; oc scale deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --replicas=1' EXIT
 
-    kill "$pf_pid" 2>/dev/null || true
+    echo -e "${BLUE}[2/7] openmetadata_db をリセット中...${RESET}"
+    oc exec -n "$OPENMETADATA_NAMESPACE" mysql-0 -- bash -c "mysql -u root -p'${root_pw}' -e \"
+        DROP DATABASE IF EXISTS openmetadata_db;
+        CREATE DATABASE openmetadata_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    \""
+
+    echo -e "${BLUE}[3/7] OpenMetadata を起動してマイグレーション実行中(数分かかります)...${RESET}"
+    oc scale deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --replicas=1
+    oc rollout status deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --timeout=300s
+
+    local table_count
+    table_count="$(oc exec -n "$OPENMETADATA_NAMESPACE" mysql-0 -- bash -c \
+        "mysql -u root -p'${root_pw}' -N -e \"SELECT count(*) FROM information_schema.tables WHERE table_schema='openmetadata_db';\"" 2>/dev/null | tr -d '\r')"
+    echo -e "${GREEN}  → マイグレーション完了、テーブル数: ${table_count}${RESET}"
+
+    echo -e "${BLUE}[4/7] OpenMetadata を一時停止中(インポートのため)...${RESET}"
+    oc scale deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --replicas=0
+    oc wait --for=delete pod -l app.kubernetes.io/name=openmetadata \
+        -n "$OPENMETADATA_NAMESPACE" --timeout=120s 2>/dev/null || true
+
+    echo -e "${BLUE}[5/7] MySQL にインポート中 (oc exec -i、port-forwardは接続が不安定なため使用しない)...${RESET}"
+    # --force: ダンプのDROP/CREATEがマイグレーション作成済みスキーマと衝突しても
+    # 処理全体を中断せず、エラー行だけスキップして最後まで実行する。
+    oc exec -i -n "$OPENMETADATA_NAMESPACE" mysql-0 -- bash -c "mysql --force -u root -p'${root_pw}'" < "$dump_file"
+
+    echo -e "${BLUE}  → QRTZ/FLW/index_job系の内部テーブルを復旧中...${RESET}"
+    echo "$_OM_RESTORE_MISSING_TABLES_SQL" | oc exec -i -n "$OPENMETADATA_NAMESPACE" mysql-0 -- \
+        bash -c "mysql -u root -p'${root_pw}' openmetadata_db"
+
+    echo -e "${BLUE}[6/7] OpenMetadata を再開中...${RESET}"
     trap - EXIT
+    oc scale deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --replicas=1
+    oc rollout status deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --timeout=300s
+
+    echo -e "${BLUE}[7/7] Search Indexing を再実行中 (Explore/リネージ表示の復旧)...${RESET}"
+    local om_host token
+    om_host="$(oc get route openmetadata -n "$OPENMETADATA_NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null)"
+    if [ -z "$om_host" ]; then
+        echo -e "${YELLOW}  → openmetadata route が見つからないため、再インデックスは手動で実行してください${RESET}"
+    else
+        token="$(curl -s -X POST "http://${om_host}/api/v1/users/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@open-metadata.org","password":"YWRtaW4="}' \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("accessToken",""))' 2>/dev/null)"
+        if [ -z "$token" ]; then
+            echo -e "${YELLOW}  → OpenMetadataへのログインに失敗したため、再インデックスは手動で実行してください${RESET}"
+        else
+            curl -s -X POST "http://${om_host}/api/v1/apps/trigger/SearchIndexingApplication" \
+                -H "Authorization: Bearer ${token}" -H "Content-Type: application/json" > /dev/null
+            echo -e "${GREEN}  → 再インデックスジョブをトリガーしました(バックグラウンドで実行されます)${RESET}"
+        fi
+    fi
+
     echo -e "${GREEN}OpenMetadata (MySQL) のインポートが完了しました。${RESET}"
 }
 
@@ -167,12 +358,65 @@ import_developerhub() {
     local dump_file
     dump_file="$(select_dump_file "$DEVELOPERHUB_EXPORT_DIR")"
     echo -e "${GREEN}選択されたファイル: $(basename "$dump_file")${RESET}"
+    echo -e "${YELLOW}※ ${DEVELOPERHUB_DEPLOYMENT} を一時停止し、ダンプが対象とするプラグインDBを"
+    echo -e "  DROP/CREATEでリセットしてからインポートします（既存データは失われます）。${RESET}"
     confirm_or_abort "namespace '${DEVELOPERHUB_NAMESPACE}' の ${DEVELOPERHUB_POD} へインポートします。よろしいですか？"
 
-    echo -e "${BLUE}Pod 内の psql へ流し込み中...${RESET}"
+    # ダンプ内の \connect からリセット対象データベース一覧を抽出 (postgres/template1 は除外)
+    local -a target_dbs
+    while IFS= read -r db; do
+        target_dbs+=("$db")
+    done < <(grep -oP "(?<=^\\\\connect )(-reuse-previous=on \"dbname='[a-zA-Z0-9_-]+'\"|[a-zA-Z0-9_-]+)" "$dump_file" \
+        | sed -E "s/-reuse-previous=on \"dbname='([a-zA-Z0-9_-]+)'\"/\1/" \
+        | grep -v -E "^(template1|template0|postgres)$" \
+        | sort -u)
+
+    echo -e "${BLUE}[1/5] ${DEVELOPERHUB_DEPLOYMENT} を一時停止中...${RESET}"
+    oc scale deployment/"$DEVELOPERHUB_DEPLOYMENT" -n "$DEVELOPERHUB_NAMESPACE" --replicas=0
+    oc wait --for=delete pod -l "rhdh.redhat.com/backstage-name=developer-hub" \
+        -n "$DEVELOPERHUB_NAMESPACE" --timeout=120s || true
+
+    # 何が起きても最後は必ずレプリカを1に戻す
+    trap 'echo -e "${BLUE}${DEVELOPERHUB_DEPLOYMENT} を再開中...${RESET}"; oc scale deployment/"$DEVELOPERHUB_DEPLOYMENT" -n "$DEVELOPERHUB_NAMESPACE" --replicas=1' EXIT
+
+    if [ "${#target_dbs[@]}" -gt 0 ]; then
+        echo -e "${BLUE}[2/5] 対象プラグインDBをリセット中 (${#target_dbs[@]} 件)...${RESET}"
+        local reset_sql=""
+        for db in "${target_dbs[@]}"; do
+            reset_sql="${reset_sql}DROP DATABASE IF EXISTS \"${db}\" WITH (FORCE); CREATE DATABASE \"${db}\" OWNER postgres;
+"
+        done
+        printf '%s' "$reset_sql" | oc exec -i "$DEVELOPERHUB_POD" -n "$DEVELOPERHUB_NAMESPACE" -- \
+            bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$PGUSER" -h 127.0.0.1 -d postgres'
+    else
+        echo -e "${YELLOW}[2/5] ダンプから対象DBを検出できなかったため、リセットをスキップします。${RESET}"
+    fi
+
+    echo -e "${BLUE}[3/5] Pod 内の psql へ流し込み中...${RESET}"
     oc exec -i "$DEVELOPERHUB_POD" -n "$DEVELOPERHUB_NAMESPACE" -- \
         bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$PGUSER" -h 127.0.0.1' \
         < "$dump_file"
+
+    # ダンプに `ALTER ROLE postgres ... PASSWORD '...'` が含まれている場合、
+    # ダンプ取得時点の古いパスワードで postgres ロールが上書きされてしまい、
+    # backstage-psql-secret-developer-hub (Operatorが管理する実パスワード) と
+    # 食い違って backstage-backend が password authentication failed で
+    # クラッシュループする。インポート後は必ず実パスワードへ再同期する。
+    echo -e "${BLUE}[4/5] postgres ロールのパスワードを再同期中...${RESET}"
+    local psql_pw
+    psql_pw="$(oc get secret backstage-psql-secret-developer-hub -n "$DEVELOPERHUB_NAMESPACE" \
+        -o jsonpath='{.data.POSTGRES_PASSWORD}' 2>/dev/null | base64 -d)"
+    if [ -n "$psql_pw" ]; then
+        echo "ALTER ROLE postgres WITH PASSWORD '${psql_pw}';" | oc exec -i "$DEVELOPERHUB_POD" -n "$DEVELOPERHUB_NAMESPACE" -- \
+            bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$PGUSER" -h 127.0.0.1 -d postgres'
+    else
+        echo -e "${YELLOW}  → backstage-psql-secret-developer-hub が見つからないため再同期をスキップします。${RESET}"
+    fi
+
+    echo -e "${BLUE}[5/5] ${DEVELOPERHUB_DEPLOYMENT} を再開中...${RESET}"
+    trap - EXIT
+    oc scale deployment/"$DEVELOPERHUB_DEPLOYMENT" -n "$DEVELOPERHUB_NAMESPACE" --replicas=1
+    oc rollout status deployment/"$DEVELOPERHUB_DEPLOYMENT" -n "$DEVELOPERHUB_NAMESPACE" --timeout=180s || true
 
     echo -e "${GREEN}Developer Hub (PostgreSQL) のインポートが完了しました。${RESET}"
 }
