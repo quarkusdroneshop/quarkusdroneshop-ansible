@@ -15,7 +15,11 @@ spec:
     # LINE_ITEM_STATUS_CHANGED / ORDER_CANCELLED) が同時稼働し、後続の
     # データプロダクトも追加されるため、TaskManager 1 台・2 スロットでは
     # 不足する ("Could not acquire the minimum required resources")。
-    taskmanager.numberOfTaskSlots: "8"
+    # dataproduct-inventory-analytics が Kafka + Iceberg 両方へ書き込むようになり
+    # (turnover x2 + stockout_risk x1) x2 (Kafka/Iceberg) = 6 タスクへ増えたため、
+    # 全データプロダクト合計のタスク数が 8 スロットを超過するようになった
+    # ("Could not acquire the minimum required resources")。16 に増やす。
+    taskmanager.numberOfTaskSlots: "16"
     # スキーマ登録は Apicurio (schema/*.avsc)、認証は Keycloak (OIDC) を経由する。
     # 具体的な REST URL / realm / client-id は環境ごとに Secret で注入する
     # (values は `oc create secret generic dataproducts-flink-auth` で都度決定)。
@@ -53,6 +57,23 @@ spec:
                 https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.2.0-1.19/flink-sql-connector-kafka-3.2.0-1.19.jar
               curl -fL -o /flink-libs/flink-sql-avro-confluent-registry.jar \
                 https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.19.1/flink-sql-avro-confluent-registry-1.19.1.jar
+              # Iceberg REST Catalog (Lakekeeper) へ書き込むデータプロダクト用
+              # (例: dataproduct-inventory-analytics)。iceberg-flink-runtime が
+              # Flink Table API 統合 + REST カタログクライアントを含み、
+              # iceberg-aws-bundle が MinIO (S3 互換) への実データ書き込み
+              # (S3FileIO, AWS SDK v2 ベース) を含む。
+              curl -fL -o /flink-libs/iceberg-flink-runtime.jar \
+                https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-flink-runtime-1.19/1.10.2/iceberg-flink-runtime-1.19-1.10.2.jar
+              curl -fL -o /flink-libs/iceberg-aws-bundle.jar \
+                https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/1.10.2/iceberg-aws-bundle-1.10.2.jar
+              # iceberg-flink-runtime は (REST カタログ・S3のみで HDFS を一切使わなくても)
+              # 内部で org.apache.hadoop.conf.Configuration を参照するため、
+              # 実データ本体は不要でも最小限の Hadoop client jar が必要
+              # (無いと ClassNotFoundException で CREATE CATALOG が失敗する)。
+              curl -fL -o /flink-libs/hadoop-client-api.jar \
+                https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-api/3.3.6/hadoop-client-api-3.3.6.jar
+              curl -fL -o /flink-libs/hadoop-client-runtime.jar \
+                https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-runtime/3.3.6/hadoop-client-runtime-3.3.6.jar
           volumeMounts:
             - name: flink-libs
               mountPath: /flink-libs
@@ -66,6 +87,24 @@ spec:
                 # 作成した上で `oc create secret` により注入する。
                 name: dataproducts-flink-auth
                 optional: true
+          env:
+            # iceberg-aws-bundle の S3FileIO (AWS SDK v2 標準クレデンシャルチェーン)
+            # が MinIO への書き込みに使う。dataproducts_setup が作成する
+            # dataproducts-minio-auth (rootUser/rootPassword) をそのまま使う。
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: dataproducts-minio-auth
+                  key: rootUser
+                  optional: true
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dataproducts-minio-auth
+                  key: rootPassword
+                  optional: true
+            - name: AWS_REGION
+              value: us-east-1
           volumeMounts:
             - name: flink-libs
               mountPath: /opt/flink/lib

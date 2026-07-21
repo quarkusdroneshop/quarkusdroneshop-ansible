@@ -70,6 +70,7 @@ usage() {
     echo "                            --site は order-events のソーストピック選択に使用 (未指定時は接続中クラスターから自動判定)"
     echo "  $0 dataproducts schemas   Apicurio へスキーマ登録 (Keycloak OIDC 認証)"
     echo "  $0 dataproducts lakekeeper Lakekeeper OSS (Iceberg REST Catalog) をこのサイトに構築"
+    echo "  $0 dataproducts debezium  inventory Outbox 用 Kafka Connect (Debezium) のビルド + コネクタ登録"
     echo "  $0 dataproducts cleanup   dataproducts 関連リソースの削除"
 }
 
@@ -99,7 +100,7 @@ case "$1" in
         ;;
     dataproducts)
         case "$2" in
-            setup|deploy|schemas|lakekeeper|cleanup) ;;
+            setup|deploy|schemas|lakekeeper|debezium|cleanup) ;;
             *)
                 echo -e "${RED}無効なサブコマンド: dataproducts $2${RESET}"
                 usage; exit 1
@@ -172,6 +173,9 @@ ocp_setup() {
     # PostgreSQLCluster へ権限の追加
     oc adm policy add-scc-to-user anyuid -z droneshopdb-instance -n "$NAMESPACE"
     oc adm policy add-scc-to-user privileged -z default -n "$NAMESPACE"
+    oc adm policy add-scc-to-user anyuid -z droneshopdb-instance -n "$NAMESPACE"
+    oc adm policy add-scc-to-user anyuid -z droneshopdb-pgbackrest -n "$NAMESPACE"
+    oc adm policy add-scc-to-user anyuid -z droneshopdb-repohost -n "$NAMESPACE"
 
     # Skupper Operator の準備（site作成等は引き続き `skupper deploy` で手動実行）
     skupper_operator_setup
@@ -878,13 +882,15 @@ dataproducts_trino_setup() {
 
 # 依存順: OrderEvents をハブとして先に投入し、それに依存するプロダクトを後段で投入する。
 DATAPRODUCTS_DEFAULT_ORDER=(
-    "order-events"
-    "real-time-sales-trends"
-    "drone-component-stock"
-    "inventory-analytics"
-    "assembly-lead-time-qdca10"
-    "assembly-lead-time-qdca10pro"
-    "customer-360"
+    "dataproduct-order-events"
+    "dataproduct-assembly-line-qdca10"
+    "dataproduct-assembly-line-qdca10pro"
+    "dataproduct-real-time-sales-trends"
+    "dataproduct-inventory-event"
+    "dataproduct-inventory-analytics"
+    "dataproduct-assembly-lead-time-qdca10"
+    "dataproduct-assembly-lead-time-qdca10pro"
+    "dataproduct-customer-360"
 )
 
 # datamesh-dataproducts/*/flink/*.sql を dataproducts-flink Session Cluster に
@@ -967,11 +973,20 @@ dataproducts_submit_flink_jobs() {
 
         # shop-cluster は auto.create.topics.enable: false のため、sink トピックは
         # ジョブ投入前に明示作成する。
-        if [ "$product" = "order-events" ]; then
-            oc apply -f "$REPO_ROOT/openshift/dataproducts/order-events-topic.yaml" -n "$NAMESPACE"
+        if [ "$product" = "dataproduct-order-events" ]; then
+            oc apply -f "$REPO_ROOT/openshift/dataproducts/dataproduct-order-events-topic.yaml" -n "$NAMESPACE"
         fi
-        if [ "$product" = "assembly-lead-time-qdca10" ] || [ "$product" = "assembly-lead-time-qdca10pro" ]; then
-            oc apply -f "$REPO_ROOT/openshift/dataproducts/qdca10-lead-time-topic.yaml" -n "$NAMESPACE"
+        if [ "$product" = "dataproduct-assembly-lead-time-qdca10" ] || [ "$product" = "dataproduct-assembly-lead-time-qdca10pro" ]; then
+            oc apply -f "$REPO_ROOT/openshift/dataproducts/dataproduct-assembly-lead-time-topic.yaml" -n "$NAMESPACE"
+        fi
+        if [ "$product" = "dataproduct-real-time-sales-trends" ]; then
+            oc apply -f "$REPO_ROOT/openshift/dataproducts/dataproduct-sales-trends-topic.yaml" -n "$NAMESPACE"
+        fi
+        if [ "$product" = "dataproduct-inventory-event" ]; then
+            oc apply -f "$REPO_ROOT/openshift/dataproducts/dataproduct-inventory-event-topics.yaml" -n "$NAMESPACE"
+        fi
+        if [ "$product" = "dataproduct-customer-360" ]; then
+            oc apply -f "$REPO_ROOT/openshift/dataproducts/dataproduct-customer-360-topic.yaml" -n "$NAMESPACE"
         fi
 
         for sql in "${DATAPRODUCTS_DIR}/${product}"/flink/*.sql; do
@@ -1005,7 +1020,7 @@ dataproducts_submit_flink_jobs() {
     \"containers\": [{
       \"name\": \"${job_name}\",
       \"image\": \"apache/flink:1.19-java17\",
-      \"command\": [\"/bin/sh\", \"-c\", \"set -e; curl -fL -o /opt/flink/lib/flink-sql-connector-kafka.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.2.0-1.19/flink-sql-connector-kafka-3.2.0-1.19.jar; curl -fL -o /opt/flink/lib/flink-sql-avro-confluent-registry.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.19.1/flink-sql-avro-confluent-registry-1.19.1.jar; envsubst < /etc/flink-sql/job.sql > /tmp/job.sql; /opt/flink/bin/sql-client.sh -Dexecution.target=remote -Drest.address=${flink_deployment}-rest.${NAMESPACE}.svc -Drest.port=8081 -f /tmp/job.sql\"],
+      \"command\": [\"/bin/sh\", \"-c\", \"set -e; curl -fL -o /opt/flink/lib/flink-sql-connector-kafka.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.2.0-1.19/flink-sql-connector-kafka-3.2.0-1.19.jar; curl -fL -o /opt/flink/lib/flink-sql-avro-confluent-registry.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/1.19.1/flink-sql-avro-confluent-registry-1.19.1.jar; curl -fL -o /opt/flink/lib/iceberg-flink-runtime.jar https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-flink-runtime-1.19/1.10.2/iceberg-flink-runtime-1.19-1.10.2.jar; curl -fL -o /opt/flink/lib/iceberg-aws-bundle.jar https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/1.10.2/iceberg-aws-bundle-1.10.2.jar; curl -fL -o /opt/flink/lib/hadoop-client-api.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-api/3.3.6/hadoop-client-api-3.3.6.jar; curl -fL -o /opt/flink/lib/hadoop-client-runtime.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-runtime/3.3.6/hadoop-client-runtime-3.3.6.jar; envsubst < /etc/flink-sql/job.sql > /tmp/job.sql; /opt/flink/bin/sql-client.sh -Dexecution.target=remote -Drest.address=${flink_deployment}-rest.${NAMESPACE}.svc -Drest.port=8081 -f /tmp/job.sql\"],
       \"env\": [
         {\"name\": \"FLINK_REST_HOST\", \"value\": \"${flink_deployment}-rest.${NAMESPACE}.svc\"},
         {\"name\": \"KAFKA_BOOTSTRAP_URLS\", \"valueFrom\": {\"secretKeyRef\": {\"name\": \"dataproducts-flink-auth\", \"key\": \"KAFKA_BOOTSTRAP_URLS\", \"optional\": true}}},
@@ -1014,7 +1029,11 @@ dataproducts_submit_flink_jobs() {
         {\"name\": \"ORDERS_UP_TOPIC\", \"value\": \"${orders_up_topic}\"},
         {\"name\": \"EIGHTY_SIX_TOPIC\", \"value\": \"${eighty_six_topic}\"},
         {\"name\": \"ORDER_EVENTS_TOPIC\", \"value\": \"${order_events_topic}\"},
-        {\"name\": \"ORDER_EVENTS_REGISTRY_URL\", \"value\": \"${order_events_registry_url}\"}
+        {\"name\": \"ORDER_EVENTS_REGISTRY_URL\", \"value\": \"${order_events_registry_url}\"},
+        {\"name\": \"ICEBERG_REST_CATALOG_URL\", \"value\": \"http://dataproducts-lakekeeper:8181/catalog\"},
+        {\"name\": \"AWS_ACCESS_KEY_ID\", \"valueFrom\": {\"secretKeyRef\": {\"name\": \"dataproducts-minio-auth\", \"key\": \"rootUser\", \"optional\": true}}},
+        {\"name\": \"AWS_SECRET_ACCESS_KEY\", \"valueFrom\": {\"secretKeyRef\": {\"name\": \"dataproducts-minio-auth\", \"key\": \"rootPassword\", \"optional\": true}}},
+        {\"name\": \"AWS_REGION\", \"value\": \"us-east-1\"}
       ],
       \"volumeMounts\": [{\"name\": \"sql\", \"mountPath\": \"/etc/flink-sql\"}]
     }],
@@ -1033,7 +1052,7 @@ dataproducts_deploy() {
 
     # --site <asite|bsite|csite> を先頭から取り除き、残りをプロダクトの
     # 絞り込みフィルタとして dataproducts_submit_flink_jobs に渡す。
-    # 例: dataproducts deploy --site asite order-events
+    # 例: dataproducts deploy --site asite dataproduct-order-events
     # --site 省略時は現在ログイン中のクラスタドメイン (DOMAIN_NAME) から自動判定する
     # (黙って csite にフォールバックすると誤ったトピックへ投入する事故につながるため)。
     DATAPRODUCTS_SITE=""
@@ -1086,7 +1105,7 @@ dataproducts_deploy() {
     dataproducts_schemas "${args[@]}"
 
     echo -e "${BLUE}依存順(OrderEvents → 後続プロダクト)でジョブを投入中...${RESET}"
-    # 引数で対象プロダクトを絞り込める (例: dataproducts deploy customer-360)。
+    # 引数で対象プロダクトを絞り込める (例: dataproducts deploy dataproduct-customer-360)。
     # 未指定時は DATAPRODUCTS_DEFAULT_ORDER の全プロダクトを投入する。
     dataproducts_submit_flink_jobs "${args[@]}"
     echo -e "${GREEN}dataproducts deploy 完了 (Flink Session Cluster / Lakekeeper / スキーマ登録 / ジョブ投入)${RESET}"
@@ -1098,7 +1117,7 @@ dataproducts_deploy() {
 # フラットな subject 名前空間にマッピングされないため)。そのため ccompat API
 # (/apis/ccompat/v6/subjects/{subject}/versions) に直接登録する。
 dataproducts_register_schemas() {
-    # 引数でプロダクトを絞り込める (例: order-events)。未指定時は全プロダクトの
+    # 引数でプロダクトを絞り込める (例: dataproduct-order-events)。未指定時は全プロダクトの
     # スキーマを登録する。
     local products=("$@")
     if [ ${#products[@]} -eq 0 ]; then
@@ -1235,6 +1254,64 @@ EOF
     echo -e "${GREEN}dataproducts lakekeeper 完了 (REST Catalog: ${lk_url}/catalog, warehouse: dataproducts)${RESET}"
 }
 
+# ---------------------------------------------------------------------------
+# quarkusdroneshop-inventory の Debezium Outbox (droneshop.outboxevent) を
+# 実際に Kafka (inventory-out) へキャプチャするための Kafka Connect 基盤。
+#
+# 1. datamesh-dataproducts/kafka-connect/Dockerfile (Strimzi/AMQ Streams の
+#    kafka-41-rhel9 ベース + Debezium PostgreSQL コネクタプラグイン) を
+#    OpenShift Docker Build でビルドし、内部レジストリへ push する。
+# 2. KafkaConnect / KafkaConnector (inventory-outbox-connect.yaml) を適用する。
+#    droneshopdb-pguser-droneshopadmin の password はこの関数が実行時に
+#    Secret から取得して埋め込む (ファイル自体には含めない)。
+#
+# quarkusdroneshop-inventory は quarkus.hibernate-orm.database.generation=
+# drop-and-create のため、再デプロイのたびに droneshop.outboxevent の OID が
+# 変わる。publication.autocreate.mode=all_tables (inventory-outbox-connect.yaml
+# 側で設定済み) によりこれに追随できるが、コネクタが一度でも古い
+# publication/slot 名で稼働した後に再作成すると、Kafka Connect 内部の
+# オフセットストレージに残った古いオフセットと LSN が食い違い再起動に失敗する
+# ことがある。その場合は KafkaConnector を削除し、Postgres 側の
+# レプリケーションスロット/パブリケーションも削除した上で、
+# slot.name/publication.name/コネクタ名を変えて再適用すること
+# (詳細: datamesh-dataproducts/dataproduct-inventory-event/README.md)。
+# ---------------------------------------------------------------------------
+dataproducts_debezium_setup() {
+    oc project "$NAMESPACE"
+
+    echo -e "${BLUE}Debezium コネクタ用 Kafka Connect イメージ (dataproducts-connect) をビルド中...${RESET}"
+    if ! oc get bc dataproducts-connect -n "$NAMESPACE" &>/dev/null; then
+        oc new-build --binary --strategy=docker --name=dataproducts-connect -n "$NAMESPACE"
+    fi
+    oc start-build dataproducts-connect --from-dir="${DATAPRODUCTS_DIR}/kafka-connect" --follow -n "$NAMESPACE"
+
+    if ! oc get secret droneshopdb-pguser-droneshopadmin -n "$NAMESPACE" &>/dev/null; then
+        echo -e "${RED}Secret 'droneshopdb-pguser-droneshopadmin' がありません。先に droneshopdb (PostgresCluster) をデプロイしてください。${RESET}" >&2
+        exit 1
+    fi
+
+    echo -e "${BLUE}KafkaConnect / KafkaConnector (inventory outbox) を適用中...${RESET}"
+    local dbpw
+    dbpw="$(oc get secret droneshopdb-pguser-droneshopadmin -n "$NAMESPACE" -o jsonpath='{.data.password}' | base64 -d)"
+    python3 -c "
+import sys
+pw = sys.argv[1]
+with open(sys.argv[2]) as f:
+    content = f.read()
+print(content.replace('__DRONESHOPDB_ADMIN_PASSWORD__', pw))
+" "$dbpw" "$REPO_ROOT/openshift/dataproducts/inventory-outbox-connect.yaml" | oc apply -f - -n "$NAMESPACE"
+
+    echo -e "${BLUE}  KafkaConnect Pod の起動を待っています...${RESET}"
+    until oc get pods -n "$NAMESPACE" -l strimzi.io/cluster=dataproducts-connect,strimzi.io/kind=KafkaConnect 2>/dev/null | grep -q "1/1.*Running"; do
+        sleep 5
+    done
+
+    local connector_name
+    connector_name="$(grep -A2 '^kind: KafkaConnector' "$REPO_ROOT/openshift/dataproducts/inventory-outbox-connect.yaml" | grep 'name:' | awk '{print $2}')"
+    echo -e "${GREEN}dataproducts debezium 完了 (Kafka Connect: dataproducts-connect / コネクタ: ${connector_name})${RESET}"
+    echo -e "${YELLOW}  ※ 状態確認: oc get kafkaconnector -n ${NAMESPACE}${RESET}"
+}
+
 dataproducts_cleanup() {
     oc delete route dataproducts-flink-console -n "$NAMESPACE" --ignore-not-found=true
     oc delete flinkdeployment dataproducts-flink -n "$NAMESPACE" --ignore-not-found=true
@@ -1244,6 +1321,8 @@ dataproducts_cleanup() {
     helm uninstall lakekeeper -n "$NAMESPACE" 2>/dev/null || true
     oc delete configmap trino-access-control -n "$NAMESPACE" --ignore-not-found=true
     oc delete job dataproducts-minio-init-bucket -n "$NAMESPACE" --ignore-not-found=true
+    oc delete kafkaconnector -l strimzi.io/cluster=dataproducts-connect -n "$NAMESPACE" --ignore-not-found=true
+    oc delete kafkaconnect dataproducts-connect -n "$NAMESPACE" --ignore-not-found=true
     # Secret (dataproducts-minio-auth / dataproducts-flink-auth / trino-oidc) と
     # Keycloak クライアント (dataproducts-registry / trino-coordinator) は
     # 認証情報の再生成コストが高いため cleanup では削除しない。
@@ -1279,6 +1358,7 @@ case "$1" in
             deploy)  dataproducts_deploy "${@:3}"  ;;
             schemas) dataproducts_schemas "${@:3}" ;;
             lakekeeper) dataproducts_lakekeeper_setup ;;
+            debezium) dataproducts_debezium_setup ;;
             cleanup) dataproducts_cleanup ;;
         esac
         ;;

@@ -1,3 +1,13 @@
+# NOTE: この CR を単体で再適用する場合 (例: Patroni デッドロック等からの復旧のため
+# `oc delete postgrescluster droneshopdb` → 再apply する場合) は、事前に以下の SCC 付与
+# (script/ocpdeploy.sh の ocp_setup() に含まれるが、単体再作成時は自分で実行する必要がある)
+# を忘れないこと。忘れると Pod の securityContext (fsGroup: 26, hardcoded) が namespace の
+# 動的 SCC 範囲 (openshift.io/sa.scc.supplemental-groups) と一致せず、
+# "unable to validate against any security context constraint" で Pod が起動不能になる
+# (2026-07-21 に実際に発生・対応済み):
+#   oc adm policy add-scc-to-user anyuid -z droneshopdb-instance -n quarkusdroneshop-demo
+#   oc adm policy add-scc-to-user anyuid -z droneshopdb-pgbackrest -n quarkusdroneshop-demo
+#   oc adm policy add-scc-to-user anyuid -z droneshopdb-repohost -n quarkusdroneshop-demo
 apiVersion: postgres-operator.crunchydata.com/v1beta1
 kind: PostgresCluster
 metadata:

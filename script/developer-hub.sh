@@ -26,6 +26,13 @@
 #   - User is logged into OpenShift
 #   - The Test was conducted on MacOS
 #
+# 構築順序 (新規サイトでの初回セットアップ):
+#   1. ./script/developer-hub.sh setup         - RHDH Operator 用 namespace/Operator を準備
+#   2. ./script/developer-hub.sh customimage    - カスタム RHDH イメージをビルド (setup 完了後、初回は必須)
+#   3. ./script/developer-hub.sh deploy         - customimage で作成した rhdh-hub-custom:latest を使ってデプロイ
+#   以降、プラグインのソースを変更した場合のみ:
+#   4. ./script/developer-hub.sh update-plugin  - プラグイン再ビルド + RHDH 再起動 (setup/deploy 済みであること前提)
+#
 # =============================================================================
 
 set -euo pipefail

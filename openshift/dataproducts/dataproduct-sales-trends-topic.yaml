@@ -1,0 +1,33 @@
+# shop-cluster は auto.create.topics.enable: false のため、
+# sales-trends-job.sql の sink はジョブ投入前に明示的に作成しておく必要がある。
+# トピック名は dataproduct.* 命名 (MirrorMaker2 のクロスサイト購読対象パターンに
+# 合致させるため) に統一している。
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: dataproduct-sales-trends-5m
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  topicName: dataproduct-sales-trends-5m
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: dataproduct-sales-trends-daily
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  topicName: dataproduct-sales-trends-daily
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824

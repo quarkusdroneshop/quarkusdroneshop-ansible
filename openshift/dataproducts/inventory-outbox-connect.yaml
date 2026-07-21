@@ -1,0 +1,96 @@
+# quarkusdroneshop-inventory の Debezium Outbox (droneshop.outboxevent) を
+# 実際に Kafka (inventory-out) へキャプチャする Kafka Connect クラスタ + コネクタ。
+# コードは以前から debezium-quarkus-outbox 経由で OutboxEvent テーブルへの
+# 書き込みまでは行っていたが、この CDC 基盤自体が存在しなかったため
+# inventory-out には一度もイベントが publish されていなかった。
+#
+# イメージは datamesh-dataproducts/kafka-connect/Dockerfile でビルドした
+# dataproducts-connect (Strimzi/AMQ Streams の kafka-41-rhel9 ベース +
+# Debezium PostgreSQL コネクタプラグイン)。
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnect
+metadata:
+  name: dataproducts-connect
+  namespace: quarkusdroneshop-demo
+  annotations:
+    # KafkaConnector リソースでのコネクタ管理を有効化する
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: 4.1.0
+  replicas: 1
+  image: image-registry.openshift-image-registry.svc:5000/quarkusdroneshop-demo/dataproducts-connect:latest
+  bootstrapServers: shop-cluster-kafka-bootstrap:9092
+  groupId: dataproducts-connect-cluster
+  configStorageTopic: dataproducts-connect-configs
+  offsetStorageTopic: dataproducts-connect-offsets
+  statusStorageTopic: dataproducts-connect-status
+  config:
+    config.storage.replication.factor: -1
+    offset.storage.replication.factor: -1
+    status.storage.replication.factor: -1
+    key.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    key.converter.schemas.enable: false
+    value.converter.schemas.enable: false
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnector
+metadata:
+  name: inventory-outbox-connector-v3
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: dataproducts-connect
+spec:
+  class: io.debezium.connector.postgresql.PostgresConnector
+  tasksMax: 1
+  config:
+    database.hostname: droneshopdb-primary.quarkusdroneshop-demo.svc
+    database.port: "5432"
+    database.dbname: droneshopdb
+    database.user: droneshopadmin
+    # NOTE: デモ環境のため簡略化し、droneshopdb-pguser-droneshopadmin シークレットの
+    # 値をここに直接埋め込む (Strimzi の ${secrets:...} プレースホルダを使うには
+    # config.providers の追加設定と connect 用 ServiceAccount への Secret 読み取り
+    # RBAC 付与が必要になるため、ワークショップ用途では割愛した)。
+    # パスワードが変わった場合はこのファイルと Secret を両方更新すること。
+    database.password: "__DRONESHOPDB_ADMIN_PASSWORD__"
+    topic.prefix: inventory-cdc
+    plugin.name: pgoutput
+    slot.name: inventory_outbox_slot_v3
+    publication.name: inventory_outbox_publication_v3
+    # inventory アプリは quarkus.hibernate-orm.database.generation=drop-and-create
+    # のため、再デプロイのたびに droneshop.outboxevent が DROP/CREATE され OID が
+    # 変わる。publication.autocreate.mode=filtered (対象テーブルを個別にOIDで
+    # 登録する方式) だとその時点の OID に固定されてしまい、テーブル再作成後の
+    # 変更を拾えなくなる。all_tables (FOR ALL TABLES) にしてこの問題を回避する。
+    publication.autocreate.mode: all_tables
+    schema.include.list: droneshop
+    table.include.list: droneshop.outboxevent
+    tombstones.on.delete: "false"
+
+    # EventRouter はデフォルトで "timestamp" という名前のフィールドを INT64 (epoch)
+    # として読もうとするが、debezium-quarkus-outbox の timestamp 列は
+    # TIMESTAMP WITH TIME ZONE (Debezium 上は ZonedTimestamp = 文字列) のため
+    # 型不一致で失敗する ("Field 'timestamp' is not of type INT64")。
+    # EventRouter に渡す前に ReplaceField でこのフィールド自体を除去し、
+    # 未設定時と同様に (CDC 自身の取り込み時刻を使う形で) スキップさせる。
+    transforms: dropTimestamp,outbox
+    transforms.dropTimestamp.type: org.apache.kafka.connect.transforms.ReplaceField$Value
+    transforms.dropTimestamp.exclude: timestamp
+    transforms.outbox.type: io.debezium.transforms.outbox.EventRouter
+    # aggregatetype に関わらず、既存アプリコードが期待する固定トピック名
+    # (inventory-out) にルーティングする。
+    transforms.outbox.route.topic.replacement: inventory-out
+    transforms.outbox.table.field.event.id: id
+    transforms.outbox.table.field.event.key: aggregateid
+    transforms.outbox.table.field.event.type: type
+    transforms.outbox.table.field.event.payload: payload
+    transforms.outbox.route.tombstone.on.empty.payload: "false"
+
+    # payload (droneshop.outboxevent.payload) は既にアプリ側で組み立て済みの JSON 文字列であり、
+    # EventRouter はそれをそのまま値として使う。JsonConverter (schemas.enable=false) だと
+    # この文字列を「値の型が STRING の Connect レコード」として再度 JSON エンコードしてしまい、
+    # ダブルエンコード ("{\"skuId\":...}" のような二重引用符文字列) になってしまうため、
+    # StringConverter でそのまま生のバイト列として書き出す。
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.storage.StringConverter

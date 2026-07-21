@@ -36,12 +36,60 @@ envFrom:
   - secretRef:
       name: trino-oidc
 
+env:
+  # MinIO (S3互換, Iceberg の実データファイル格納先) の認証情報。
+  # dataproducts_setup が作成する dataproducts-minio-auth を使う
+  # (キー名が rootUser/rootPassword のため、Iceberg catalog 設定で参照する
+  # 名前 (MINIO_ROOT_USER/MINIO_ROOT_PASSWORD) に合わせて明示的にリネームする)。
+  - name: MINIO_ROOT_USER
+    valueFrom:
+      secretKeyRef:
+        name: dataproducts-minio-auth
+        key: rootUser
+  - name: MINIO_ROOT_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: dataproducts-minio-auth
+        key: rootPassword
+
 catalogs:
   iceberg: |
     connector.name=iceberg
     # Iceberg REST/Hive カタログの URL・認証情報は環境ごとに決定し Secret で注入する。
     iceberg.catalog.type=rest
     iceberg.rest-catalog.uri=${ENV:ICEBERG_REST_CATALOG_URL}
+    # Lakekeeper 側で登録したウェアハウス名 (dataproducts_lakekeeper_setup で
+    # "dataproducts" 固定で作成している)。未指定だと Trino から
+    # "No warehouse specified" で全クエリが失敗する。
+    iceberg.rest-catalog.warehouse=dataproducts
+    # カタログ (メタデータ) の URL/認証だけでなく、実データファイル (Parquet) を
+    # 読み書きする S3 (MinIO) 側のファイルシステム設定も別途必要
+    # ("No factory for location: s3://..." で失敗する場合はこれが未設定)。
+    fs.native-s3.enabled=true
+    s3.endpoint=http://dataproducts-minio:9000
+    s3.region=us-east-1
+    s3.path-style-access=true
+    s3.aws-access-key=${ENV:MINIO_ROOT_USER}
+    s3.aws-secret-key=${ENV:MINIO_ROOT_PASSWORD}
+
+  # 各データプロダクトの trino/*.sql は "dataproducts.<schema>.<view>" という
+  # 命名で公開ビューを作成する ("ドメイン内部の Iceberg テーブルは直接公開せず、
+  # dataproducts.* スキーマの公開ビュー経由のみアクセスさせる" という README の
+  # 方針)。実体は iceberg カタログと同じ REST Catalog (Lakekeeper) だが、
+  # 内部の生テーブル (iceberg.dataproducts.*) と公開ビュー (dataproducts.*) を
+  # カタログレベルで分離するため、同じバックエンドに対する別カタログとして
+  # 定義する。
+  dataproducts: |
+    connector.name=iceberg
+    iceberg.catalog.type=rest
+    iceberg.rest-catalog.uri=${ENV:ICEBERG_REST_CATALOG_URL}
+    iceberg.rest-catalog.warehouse=dataproducts
+    fs.native-s3.enabled=true
+    s3.endpoint=http://dataproducts-minio:9000
+    s3.region=us-east-1
+    s3.path-style-access=true
+    s3.aws-access-key=${ENV:MINIO_ROOT_USER}
+    s3.aws-secret-key=${ENV:MINIO_ROOT_PASSWORD}
 
 # File-based System Access Control (trino-access-control-rules.json) は
 # Trino 460 の columns.mask 形式と非互換 (UncheckedIOException: Failed to
