@@ -58,12 +58,20 @@ spec:
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
+        # tasks.max がデフォルト値の 1 (シングルタスク) のままだと、
+        # topicsPattern に一致する全トピック・全パーティションを1タスクが
+        # 直列に処理することになり、注文が集中する時間帯に asite→bsite の
+        # 複製がスループット不足で数分〜数十分単位で遅延し、qdca10(bsite)側の
+        # 処理(dataproduct-order-events の消費)が滞留する原因になっていた。
+        # ソース側トピックのパーティション数(10)に合わせて並列化する。
+        tasksMax: 10
         config:
           bootstrap.servers: "a56be94c05e244cc9bda5cc0e1ed57ff-711747142.us-east-2.elb.amazonaws.com:9094"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"
           consumer.fetch.max.wait.ms: "10"
+          consumer.max.poll.records: "500"
           producer.linger.ms: "0"
           producer.batch.size: "16384"
           emit.heartbeats.enabled: true

@@ -47,12 +47,19 @@ spec:
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
+        # tasks.max がデフォルト値の 1 (シングルタスク) だと、topicsPattern に
+        # 一致する全トピック・全パーティションを1タスクが直列処理することになり、
+        # 注文が集中する時間帯にスループット不足で複製が数分〜数十分遅延し、
+        # 下流の消費側(qdca10等)で処理が滞留する原因になる。
+        # ソース側トピックのパーティション数(10)に合わせて並列化する。
+        tasksMax: 10
         config:
           bootstrap.servers: "external-shop-cluster-kafka-asite:9094"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"
           consumer.fetch.max.wait.ms: "10"
+          consumer.max.poll.records: "500"
           producer.linger.ms: "0"
           producer.batch.size: "16384"
           emit.heartbeats.enabled: true
@@ -81,12 +88,14 @@ spec:
       groupsPattern: ".*"
       sourceConnector:
         enabled: true
+        tasksMax: 10
         config:
           bootstrap.servers: "external-shop-cluster-kafka-bsite:9094"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"
           consumer.fetch.max.wait.ms: "10"
+          consumer.max.poll.records: "500"
           producer.linger.ms: "0"
           producer.batch.size: "16384"
           emit.heartbeats.enabled: true
