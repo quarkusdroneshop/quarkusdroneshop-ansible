@@ -33,3 +33,8 @@ spec:
                configMapKeyRef:
                  name: droneshop-config
                  key: KAFKA_BOOTSTRAP_URLS
+           - name: APICURIO_REGISTRY_URL
+             valueFrom:
+               configMapKeyRef:
+                 name: droneshop-config
+                 key: APICURIO_REGISTRY_URL

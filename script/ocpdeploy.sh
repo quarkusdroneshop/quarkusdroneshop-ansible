@@ -985,6 +985,9 @@ dataproducts_submit_flink_jobs() {
         if [ "$product" = "dataproduct-inventory-event" ]; then
             oc apply -f "$REPO_ROOT/openshift/dataproducts/dataproduct-inventory-event-topics.yaml" -n "$NAMESPACE"
         fi
+        if [ "$product" = "dataproduct-inventory-analytics" ]; then
+            oc apply -f "$REPO_ROOT/openshift/dataproducts/dataproduct-inventory-analytics-topic.yaml" -n "$NAMESPACE"
+        fi
         if [ "$product" = "dataproduct-customer-360" ]; then
             oc apply -f "$REPO_ROOT/openshift/dataproducts/dataproduct-customer-360-topic.yaml" -n "$NAMESPACE"
         fi

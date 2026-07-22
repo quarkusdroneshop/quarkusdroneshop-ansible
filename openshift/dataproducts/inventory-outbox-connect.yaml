@@ -36,7 +36,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnector
 metadata:
-  name: inventory-outbox-connector-v3
+  name: inventory-outbox-connector-v4
   namespace: quarkusdroneshop-demo
   labels:
     strimzi.io/cluster: dataproducts-connect
@@ -56,8 +56,8 @@ spec:
     database.password: "__DRONESHOPDB_ADMIN_PASSWORD__"
     topic.prefix: inventory-cdc
     plugin.name: pgoutput
-    slot.name: inventory_outbox_slot_v3
-    publication.name: inventory_outbox_publication_v3
+    slot.name: inventory_outbox_slot_v4
+    publication.name: inventory_outbox_publication_v4
     # inventory アプリは quarkus.hibernate-orm.database.generation=drop-and-create
     # のため、再デプロイのたびに droneshop.outboxevent が DROP/CREATE され OID が
     # 変わる。publication.autocreate.mode=filtered (対象テーブルを個別にOIDで

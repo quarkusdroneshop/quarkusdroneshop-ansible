@@ -33,3 +33,19 @@ spec:
   config:
     retention.ms: 604800000
     segment.bytes: 1073741824
+---
+# QDCA10/QDCA10pro が注文消費後の絶対在庫数 (item 単位) を publish するトピック。
+# component-stock-job.sql がこれをそのまま component_stock_quantity へ upsert する。
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: dataproduct-component-stock-decrement
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824

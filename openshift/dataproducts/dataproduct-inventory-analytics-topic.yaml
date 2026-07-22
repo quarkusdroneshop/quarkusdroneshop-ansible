@@ -1,0 +1,34 @@
+# shop-cluster は auto.create.topics.enable: false のため、
+# inventory-analytics-job.sql の sink はジョブ投入前に明示的に作成しておく必要がある。
+# inventory_turnover は MirrorMaker2 の inventory.* パターンで既にミラー対象。
+# stockout_risk は dataproduct-stockout-risk にリネームし dataproduct.* パターンに合致させる。
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: inventory-turnover
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  topicName: inventory_turnover
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: dataproduct-stockout-risk
+  namespace: quarkusdroneshop-demo
+  labels:
+    strimzi.io/cluster: shop-cluster
+spec:
+  topicName: dataproduct-stockout-risk
+  partitions: 10
+  replicas: 3
+  config:
+    retention.ms: -1
+    cleanup.policy: compact
+    segment.bytes: 1073741824
