@@ -880,17 +880,31 @@ dataproducts_trino_setup() {
     echo -e "${GREEN}  → Trino デプロイ完了${RESET}"
 }
 
-# 依存順: OrderEvents をハブとして先に投入し、それに依存するプロダクトを後段で投入する。
-DATAPRODUCTS_DEFAULT_ORDER=(
+# サイトごとの投入対象 (依存順: OrderEvents をハブとして先に投入し、
+# それに依存するプロダクトを後段で投入する)。
+# dataproduct-order-events は asite (一次発行元) と bsite (意図的に独立稼働、
+# 2026-07-22 に明示的に追加) の両方に投入する。
+# dataproduct-inventory-event は asite/bsite 双方で独立稼働させる
+# (2026-07-22 の site 再配置決定)。
+# dataproduct-assembly-line-qdca10 / qdca10pro は Flink ジョブを持たない
+# (schema-only, スキーマ登録のみ実施される) が、bsite の投入対象として
+# 明示的にリストしておく。
+DATAPRODUCTS_ASITE_ORDER=(
+    "dataproduct-order-events"
+    "dataproduct-inventory-event"
+)
+DATAPRODUCTS_BSITE_ORDER=(
     "dataproduct-order-events"
     "dataproduct-assembly-line-qdca10"
     "dataproduct-assembly-line-qdca10pro"
-    "dataproduct-real-time-sales-trends"
+    "dataproduct-customer-360"
     "dataproduct-inventory-event"
+)
+DATAPRODUCTS_CSITE_ORDER=(
+    "dataproduct-real-time-sales-trends"
     "dataproduct-inventory-analytics"
     "dataproduct-assembly-lead-time-qdca10"
     "dataproduct-assembly-lead-time-qdca10pro"
-    "dataproduct-customer-360"
 )
 
 # datamesh-dataproducts/*/flink/*.sql を dataproducts-flink Session Cluster に
@@ -898,7 +912,11 @@ DATAPRODUCTS_DEFAULT_ORDER=(
 dataproducts_submit_flink_jobs() {
     local targets=("$@")
     if [ ${#targets[@]} -eq 0 ]; then
-        targets=("${DATAPRODUCTS_DEFAULT_ORDER[@]}")
+        case "${DATAPRODUCTS_SITE:-csite}" in
+            asite) targets=("${DATAPRODUCTS_ASITE_ORDER[@]}") ;;
+            bsite) targets=("${DATAPRODUCTS_BSITE_ORDER[@]}") ;;
+            csite) targets=("${DATAPRODUCTS_CSITE_ORDER[@]}") ;;
+        esac
     fi
     local flink_deployment="dataproducts-flink"
 
@@ -950,6 +968,21 @@ dataproducts_submit_flink_jobs() {
     case "${DATAPRODUCTS_SITE:-csite}" in
         asite) order_events_registry_url="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.APICURIO_REGISTRY_URL}' | base64 -d)" ;;
         *)     order_events_registry_url="http://droneshop-apicurioregistry-kafkasql.quarkusdroneshop-demo.router-default.apps.ocp.zgjl6.sandbox780.opentlc.com" ;;
+    esac
+
+    # dataproduct-inventory-events (component-stock-events) は 2026-07-22 の
+    # site 再配置決定により asite/bsite の両方で独立稼働している
+    # (order-events と異なり単一の一次発行元ではない)。csite (dataproduct-inventory-analytics)
+    # のような他サイトのプロダクトが参照する際は、代表として asite 産をミラー経由で参照する。
+    local inventory_events_topic
+    case "${DATAPRODUCTS_SITE:-csite}" in
+        asite) inventory_events_topic="dataproduct-inventory-events" ;;
+        *)     inventory_events_topic="shop-asite.dataproduct-inventory-events" ;;
+    esac
+    local inventory_events_registry_url
+    case "${DATAPRODUCTS_SITE:-csite}" in
+        asite) inventory_events_registry_url="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.APICURIO_REGISTRY_URL}' | base64 -d)" ;;
+        *)     inventory_events_registry_url="http://droneshop-apicurioregistry-kafkasql.quarkusdroneshop-demo.router-default.apps.ocp.zgjl6.sandbox780.opentlc.com" ;;
     esac
 
     echo -e "${BLUE}Flink Session Cluster (${flink_deployment}) の Rest Service を待機中...${RESET}"
@@ -1033,6 +1066,8 @@ dataproducts_submit_flink_jobs() {
         {\"name\": \"EIGHTY_SIX_TOPIC\", \"value\": \"${eighty_six_topic}\"},
         {\"name\": \"ORDER_EVENTS_TOPIC\", \"value\": \"${order_events_topic}\"},
         {\"name\": \"ORDER_EVENTS_REGISTRY_URL\", \"value\": \"${order_events_registry_url}\"},
+        {\"name\": \"INVENTORY_EVENTS_TOPIC\", \"value\": \"${inventory_events_topic}\"},
+        {\"name\": \"INVENTORY_EVENTS_REGISTRY_URL\", \"value\": \"${inventory_events_registry_url}\"},
         {\"name\": \"ICEBERG_REST_CATALOG_URL\", \"value\": \"http://dataproducts-lakekeeper:8181/catalog\"},
         {\"name\": \"AWS_ACCESS_KEY_ID\", \"valueFrom\": {\"secretKeyRef\": {\"name\": \"dataproducts-minio-auth\", \"key\": \"rootUser\", \"optional\": true}}},
         {\"name\": \"AWS_SECRET_ACCESS_KEY\", \"valueFrom\": {\"secretKeyRef\": {\"name\": \"dataproducts-minio-auth\", \"key\": \"rootPassword\", \"optional\": true}}},
@@ -1089,8 +1124,27 @@ dataproducts_deploy() {
     export DATAPRODUCTS_SITE
     echo -e "${BLUE}対象サイト: ${DATAPRODUCTS_SITE} (${DOMAIN_NAME})${RESET}"
 
+    # flink-session-cluster.yaml は high-availability.storageDir 等で MinIO の
+    # "dataproducts" バケットに書き込む。setup を経ずに deploy だけを実行した
+    # クラスタ (dataproducts_setup 未実行、または setup が古いバージョンで
+    # このバケットを作っていない) では NoSuchBucket で JobManager が
+    # Init:CrashLoopBackOff になるため、deploy 側でも毎回確実性を担保する
+    # (2026-07-22, 3サイト全てで発生・原因調査済み。mc mb --ignore-existing のため
+    # 既に存在していても安全)。
+    if oc get secret dataproducts-minio-auth -n "$NAMESPACE" &>/dev/null; then
+        echo -e "${BLUE}MinIO バケット (dataproducts) の存在を確認中...${RESET}"
+        oc delete job dataproducts-minio-init-bucket -n "$NAMESPACE" --ignore-not-found=true
+        oc apply -f "$REPO_ROOT/openshift/dataproducts/minio-init-bucket-job.yaml" -n "$NAMESPACE"
+        oc wait --for=condition=complete job/dataproducts-minio-init-bucket -n "$NAMESPACE" --timeout=180s
+    fi
+
+    echo -e "${BLUE}Flink RBAC (HA用 Lease 権限含む) を適用中...${RESET}"
+    oc apply -f "$REPO_ROOT/openshift/dataproducts/flink-rbac.yaml" -n "$NAMESPACE"
+
     echo -e "${BLUE}Flink Session Cluster (dataproducts-flink) を起動中...${RESET}"
     oc apply -f "$REPO_ROOT/openshift/dataproducts/flink-session-cluster.yaml" -n "$NAMESPACE"
+    echo -e "${BLUE}  JobManager の起動を待っています (HAで永続化されたジョブグラフの自動復旧を含む)...${RESET}"
+    oc rollout status deployment/dataproducts-flink -n "$NAMESPACE" --timeout=180s 2>/dev/null || true
 
     echo -e "${BLUE}Flink Web Dashboard 用 Route を作成中...${RESET}"
     echo -e "${BLUE}  dataproducts-flink-rest Service の準備を待っています...${RESET}"
@@ -1124,7 +1178,11 @@ dataproducts_register_schemas() {
     # スキーマを登録する。
     local products=("$@")
     if [ ${#products[@]} -eq 0 ]; then
-        products=("${DATAPRODUCTS_DEFAULT_ORDER[@]}")
+        case "${DATAPRODUCTS_SITE:-csite}" in
+            asite) products=("${DATAPRODUCTS_ASITE_ORDER[@]}") ;;
+            bsite) products=("${DATAPRODUCTS_BSITE_ORDER[@]}") ;;
+            csite) products=("${DATAPRODUCTS_CSITE_ORDER[@]}") ;;
+        esac
     fi
 
     local access_token

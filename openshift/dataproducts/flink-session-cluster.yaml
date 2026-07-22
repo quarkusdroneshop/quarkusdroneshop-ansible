@@ -30,6 +30,28 @@ spec:
     # で失敗する。明示的に到達可能なアドレスを指定する。
     rest.address: dataproducts-flink-rest.quarkusdroneshop-demo.svc
     rest.bind-address: 0.0.0.0
+    # クラスタ (OpenShift) 再起動で JobManager Pod が入れ替わると、それまで
+    # 投入していたジョブグラフはメモリ上にしか無かったため全て消え、
+    # `./script/ocpdeploy.sh dataproducts deploy` による手動再投入が
+    # 毎回必要だった。Kubernetes HA を有効にし、ジョブグラフ/チェックポイントを
+    # 各サイトの MinIO (S3 互換, dataproducts_setup で構築済み) に永続化することで、
+    # JobManager 再起動時に Operator が自動でジョブを検出・再起動できるようにする。
+    high-availability.type: kubernetes
+    high-availability.storageDir: s3://dataproducts/flink-ha
+    execution.checkpointing.interval: "60000"
+    execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+    state.checkpoints.dir: s3://dataproducts/flink-checkpoints
+    state.savepoints.dir: s3://dataproducts/flink-savepoints
+    s3.endpoint: http://dataproducts-minio:9000
+    s3.path.style.access: "true"
+    # デフォルトの再起動戦略 (restart-strategy 未設定時) は
+    # NoRestartBackoffTimeStrategy であり、HA復旧時に TaskManager 未登録などの
+    # 一時的な失敗が1回でも起きるとリトライされず、ジョブグラフごと
+    # JobResultStore から削除されて永久に失われる (JobManager 再起動のたびに
+    # 一部のジョブだけ復旧できない不具合の原因)。数回はリトライするよう設定する。
+    restart-strategy.type: fixed-delay
+    restart-strategy.fixed-delay.attempts: "10"
+    restart-strategy.fixed-delay.delay: "10 s"
   serviceAccount: flink
   jobManager:
     resource:
@@ -74,9 +96,22 @@ spec:
                 https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-api/3.3.6/hadoop-client-api-3.3.6.jar
               curl -fL -o /flink-libs/hadoop-client-runtime.jar \
                 https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-runtime/3.3.6/hadoop-client-runtime-3.3.6.jar
+              # HA (high-availability.storageDir) / チェックポイント
+              # (state.checkpoints.dir) の s3:// URI を Flink 自身の
+              # FileSystem 抽象化で扱うための plugin。iceberg-aws-bundle は
+              # Iceberg 専用の S3FileIO であり、Flink 本体の s3:// FS には
+              # 使えないため別途必要。Flink の plugin 機構は /opt/flink/plugins/
+              # 配下をサブディレクトリ単位でクラスローダ分離するため、lib ではなく
+              # plugins 側に配置する。
+              cp -r /opt/flink/plugins/. /flink-plugins/
+              mkdir -p /flink-plugins/s3-fs-hadoop
+              curl -fL -o /flink-plugins/s3-fs-hadoop/flink-s3-fs-hadoop.jar \
+                https://repo.maven.apache.org/maven2/org/apache/flink/flink-s3-fs-hadoop/1.19.1/flink-s3-fs-hadoop-1.19.1.jar
           volumeMounts:
             - name: flink-libs
               mountPath: /flink-libs
+            - name: flink-plugins
+              mountPath: /flink-plugins
       containers:
         - name: flink-main-container
           envFrom:
@@ -108,6 +143,10 @@ spec:
           volumeMounts:
             - name: flink-libs
               mountPath: /opt/flink/lib
+            - name: flink-plugins
+              mountPath: /opt/flink/plugins
       volumes:
         - name: flink-libs
+          emptyDir: {}
+        - name: flink-plugins
           emptyDir: {}

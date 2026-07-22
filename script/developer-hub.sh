@@ -251,6 +251,18 @@ deploy() {
     fi
     oc apply -f "$REPO_ROOT/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE"
     oc apply -f "$REPO_ROOT/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
+
+    # dynamic-plugins-rhdh.yaml が参照するカスタムプラグイン (internal-plugin-test-report等) は
+    # plugin-proxy-server から http 配信される。update-plugin を一度も実行していない新規クラスタでは
+    # このDeployment/Serviceが存在せず、backstage-developer-hub の install-dynamic-plugins initContainer が
+    # "npm pack ... ENOTFOUND plugin-proxy-server..." で Init:CrashLoopBackOff になる
+    # (2026-07-22, sandbox3050 で発生・原因調査済み)。rhdh-hub-custom:latest イメージには
+    # 既にプラグインのビルド成果物が含まれているため、update-plugin のフルビルドをしなくても
+    # plugin-server.yaml の適用だけで解決できる。deploy 時に毎回確実に存在させる。
+    echo -e "${BLUE}プラグインサーバー (plugin-proxy-server) を適用中...${RESET}"
+    oc apply -f "$REPO_ROOT/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE"
+    oc rollout status deployment/plugin-proxy-server -n "$RHDH_NAMESPACE" --timeout=180s
+
     oc apply -f "$REPO_ROOT/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE"
 
     # {{ ocp_apps_domain }} を実際のドメインに置換してから apply

@@ -1,6 +1,12 @@
-# dataproducts-minio に Iceberg 用バケット (dataproducts-warehouse) を作成する。
+# dataproducts-minio にバケットを作成する。
 # MinIO は起動時にバケットを自動生成しないため、mc (MinIO Client) で明示的に作成する。
 # 何度実行しても安全 (mc mb --ignore-existing)。
+#   - dataproducts-warehouse: Iceberg REST Catalog (Lakekeeper) の実データ用
+#   - dataproducts: Flink Kubernetes HA (high-availability.storageDir) /
+#     チェックポイント・セーブポイントの永続化先。このバケットが無いまま
+#     high-availability.type: kubernetes を有効化すると JobManager が
+#     AmazonS3Exception: NoSuchBucket で Init:CrashLoopBackOff になる
+#     (2026-07-22, 3サイトすべてで発生・原因調査済み)。
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -23,4 +29,5 @@ spec:
               set -e
               mc alias set dataproducts http://dataproducts-minio:9000 "$rootUser" "$rootPassword"
               mc mb --ignore-existing dataproducts/dataproducts-warehouse
+              mc mb --ignore-existing dataproducts/dataproducts
               echo "bucket ready"
