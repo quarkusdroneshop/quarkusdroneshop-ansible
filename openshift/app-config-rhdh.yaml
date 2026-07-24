@@ -279,6 +279,9 @@ data:
     tekton:
       defaultNamespace: "quarkusdroneshop-cicd"
 
+    aiAgent:
+      baseUrl: ${AI_AGENT_BASE_URL}
+
     argocd:
       appLocatorMethods:
         - type: config
@@ -310,6 +313,34 @@ data:
         secure: false
         headers:
           Authorization: 'Bearer ${TARGET_K8S_CLUSTER_TOKEN}'
+
+      # A/B/C 各サイト向けの書き込み可能プロキシ (Namespace/PVC/Tekton作成用)。
+      # '/target-cluster' はローカルクラスタ固定のため、system_name に応じて
+      # サイトごとのクラスタへ実際にデプロイする場合はこちらを使う
+      # (developerhub-skeleton/template.yaml 参照)。K8S_CLUSTER_TOKEN_A/B/C
+      # (rhdh-k8s-plugin、閲覧専用)とは別に、Namespace/PVC/Pipeline作成権限を
+      # 持つ rhdh-proxy ServiceAccount のトークンを各サイトの quarkusdroneshop-cicd
+      # namespace に用意している。
+      '/target-cluster-a':
+        target: "${TARGET_K8S_CLUSTER_URL_A}"
+        changeOrigin: true
+        secure: false
+        headers:
+          Authorization: 'Bearer ${TARGET_K8S_CLUSTER_TOKEN_A}'
+
+      '/target-cluster-b':
+        target: "${TARGET_K8S_CLUSTER_URL_B}"
+        changeOrigin: true
+        secure: false
+        headers:
+          Authorization: 'Bearer ${TARGET_K8S_CLUSTER_TOKEN_B}'
+
+      '/target-cluster-c':
+        target: "${TARGET_K8S_CLUSTER_URL_C}"
+        changeOrigin: true
+        secure: false
+        headers:
+          Authorization: 'Bearer ${TARGET_K8S_CLUSTER_TOKEN_C}'
 
     permission:
       rbac:
