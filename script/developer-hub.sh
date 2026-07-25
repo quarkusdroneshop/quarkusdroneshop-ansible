@@ -134,23 +134,31 @@ _check_db_password_match() {
         -o jsonpath='{.data.APP_CONFIG_backend_database_connection_password}' 2>/dev/null || true)"
 
     if [ -z "$rhdh_pw_b64" ]; then
-        echo -e "${YELLOW}  → ${rhdh_secret} に DBパスワードのキーが見つからないためスキップします${RESET}"
-        return 0
-    fi
-
-    if [ "$psql_pw_b64" == "$rhdh_pw_b64" ]; then
+        # secrets-rhdh.yaml には意図的にこのキーを含めていない (ハードコードした
+        # 固定値を git 管理すると、oc apply のたびに実パスワードへ巻き戻ってしまう
+        # 過去のクラッシュループ事故があったため)。そのため oc apply 直後は
+        # このキーが存在せず、以前はここで無条件スキップしていたが、それだと
+        # 新規クラスタでは一度もキーが作られないまま (backend.database の
+        # 別経路 ${POSTGRES_PASSWORD} 参照が効かない構成だと) 認証エラーで
+        # クラッシュループしうる。ライブの Secret オブジェクトにのみ (YAMLには
+        # 書き戻さない) 実パスワードを追記して初期化する。
+        echo -e "${YELLOW}  → ${rhdh_secret} に DBパスワードのキーが無いため、実パスワードで新規作成します...${RESET}"
+    elif [ "$psql_pw_b64" == "$rhdh_pw_b64" ]; then
         echo -e "${GREEN}  → OK: DBパスワードは一致しています${RESET}"
+        return 0
     else
         echo -e "${YELLOW}  ⚠ DBパスワードが一致していません。${rhdh_secret} を実パスワードへ自動修正します...${RESET}" >&2
         echo -e "${YELLOW}    (secrets-rhdh.yaml にハードコードされた既定値が oc apply で毎回上書きしてしまうため)${RESET}" >&2
-
-        oc patch secret "$rhdh_secret" -n "$RHDH_NAMESPACE" --type=json \
-            -p="[{\"op\":\"replace\",\"path\":\"/data/APP_CONFIG_backend_database_connection_password\",\"value\":\"${psql_pw_b64}\"}]"
-
-        echo -e "${BLUE}  → ${rhdh_secret} を修正しました。backstage-developer-hub を再起動します...${RESET}"
-        oc rollout restart deployment/backstage-developer-hub -n "$RHDH_NAMESPACE" 2>/dev/null || true
-        echo -e "${GREEN}  → DBパスワードの自動修正が完了しました${RESET}"
     fi
+
+    # add は対象キーが存在しなくても新規作成、既存でも上書きできる
+    # (replace はキー不在時に失敗するため使えない)。
+    oc patch secret "$rhdh_secret" -n "$RHDH_NAMESPACE" --type=json \
+        -p="[{\"op\":\"add\",\"path\":\"/data/APP_CONFIG_backend_database_connection_password\",\"value\":\"${psql_pw_b64}\"}]"
+
+    echo -e "${BLUE}  → ${rhdh_secret} を修正しました。backstage-developer-hub を再起動します...${RESET}"
+    oc rollout restart deployment/backstage-developer-hub -n "$RHDH_NAMESPACE" 2>/dev/null || true
+    echo -e "${GREEN}  → DBパスワードの自動修正が完了しました${RESET}"
 }
 
 deploy() {
@@ -195,13 +203,15 @@ deploy() {
         -e "s|OM_HTTPS_URL: https://om-proxy-openmetadata\.apps\.[^[:space:]]*|OM_HTTPS_URL: \"https://om-proxy-openmetadata.${APPS_DOMAIN}\"|" \
         -e "s|OM_PROXY_URL: \"https://om-proxy-openmetadata\.apps\.[^\"]*\"|OM_PROXY_URL: \"https://om-proxy-openmetadata.${APPS_DOMAIN}\"|" \
         -e "s|OM_PROXY_URL: https://om-proxy-openmetadata\.apps\.[^[:space:]]*|OM_PROXY_URL: \"https://om-proxy-openmetadata.${APPS_DOMAIN}\"|" \
+        -e "s|AI_AGENT_BASE_URL: \"https://ai-agent-orchestrator-ai-agent-platform\.apps\.[^\"]*\"|AI_AGENT_BASE_URL: \"https://ai-agent-orchestrator-ai-agent-platform.${APPS_DOMAIN}\"|" \
+        -e "s|AI_AGENT_BASE_URL: https://ai-agent-orchestrator-ai-agent-platform\.apps\.[^[:space:]]*|AI_AGENT_BASE_URL: \"https://ai-agent-orchestrator-ai-agent-platform.${APPS_DOMAIN}\"|" \
         "$REPO_ROOT/openshift/secrets-rhdh.yaml"
     rm -f "$REPO_ROOT/openshift/secrets-rhdh.yaml.bak"
 
     # 置換後、主要項目が実際に現在のクラスタードメインを指しているか検証する
     # (クォート有無以外の予期しない不一致でも、ここで気づけるようにする)
     local _mismatch=0
-    for _key in BASE_URL AUTH_OIDC_METADATA_URL K8S_CLUSTER_NAME K8S_CLUSTER_URL OPENMETADATA_URL OM_HTTPS_URL OM_PROXY_URL; do
+    for _key in BASE_URL AUTH_OIDC_METADATA_URL K8S_CLUSTER_NAME K8S_CLUSTER_URL OPENMETADATA_URL OM_HTTPS_URL OM_PROXY_URL AI_AGENT_BASE_URL; do
         if ! grep -q "^  ${_key}:.*${CLUSTER_DOMAIN}" "$REPO_ROOT/openshift/secrets-rhdh.yaml"; then
             echo -e "${RED}  ⚠ 警告: secrets-rhdh.yaml の ${_key} が現在のクラスタードメイン(${CLUSTER_DOMAIN})を指していません${RESET}" >&2
             _mismatch=1
@@ -244,13 +254,55 @@ deploy() {
         fi
     done
 
+    # app-config-rhdh / secrets-rhdh は Backstage CR の apply より先に用意する。
+    # RHDH Operator は reconcile の前処理 (preprocess backstage spec) で
+    # app-config-rhdh ConfigMap を読み込むため、これが存在しないと
+    # reconcile自体が "ConfigMap app-config-rhdh not found" で失敗し続け、
+    # Deployment/PostgresCluster/Secret が一切作成されない。以前はこの
+    # apply を Deployment/Secret 作成待機ループの後に置いていたが、
+    # 「ConfigMapが無いとDeploymentができない」→「Deploymentができるまで
+    # ConfigMapを適用しない」という循環待ちになり、新規クラスターでの
+    # 初回デプロイが必ず10分タイムアウトで失敗していた
+    # (2026-07-24, 新規クラスタ sandbox242 で発生・原因調査済み)。
+    oc apply -f "$REPO_ROOT/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE"
+    oc apply -f "$REPO_ROOT/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
+    # dynamic-plugins-rhdh も app-config-rhdh と同様に preprocess backstage spec で
+    # 読み込まれるため、同じ理由(循環待ち回避)でCR適用前にここで用意する。
+    oc apply -f "$REPO_ROOT/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE"
+
+    # GITHUB_TOKEN は secrets-rhdh.yaml に意図的に含まれない (apply のたびに固定値へ
+    # 巻き戻るのを防ぐため)。未設定のままだと scaffolder の GitHub 連携
+    # (リポジトリ作成/push) が "No token available for host: github.com" で
+    # 必ず失敗するため、deploy 実行時に毎回設定済みか確認し、無ければここで設定する。
+    _ensure_github_token
+
     if oc get backstage developer-hub -n "$RHDH_NAMESPACE" &>/dev/null; then
         oc replace -f "$REPO_ROOT/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
     else
         oc apply -f "$REPO_ROOT/openshift/developer-hub.yaml" -n "$RHDH_NAMESPACE"
     fi
-    oc apply -f "$REPO_ROOT/openshift/app-config-rhdh.yaml" -n "$RHDH_NAMESPACE"
-    oc apply -f "$REPO_ROOT/openshift/secrets-rhdh.yaml" -n "$RHDH_NAMESPACE"
+
+    # Backstage CR (developer-hub.yaml) の apply は非同期。RHDH Operator が
+    # これを reconcile して実際の Deployment / PostgresCluster / Secret
+    # (backstage-psql-secret-developer-hub) を作成するまでには数十秒〜数分
+    # かかる。ここで待たずに進むと、直後の _check_db_password_match は
+    # Secret 未作成のため無条件でスキップし、oc rollout status は
+    # Deployment 自体が無いため "NotFound" で即エラー終了してしまう
+    # (2026-07-23, 新規クラスタで発生・原因調査済み)。
+    echo -e "${BLUE}RHDH Operator による Backstage CR の reconcile (Deployment/DBシークレット作成) を待機中...${RESET}"
+    local _wait_elapsed=0
+    local _wait_timeout=600
+    until oc get deployment backstage-developer-hub -n "$RHDH_NAMESPACE" &>/dev/null \
+        && oc get secret backstage-psql-secret-developer-hub -n "$RHDH_NAMESPACE" &>/dev/null; do
+        if [ "$_wait_elapsed" -ge "$_wait_timeout" ]; then
+            echo -e "${RED}エラー: ${_wait_timeout}秒待っても Deployment/DBシークレットが作成されませんでした。${RESET}" >&2
+            echo -e "${RED}RHDH Operator (rhdh-operator namespace) の状態を確認してください: oc get pods -n rhdh-operator${RESET}" >&2
+            exit 1
+        fi
+        sleep 10
+        _wait_elapsed=$((_wait_elapsed + 10))
+    done
+    echo -e "${GREEN}  → Deployment/DBシークレットの作成を確認しました (${_wait_elapsed}秒待機)${RESET}"
 
     # dynamic-plugins-rhdh.yaml が参照するカスタムプラグイン (internal-plugin-test-report等) は
     # plugin-proxy-server から http 配信される。update-plugin を一度も実行していない新規クラスタでは
@@ -262,8 +314,6 @@ deploy() {
     echo -e "${BLUE}プラグインサーバー (plugin-proxy-server) を適用中...${RESET}"
     oc apply -f "$REPO_ROOT/openshift/plugin-server.yaml" -n "$RHDH_NAMESPACE"
     oc rollout status deployment/plugin-proxy-server -n "$RHDH_NAMESPACE" --timeout=180s
-
-    oc apply -f "$REPO_ROOT/openshift/dynamic-plugins-rhdh.yaml" -n "$RHDH_NAMESPACE"
 
     # {{ ocp_apps_domain }} を実際のドメインに置換してから apply
     echo -e "${BLUE}OpenMetadata URLのドメインを ${APPS_DOMAIN} に置換して適用...${RESET}"
@@ -851,8 +901,71 @@ PVCEOF
     echo -e "${GREEN}Pipeline / PVC セットアップ完了${RESET}"
 }
 
-regithubtoken() {
+_set_github_token() {
+    # secrets-rhdh Secret の GITHUB_TOKEN を直接 patch する (secrets-rhdh.yaml には
+    # 意図的に含まれないため、この関数だけが唯一の設定・更新手段)。
+    # $1 = トークン, $2 = "restart" なら Deployment を再起動して反映まで待つ
+    local _token="$1"
+    local _restart="${2:-restart}"
 
+    echo -e "${BLUE}Secret (GITHUB_TOKEN) を更新中...${RESET}"
+    oc patch secret secrets-rhdh \
+        -n "$RHDH_NAMESPACE" \
+        --type=merge \
+        -p "{\"stringData\":{\"GITHUB_TOKEN\":\"${_token}\"}}"
+
+    if [ "$_restart" = "restart" ]; then
+        echo -e "${BLUE}Deployment を再起動中...${RESET}"
+        oc rollout restart deployment/backstage-developer-hub \
+            -n "$RHDH_NAMESPACE"
+
+        oc rollout status deployment/backstage-developer-hub \
+            -n "$RHDH_NAMESPACE" \
+            --timeout=300s
+    fi
+
+    echo -e "${GREEN}GitHub Token の更新完了${RESET}"
+}
+
+# deploy() から呼ばれる。secrets-rhdh Secret に GITHUB_TOKEN が既に設定されていれば
+# 何もしない (再デプロイのたびに再入力を求めない)。未設定の場合のみ、環境変数
+# GITHUB_TOKEN があればそれを使い、無ければ対話的に入力を求めて設定する。
+# scaffolder の GitHub 連携 (リポジトリ作成/push) に必須のため、未設定のまま
+# デプロイを完了させると "No token available for host: github.com" で
+# テンプレート実行が必ず失敗する。
+_ensure_github_token() {
+    local _current
+    _current=$(oc get secret secrets-rhdh -n "$RHDH_NAMESPACE" \
+        -o jsonpath='{.data.GITHUB_TOKEN}' 2>/dev/null || echo "")
+
+    if [ -n "$_current" ]; then
+        echo -e "${GREEN}  → GITHUB_TOKEN は設定済みです (再入力不要)${RESET}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}GITHUB_TOKEN が未設定です。scaffolder の GitHub 連携に必須のため、ここで設定します。${RESET}"
+
+    local NEW_TOKEN
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        NEW_TOKEN="$GITHUB_TOKEN"
+        echo -e "${YELLOW}環境変数 GITHUB_TOKEN を使用します${RESET}"
+    else
+        read -rsp "GitHub Token を入力してください (repo, workflow スコープが必要 / ghp_...): " NEW_TOKEN
+        echo ""
+    fi
+
+    if [ -z "$NEW_TOKEN" ]; then
+        echo -e "${RED}ERROR: Token が入力されていません。GITHUB_TOKEN を後で設定する場合は以下を実行してください:${RESET}" >&2
+        echo -e "${RED}       ./script/developer-hub.sh regithubtoken${RESET}" >&2
+        return 1
+    fi
+
+    # Deployment 再起動は deploy() 側の最終ロールアウト待機で一括して行われるため、
+    # ここでは Secret への反映のみ (二重に再起動しない)。
+    _set_github_token "$NEW_TOKEN" "norestart"
+}
+
+regithubtoken() {
     local NEW_TOKEN
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         NEW_TOKEN="$GITHUB_TOKEN"
@@ -867,21 +980,7 @@ regithubtoken() {
         exit 1
     fi
 
-    echo -e "${BLUE}Secret を更新中...${RESET}"
-    oc patch secret secrets-rhdh \
-        -n "$RHDH_NAMESPACE" \
-        --type=merge \
-        -p "{\"stringData\":{\"GITHUB_TOKEN\":\"${NEW_TOKEN}\"}}"
-
-    echo -e "${BLUE}Deployment を再起動中...${RESET}"
-    oc rollout restart deployment/backstage-developer-hub \
-        -n "$RHDH_NAMESPACE"
-
-    oc rollout status deployment/backstage-developer-hub \
-        -n "$RHDH_NAMESPACE" \
-        --timeout=300s
-
-    echo -e "${GREEN}GitHub Token の更新完了${RESET}"
+    _set_github_token "$NEW_TOKEN" "restart"
 }
 
 target_token() {
