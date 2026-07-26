@@ -72,9 +72,6 @@ usage() {
     echo "  $0 dataproducts lakekeeper Lakekeeper OSS (Iceberg REST Catalog) をこのサイトに構築"
     echo "  $0 dataproducts debezium  inventory Outbox 用 Kafka Connect (Debezium) のビルド + コネクタ登録"
     echo "  $0 dataproducts cleanup   dataproducts 関連リソースの削除"
-    echo ""
-    echo "  $0 ai-agent mm2-tokens    A/B/Cサイトの Kafka書き込み用トークンを対話入力し、"
-    echo "                            provision-site-mm2-tokens.sh で ai-agent-platform に反映"
 }
 
 # =============================================================================
@@ -106,15 +103,6 @@ case "$1" in
             setup|deploy|schemas|lakekeeper|debezium|cleanup) ;;
             *)
                 echo -e "${RED}無効なサブコマンド: dataproducts $2${RESET}"
-                usage; exit 1
-                ;;
-        esac
-        ;;
-    ai-agent)
-        case "$2" in
-            mm2-tokens) ;;
-            *)
-                echo -e "${RED}無効なサブコマンド: ai-agent $2${RESET}"
                 usage; exit 1
                 ;;
         esac
@@ -1400,56 +1388,6 @@ dataproducts_cleanup() {
     # Keycloak クライアント (dataproducts-registry / trino-coordinator) は
     # 認証情報の再生成コストが高いため cleanup では削除しない。
     # 完全に作り直したい場合は個別に削除すること。
-}
-
-# =============================================================================
-# ai-agent サブコマンド
-# =============================================================================
-
-AI_AGENT_PLATFORM_DIR="$(cd "$REPO_ROOT/../datamesh-ai-agent-platform" && pwd)"
-
-# A/B/Cサイトの Kafka 書き込み用トークン (KafkaTopic/KafkaMirrorMaker2 CR の
-# get/list/create/update/patch のみを許可する最小権限 ServiceAccount のトークン)
-# を対話入力させ、provision-site-mm2-tokens.sh (datamesh-ai-agent-platform側) を
-# 直接トークン方式で実行する。
-#
-# サイト管理者パスワードを持たない場合(例: Skupper 経由の到達性のみで、
-# サイト側の ServiceAccount 発行は別途各サイトで済ませている場合)に使う。
-# 各サイトは空Enterでスキップ可能(該当サイトの Secret は作成されない)。
-ai_agent_mm2_tokens() {
-    echo -e "${BLUE}A/B/Cサイトの Kafka書き込み用トークンを設定します(不要なサイトは空Enterでスキップ)${RESET}"
-
-    local site prefix server_var token_var server token
-    for site in asite bsite csite; do
-        prefix="$(echo "$site" | tr '[:lower:]' '[:upper:]')"
-        server_var="${prefix}_MM2_API_SERVER"
-        token_var="${prefix}_MM2_TOKEN"
-
-        read -rp "[${site}] API サーバー URL (例: https://api.xxx.opentlc.com:6443) : " server
-        if [ -z "$server" ]; then
-            echo -e "${YELLOW}[${site}] スキップします${RESET}"
-            continue
-        fi
-        read -rsp "[${site}] トークン: " token
-        echo ""
-        if [ -z "$token" ]; then
-            echo -e "${RED}[${site}] トークンが未入力のためスキップします${RESET}" >&2
-            continue
-        fi
-
-        export "${server_var}=${server}"
-        export "${token_var}=${token}"
-    done
-
-    if [ -z "${ASITE_MM2_API_SERVER:-}${BSITE_MM2_API_SERVER:-}${CSITE_MM2_API_SERVER:-}" ]; then
-        echo -e "${YELLOW}全サイトがスキップされました。何も実行せず終了します。${RESET}"
-        return 0
-    fi
-
-    echo -e "${BLUE}provision-site-mm2-tokens.sh を実行中...${RESET}"
-    (cd "$AI_AGENT_PLATFORM_DIR" && ./scripts/provision-site-mm2-tokens.sh)
-
-    echo -e "${GREEN}ai-agent mm2-tokens 完了${RESET}"
 }
 
 # =============================================================================
