@@ -291,21 +291,99 @@ provision_keycloak() {
 
 # ─── mm2-tokens: A/B/C サイトの Kafka 書き込み用トークンを設定 ─────────────────
 # KafkaTopic/KafkaMirrorMaker2 CR の get/list/create/update/patch のみを許可する
-# 最小権限 ServiceAccount のトークンを対話入力させ、
-# scripts/provision-site-mm2-tokens.sh (直接トークン方式) を実行して
+# 最小権限 ServiceAccount (ai-agent-mm2-operator) のトークンを、
 # ai-agent-platform namespace の <site>-mm2-pause-token Secret に反映する。
 # これが無いと tools/kafka/admin_tools.py の create_kafka_topic (managed=True) /
 # delete_kafka_topic が「K8s API 認証情報が未設定」で失敗する。
 #
-# サイト管理者パスワードを持たない場合(例: Skupper 経由の到達性のみで、
-# サイト側の ServiceAccount 発行は別途各サイトで済ませている場合)に使う。
-# 各サイトは空Enterでスキップ可能(該当サイトの Secret は作成されない)。
+# サイトAPIサーバーのURLを入力すると、その cluster を指す `oc login` 済みの
+# context (quarkusdroneshop-demo/<cluster>/admin または default/<cluster>/admin
+# 等、`oc login`が生成する命名規則) が既にキャッシュされていないか自動検出する。
+# 見つかればサイト管理者パスワードを再入力させずにその場でSA/Role/トークンを
+# 発行する。見つからない場合のみ、事前に発行済みのトークンを対話入力させる
+# (フォールバック)。各サイトは空Enterでスキップ可能。
+_mm2_site_namespace="quarkusdroneshop-demo"
+_mm2_sa="ai-agent-mm2-operator"
+
+# API サーバー URL からキャッシュ済み context 名を推測して1つ返す
+# (`oc login <server>` が既定で生成する `<namespace>/<cluster>/<user>` 形式の
+# 命名規則に依拠。見つからなければ何も出力せず失敗する)。
+_mm2_guess_context() {
+    local server="$1"
+    local cluster
+    cluster="$(echo "$server" | sed -E 's#^https?://##' | sed 's/\./-/g')"
+    local guess
+    for guess in \
+        "${_mm2_site_namespace}/${cluster}/admin" \
+        "default/${cluster}/admin"; do
+        if oc config get-contexts "$guess" &>/dev/null; then
+            if timeout 8 oc --context="$guess" whoami &>/dev/null; then
+                echo "$guess"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+# 指定 context 上の $_mm2_site_namespace に SA/Role/RoleBinding/長期トークン
+# Secret を作成し、トークン文字列を標準出力する。
+_mm2_provision_sa_token() {
+    local ctx="$1"
+
+    oc --context="$ctx" create serviceaccount "$_mm2_sa" -n "$_mm2_site_namespace" \
+        --dry-run=client -o yaml | oc --context="$ctx" apply -f - >/dev/null
+
+    cat <<EOF | oc --context="$ctx" apply -f - >/dev/null
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ${_mm2_sa}
+  namespace: ${_mm2_site_namespace}
+rules:
+  - apiGroups: ["kafka.strimzi.io"]
+    resources: ["kafkatopics", "kafkamirrormaker2s"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+EOF
+
+    cat <<EOF | oc --context="$ctx" apply -f - >/dev/null
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${_mm2_sa}
+  namespace: ${_mm2_site_namespace}
+subjects:
+  - kind: ServiceAccount
+    name: ${_mm2_sa}
+    namespace: ${_mm2_site_namespace}
+roleRef:
+  kind: Role
+  name: ${_mm2_sa}
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+    cat <<EOF | oc --context="$ctx" apply -f - >/dev/null
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${_mm2_sa}-longlived-token
+  namespace: ${_mm2_site_namespace}
+  annotations:
+    kubernetes.io/service-account.name: ${_mm2_sa}
+type: kubernetes.io/service-account-token
+EOF
+
+    sleep 3
+    oc --context="$ctx" get secret "${_mm2_sa}-longlived-token" -n "$_mm2_site_namespace" \
+        -o jsonpath='{.data.token}' | base64 -d
+}
+
 mm2_tokens() {
     _sync_repo
 
     echo -e "${BLUE}A/B/Cサイトの Kafka書き込み用トークンを設定します(不要なサイトは空Enterでスキップ)${RESET}"
 
-    local site prefix server_var token_var server token
+    local site prefix server_var token_var server token ctx
     for site in asite bsite csite; do
         prefix="$(echo "$site" | tr '[:lower:]' '[:upper:]')"
         server_var="${prefix}_MM2_API_SERVER"
@@ -316,8 +394,21 @@ mm2_tokens() {
             echo -e "${YELLOW}[${site}] スキップします${RESET}"
             continue
         fi
-        read -rsp "[${site}] トークン: " token
-        echo ""
+
+        token=""
+        ctx="$(_mm2_guess_context "$server" || true)"
+        if [ -n "$ctx" ]; then
+            echo -e "${GREEN}[${site}] ログイン済みcontext (${ctx}) を検出。SA/トークンを自動発行します${RESET}"
+            token="$(_mm2_provision_sa_token "$ctx")"
+            if [ -z "$token" ]; then
+                echo -e "${YELLOW}[${site}] 自動発行に失敗しました。トークンを手入力してください${RESET}" >&2
+            fi
+        fi
+
+        if [ -z "$token" ]; then
+            read -rsp "[${site}] トークン (${_mm2_site_namespace} namespace の kafkatopics/kafkamirrormaker2s 操作権限を持つSAのもの): " token
+            echo ""
+        fi
         if [ -z "$token" ]; then
             echo -e "${RED}[${site}] トークンが未入力のためスキップします${RESET}" >&2
             continue
