@@ -197,9 +197,18 @@ delete_broker_topic() {
     echo -e "${YELLOW}Kafkaブローカーポッドが見つからないため、ブローカー直接削除をスキップします。${RESET}"
     return 0
   fi
+  if [ "$DRY_RUN" != true ]; then
+    # CR削除で既にブローカー上のトピックも消えているのが正常系(大半のケース)。
+    # 先に --list で存在確認してから delete することで、
+    # 「Topic does not exist」という紛らわしい(が無害な)出力を避ける。
+    if ! oc --context="$ctx" exec -n "$DEMO_NAMESPACE" "$broker_pod" --request-timeout=30s -- \
+        bash -c "/opt/kafka/bin/kafka-topics.sh --bootstrap-server shop-cluster-kafka-bootstrap:9092 --list" \
+        2>/dev/null | grep -qx -- "$topic"; then
+      return 0
+    fi
+  fi
   run oc --context="$ctx" exec -n "$DEMO_NAMESPACE" "$broker_pod" --request-timeout=30s -- \
-    bash -c "/opt/kafka/bin/kafka-topics.sh --bootstrap-server shop-cluster-kafka-bootstrap:9092 --delete --topic '$topic'" \
-    2>/dev/null || true
+    bash -c "/opt/kafka/bin/kafka-topics.sh --bootstrap-server shop-cluster-kafka-bootstrap:9092 --delete --topic '$topic'"
 }
 
 command -v oc &>/dev/null || { echo -e "${RED}エラー: oc (OpenShift CLI) が必要です${RESET}" >&2; exit 1; }
