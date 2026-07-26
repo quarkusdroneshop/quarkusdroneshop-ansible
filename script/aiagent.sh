@@ -13,6 +13,8 @@
 #   ./script/aiagent.sh deploy-prod     - AI Agent Platform を本番デプロイ (prod overlay)
 #   ./script/aiagent.sh deploy-latest   - ai-agent-cicd パイプラインの最新ビルドイメージのみ反映
 #   ./script/aiagent.sh vllm            - vLLM モデルサービングをデプロイ
+#   ./script/aiagent.sh keycloak        - Keycloak レルム/クライアント/初期ユーザーの作成
+#   ./script/aiagent.sh mm2-tokens      - A/B/CサイトのKafka書き込み用トークンを設定
 #   ./script/aiagent.sh status          - 全コンポーネントの状態確認
 #   ./script/aiagent.sh logs            - AI Agent の最新ログを表示
 #   ./script/aiagent.sh cleanup         - AI Agent Platform を削除
@@ -55,6 +57,8 @@ usage() {
     echo -e "${YELLOW}使用方法:${RESET}"
     echo "  $0 setup         OpenShift AI / Streams for Apache Kafka / Tekton Operator をインストール"
     echo "  $0 vllm          vLLM モデルサービングをデプロイ (${MODEL_NAME})"
+    echo "  $0 keycloak      Keycloak レルム/クライアント(business-api, chat-ui)/初期ユーザーの作成 (べき等)"
+    echo "  $0 mm2-tokens    A/B/CサイトのKafka書き込み用トークンを対話入力し、ai-agent-platformに反映"
     echo "  $0 deploy        AI Agent Platform を dev 環境にデプロイ"
     echo "  $0 deploy-prod   AI Agent Platform を prod 環境にデプロイ (確認あり)"
     echo "  $0 deploy-latest ai-agent-cicd パイプラインの最新ビルドイメージのみを反映"
@@ -68,7 +72,7 @@ usage() {
 # =============================================================================
 
 case "${1:-}" in
-    setup|vllm|deploy|deploy-prod|deploy-latest|status|logs|cleanup) ;;
+    setup|vllm|keycloak|mm2-tokens|deploy|deploy-prod|deploy-latest|status|logs|cleanup) ;;
     *)
         echo -e "${RED}無効なコマンドです: ${1:-（引数なし）}${RESET}"
         usage; exit 1
@@ -163,13 +167,184 @@ _sync_repo() {
     fi
 }
 
+# ─── Keycloak (keycloak namespace の既存共有インスタンス) に AI Agent 用の ───
+# ─── レルム・クライアント・初期ユーザーを作成する ──────────────────────────
+# KeycloakRealmImport CR は初回インポートしか反映されず、かつ他 namespace の
+# Keycloak CR を跨いで参照できないため、Admin REST API を直接叩いて冪等に作成する。
+# (これが無いと business-api が起動時に Keycloak realm "ai-agent" を見つけられず
+# OidcCommonUtils で "OIDC Server is not available" → クラッシュループする。
+# 2026-07-22, sandbox39 で発生・原因調査済み。deploy.sh の同名関数を移植した。)
+provision_keycloak() {
+    local keycloak_namespace="${KEYCLOAK_NAMESPACE:-keycloak}"
+    local keycloak_realm="${KEYCLOAK_REALM:-ai-agent}"
+
+    local keycloak_route_host
+    keycloak_route_host="$(oc get route keycloak -n "$keycloak_namespace" -o jsonpath='{.spec.host}' 2>/dev/null)"
+    if [ -z "$keycloak_route_host" ]; then
+        keycloak_route_host="$(oc get route -n "$keycloak_namespace" -o jsonpath='{.items[0].spec.host}' 2>/dev/null)"
+    fi
+    if [ -z "$keycloak_route_host" ]; then
+        echo -e "${YELLOW}  警告: ${keycloak_namespace} namespace に Keycloak の Route が見つかりません。レルム作成をスキップします${RESET}"
+        return 0
+    fi
+
+    local admin_user admin_password base_url
+    admin_user="${KEYCLOAK_ADMIN_USER:-$(oc get secret keycloak-initial-admin -n "$keycloak_namespace" -o jsonpath='{.data.username}' 2>/dev/null | base64 -d)}"
+    admin_password="${KEYCLOAK_ADMIN_PASSWORD:-$(oc get secret keycloak-initial-admin -n "$keycloak_namespace" -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)}"
+    if [ -z "$admin_user" ] || [ -z "$admin_password" ]; then
+        echo -e "${YELLOW}  警告: Keycloak管理者認証情報を取得できません。レルム作成をスキップします${RESET}"
+        return 0
+    fi
+    base_url="https://${keycloak_route_host}/admin/realms"
+
+    # NOTE: master レルムの admin-cli トークンは既定で有効期限が60秒しかなく、
+    # このステップ全体(存在確認GET x4 + 作成POST)を1つのトークンで
+    # 使い回すと、途中でトークンが失効して "401 Unauthorized" になり
+    # レルム作成以降が全て失敗することを実際に確認した(2026-07-24)。
+    # そのため各ステップの直前で毎回トークンを取り直す。
+    _kc_token() {
+        curl -sk -X POST "https://${keycloak_route_host}/realms/master/protocol/openid-connect/token" \
+            -d "grant_type=password" -d "client_id=admin-cli" \
+            -d "username=${admin_user}" -d "password=${admin_password}" \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin).get("access_token",""))' 2>/dev/null
+    }
+
+    local admin_token auth_header
+    admin_token="$(_kc_token)"
+    if [ -z "$admin_token" ]; then
+        echo -e "${YELLOW}  警告: Keycloak管理者トークンの取得に失敗しました。レルム作成をスキップします${RESET}"
+        return 0
+    fi
+    auth_header="Authorization: Bearer ${admin_token}"
+
+    if [ "$(curl -sk -o /dev/null -w '%{http_code}' -H "$auth_header" "${base_url}/${keycloak_realm}")" != "200" ]; then
+        auth_header="Authorization: Bearer $(_kc_token)"
+        curl -sk -X POST "${base_url}" -H "$auth_header" -H "Content-Type: application/json" \
+            -d "{\"id\":\"${keycloak_realm}\",\"realm\":\"${keycloak_realm}\",\"enabled\":true}" >/dev/null
+        echo -e "${GREEN}  → レルム ${keycloak_realm} を作成しました${RESET}"
+    else
+        echo -e "${YELLOW}  → レルム ${keycloak_realm}: 作成済み${RESET}"
+    fi
+
+    # business-api用 confidentialクライアント (サービスアカウント有効)
+    auth_header="Authorization: Bearer $(_kc_token)"
+    if [ "$(curl -sk -H "$auth_header" "${base_url}/${keycloak_realm}/clients?clientId=business-api" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))' 2>/dev/null)" == "0" ]; then
+        auth_header="Authorization: Bearer $(_kc_token)"
+        curl -sk -X POST "${base_url}/${keycloak_realm}/clients" -H "$auth_header" -H "Content-Type: application/json" -d "{
+      \"clientId\": \"business-api\",
+      \"secret\": \"${KEYCLOAK_CLIENT_SECRET:-dev-client-secret}\",
+      \"enabled\": true,
+      \"standardFlowEnabled\": true,
+      \"serviceAccountsEnabled\": true,
+      \"directAccessGrantsEnabled\": true,
+      \"redirectUris\": [\"*\"]
+    }" >/dev/null
+        echo -e "${GREEN}  → クライアント business-api を作成しました${RESET}"
+    else
+        echo -e "${YELLOW}  → クライアント business-api: 作成済み${RESET}"
+    fi
+
+    # chat-ui用 publicクライアント (Authorization Code + PKCE)
+    auth_header="Authorization: Bearer $(_kc_token)"
+    if [ "$(curl -sk -H "$auth_header" "${base_url}/${keycloak_realm}/clients?clientId=chat-ui" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))' 2>/dev/null)" == "0" ]; then
+        auth_header="Authorization: Bearer $(_kc_token)"
+        curl -sk -X POST "${base_url}/${keycloak_realm}/clients" -H "$auth_header" -H "Content-Type: application/json" -d "{
+      \"clientId\": \"chat-ui\",
+      \"publicClient\": true,
+      \"enabled\": true,
+      \"standardFlowEnabled\": true,
+      \"directAccessGrantsEnabled\": false,
+      \"redirectUris\": [\"*\"],
+      \"webOrigins\": [\"*\"],
+      \"attributes\": {\"pkce.code.challenge.method\": \"S256\"}
+    }" >/dev/null
+        echo -e "${GREEN}  → クライアント chat-ui を作成しました${RESET}"
+    else
+        echo -e "${YELLOW}  → クライアント chat-ui: 作成済み${RESET}"
+    fi
+
+    # 初期ユーザー
+    local initial_username="${KEYCLOAK_INITIAL_USERNAME:-nmushino}"
+    auth_header="Authorization: Bearer $(_kc_token)"
+    if [ "$(curl -sk -H "$auth_header" "${base_url}/${keycloak_realm}/users?username=${initial_username}" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))' 2>/dev/null)" == "0" ]; then
+        auth_header="Authorization: Bearer $(_kc_token)"
+        curl -sk -X POST "${base_url}/${keycloak_realm}/users" -H "$auth_header" -H "Content-Type: application/json" -d "{
+      \"username\": \"${initial_username}\",
+      \"firstName\": \"Noriaki\",
+      \"lastName\": \"Mushino\",
+      \"email\": \"${KEYCLOAK_INITIAL_USER_EMAIL:-nmushino@redhat.com}\",
+      \"enabled\": true,
+      \"credentials\": [{\"type\": \"password\", \"value\": \"${KEYCLOAK_INITIAL_USER_PASSWORD:-changeme123}\", \"temporary\": true}]
+    }" >/dev/null
+        echo -e "${GREEN}  → 初期ユーザー ${initial_username} を作成しました(初回ログイン時パスワード変更必須)${RESET}"
+    else
+        echo -e "${YELLOW}  → 初期ユーザー ${initial_username}: 作成済み${RESET}"
+    fi
+
+    # business-api の OIDC 設定は internal Route hostname (sso.apps...) 経由の
+    # 外部到達性が pod ネットワークから無い場合があるため、discovery で返る
+    # jwks_uri 等の外部URLに頼らず、内部 Service (https://keycloak.<ns>.svc.cluster.local:8443)
+    # を discovery 無効化 + 相対パス指定で使う構成を前提とする
+    # (business-api-config ConfigMap の keycloak-url、および
+    # QUARKUS_OIDC_DISCOVERY_ENABLED=false 等の env は deploy() 側で設定する)。
+}
+
+# ─── mm2-tokens: A/B/C サイトの Kafka 書き込み用トークンを設定 ─────────────────
+# KafkaTopic/KafkaMirrorMaker2 CR の get/list/create/update/patch のみを許可する
+# 最小権限 ServiceAccount のトークンを対話入力させ、
+# scripts/provision-site-mm2-tokens.sh (直接トークン方式) を実行して
+# ai-agent-platform namespace の <site>-mm2-pause-token Secret に反映する。
+# これが無いと tools/kafka/admin_tools.py の create_kafka_topic (managed=True) /
+# delete_kafka_topic が「K8s API 認証情報が未設定」で失敗する。
+#
+# サイト管理者パスワードを持たない場合(例: Skupper 経由の到達性のみで、
+# サイト側の ServiceAccount 発行は別途各サイトで済ませている場合)に使う。
+# 各サイトは空Enterでスキップ可能(該当サイトの Secret は作成されない)。
+mm2_tokens() {
+    _sync_repo
+
+    echo -e "${BLUE}A/B/Cサイトの Kafka書き込み用トークンを設定します(不要なサイトは空Enterでスキップ)${RESET}"
+
+    local site prefix server_var token_var server token
+    for site in asite bsite csite; do
+        prefix="$(echo "$site" | tr '[:lower:]' '[:upper:]')"
+        server_var="${prefix}_MM2_API_SERVER"
+        token_var="${prefix}_MM2_TOKEN"
+
+        read -rp "[${site}] API サーバー URL (例: https://api.xxx.opentlc.com:6443) : " server
+        if [ -z "$server" ]; then
+            echo -e "${YELLOW}[${site}] スキップします${RESET}"
+            continue
+        fi
+        read -rsp "[${site}] トークン: " token
+        echo ""
+        if [ -z "$token" ]; then
+            echo -e "${RED}[${site}] トークンが未入力のためスキップします${RESET}" >&2
+            continue
+        fi
+
+        export "${server_var}=${server}"
+        export "${token_var}=${token}"
+    done
+
+    if [ -z "${ASITE_MM2_API_SERVER:-}${BSITE_MM2_API_SERVER:-}${CSITE_MM2_API_SERVER:-}" ]; then
+        echo -e "${YELLOW}全サイトがスキップされました。何も実行せず終了します。${RESET}"
+        return 0
+    fi
+
+    echo -e "${BLUE}provision-site-mm2-tokens.sh を実行中...${RESET}"
+    NAMESPACE="$AI_AGENT_NAMESPACE" "${PLATFORM_DIR}/scripts/provision-site-mm2-tokens.sh"
+
+    echo -e "${GREEN}mm2-tokens 完了${RESET}"
+}
+
 # ─── setup: 前提 Operator のインストール ───────────────────────────────────────
 setup() {
     # Streams for Apache Kafka (旧 AMQ Streams) は quarkusdroneshop 側 (ocpdeploy.sh) の
     # リモートクラスターに既に導入済みだが、このクラスター自体には未導入のため、
     # openshift-operators (AllNamespaces) に共通コンポーネントとして新規インストールする。
 
-    echo -e "${BLUE}=== [1/8] ノードあたりの Pod 上限引き上げ ===${RESET}"
+    echo -e "${BLUE}=== [1/9] ノードあたりの Pod 上限引き上げ ===${RESET}"
     # デフォルト 250 だと RHACM 等の追加コンポーネントがスケジュールできなくなるため、
     # master プールに適用する（このクラスターは全ノードが master ロールを兼ねる構成の
     # ため、worker プールを対象にしても実ノードに反映されない）。
@@ -189,7 +364,7 @@ spec:
     podsPerCore: 0
 KUBELETCFG
 
-    echo -e "${BLUE}=== [2/8] Skupper 接続確認 ===${RESET}"
+    echo -e "${BLUE}=== [2/9] Skupper 接続確認 ===${RESET}"
     # NOTE: `oc get csv ... | grep -q ...` は pipefail 環境下で誤判定を起こす (SIGPIPE)。
     # 必ず一度変数に capture してから grep する。
     local ALL_CSV
@@ -203,7 +378,7 @@ KUBELETCFG
     # Tekton Pipelines / Keycloak は cluster-wide (AllNamespaces) Operator のため、
     # 既に別の Namespace (openshift-operators / keycloak 等) にインストール済みであれば
     # 共通コンポーネントとして扱い、ここでの再インストールはスキップする。
-    echo -e "${BLUE}=== [3/8] 共通コンポーネントの確認 (Pipelines / Keycloak) ===${RESET}"
+    echo -e "${BLUE}=== [3/9] 共通コンポーネントの確認 (Pipelines / Keycloak) ===${RESET}"
     if grep -q "openshift-pipelines-operator-rh.*Succeeded" <<<"${ALL_CSV}"; then
         echo -e "${YELLOW}  → OpenShift Pipelines (Tekton) Operator は既に共通導入済みです。スキップします${RESET}"
     else
@@ -215,7 +390,7 @@ KUBELETCFG
         echo -e "${YELLOW}  ⚠ Keycloak (RHBK) Operator が見つかりません。手動でインストールしてください${RESET}"
     fi
 
-    echo -e "${BLUE}=== [4/8] Streams for Apache Kafka Operator のインストール ===${RESET}"
+    echo -e "${BLUE}=== [4/9] Streams for Apache Kafka Operator のインストール ===${RESET}"
 
     # このクラスター自体には Streams for Apache Kafka (Strimzi) が未導入のため、
     # openshift-operators (AllNamespaces) に共通コンポーネントとして新規インストールする。
@@ -322,7 +497,7 @@ EOF
         _wait_operator "openshift-operators" "amqstreams" 300
     fi
 
-    echo -e "${BLUE}=== [5/8] Streams for Apache Kafka Console のインストール ===${RESET}"
+    echo -e "${BLUE}=== [5/9] Streams for Apache Kafka Console のインストール ===${RESET}"
 
     # パッケージ名は amq-streams-console のままだが、表示名は Streams for Apache Kafka Console
     if grep -qi "amq-streams-console.*Succeeded" <<<"${ALL_CSV}"; then
@@ -345,7 +520,7 @@ EOF
         _wait_operator "openshift-operators" "amq-streams-console" 300
     fi
 
-    echo -e "${BLUE}=== [6/8] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
+    echo -e "${BLUE}=== [6/9] OpenShift AI Operator (RHOAI) のインストール ===${RESET}"
 
     # RHOAI が既にインストール済みかを確認 (他 Namespace の共通導入も含めて確認)
     if oc get subscription rhods-operator -n "${RHOAI_NAMESPACE}" &>/dev/null \
@@ -381,7 +556,7 @@ EOF
     fi
 
     # DataScienceCluster の作成 (RHOAI 2.x)
-    echo -e "${BLUE}=== [7/8] DataScienceCluster の作成 ===${RESET}"
+    echo -e "${BLUE}=== [7/9] DataScienceCluster の作成 ===${RESET}"
     if oc get datasciencecluster default-dsc &>/dev/null; then
         echo -e "${YELLOW}  → DataScienceCluster は既に存在します${RESET}"
     else
@@ -418,13 +593,25 @@ EOF
         echo -e "${GREEN}  → DataScienceCluster を作成しました${RESET}"
     fi
 
-    echo -e "${BLUE}=== [8/8] AI Agent Platform Namespace の作成 ===${RESET}"
+    echo -e "${BLUE}=== [8/9] AI Agent Platform Namespace の作成 ===${RESET}"
     oc new-project "${AI_AGENT_NAMESPACE}" 2>/dev/null \
         || echo -e "${YELLOW}  Namespace ${AI_AGENT_NAMESPACE} は既に存在します${RESET}"
 
     # anyuid SCC — AI Agent は UID 1001、Business API は UID 185 で動作
     oc adm policy add-scc-to-user anyuid \
         -z default -n "${AI_AGENT_NAMESPACE}" 2>/dev/null || true
+
+    # postgresql (bitnami/postgresql系イメージ) は起動時に fsGroup=26 を要求するが、
+    # restricted-v2/v3 SCC はこれを許可せず "unable to validate against any
+    # security context constraint" で Pod が永久に FailedCreate になっていた
+    # (2026-07-22, sandbox39 で発生・原因調査済み)。default SA には既に anyuid を
+    # 付与済みだが、念のため postgresql の Deployment が使う default SA にも
+    # 明示的に再付与しておく (上の行と同じ SA だが、実行順序の意図を明確化するため)。
+    oc adm policy add-scc-to-user anyuid \
+        -z default -n "${AI_AGENT_NAMESPACE}" 2>/dev/null || true
+
+    echo -e "${BLUE}=== [9/9] Keycloak レルム・クライアント・初期ユーザーの作成 ===${RESET}"
+    provision_keycloak
 
     echo ""
     echo -e "${GREEN}========================================${RESET}"
@@ -619,6 +806,16 @@ deploy() {
         -n "${AI_AGENT_NAMESPACE}" \
         --dry-run=client -o yaml | oc apply -f -
 
+    # business-api の Keycloak クライアントシークレット。setup() の
+    # provision_keycloak() で作成したクライアントの secret と値を一致させる必要が
+    # ある (不一致だと business-api が起動時に client_secret_basic 認証で失敗する)。
+    # 未指定時のデフォルト値 "dev-client-secret" は provision_keycloak() 側の
+    # デフォルトと揃えてある。
+    oc create secret generic keycloak-secret \
+        --from-literal=client-secret="${KEYCLOAK_CLIENT_SECRET:-dev-client-secret}" \
+        -n "${AI_AGENT_NAMESPACE}" \
+        --dry-run=client -o yaml | oc apply -f -
+
     echo -e "${GREEN}  → Secret を作成しました${RESET}"
 
     # ── ConfigMap の vLLM URL 上書き ──
@@ -685,16 +882,98 @@ deploy() {
     fi
 
     # business-api はサーバー側の OIDC トークン検証用のため、外部 Route ではなく
-    # クラスター内部の Keycloak Service を使う
+    # クラスター内部の Keycloak Service を使う。
+    # NOTE: Keycloak CR は httpEnabled: false のため 8080(HTTP) は接続不可
+    # (connection timeout, 2026-07-22 sandbox39 で確認済み)。8443(HTTPS) のみ
+    # keycloak-network-policy で内部到達可能。
     oc patch configmap business-api-config -n "${AI_AGENT_NAMESPACE}" --type merge \
-        -p '{"data":{"keycloak-url":"http://keycloak.keycloak.svc.cluster.local:8080"}}' >/dev/null 2>&1 \
+        -p '{"data":{"keycloak-url":"https://keycloak.keycloak.svc.cluster.local:8443"}}' >/dev/null 2>&1 \
         && echo -e "${GREEN}  → business-api-config の keycloak-url を設定しました${RESET}" \
         || echo -e "${YELLOW}  ⚠ business-api-config が見つからずスキップ${RESET}"
+
+    # Keycloak の OIDC discovery document は内部 Service 経由で取得しても
+    # issuer/jwks_uri 等が外部 Route ホスト名を返す (split-horizon)。
+    # 外部ホストは Pod ネットワークから到達不可なため、discovery を無効化して
+    # 全パスを内部 Keycloak 基準の相対パスで固定する
+    # (2026-07-22 sandbox39 で診断・修正済み)。
+    if oc get deployment business-api -n "${AI_AGENT_NAMESPACE}" &>/dev/null; then
+        oc set env deployment/business-api -n "${AI_AGENT_NAMESPACE}" \
+            QUARKUS_OIDC_TLS_VERIFICATION=none \
+            QUARKUS_OIDC_DISCOVERY_ENABLED=false \
+            QUARKUS_OIDC_AUTHORIZATION_PATH=/protocol/openid-connect/auth \
+            QUARKUS_OIDC_TOKEN_PATH=/protocol/openid-connect/token \
+            QUARKUS_OIDC_JWKS_PATH=/protocol/openid-connect/certs \
+            QUARKUS_OIDC_USER_INFO_PATH=/protocol/openid-connect/userinfo \
+            QUARKUS_OIDC_END_SESSION_PATH=/protocol/openid-connect/logout \
+            QUARKUS_OIDC_INTROSPECTION_PATH=/protocol/openid-connect/token/introspect >/dev/null
+        echo -e "${GREEN}  → business-api の OIDC discovery 無効化 env を設定しました${RESET}"
+    else
+        echo -e "${YELLOW}  ⚠ business-api Deployment がまだ無いため OIDC env 設定をスキップ${RESET}"
+    fi
 
     # ── Tekton タスク・パイプラインをデプロイ ──
     echo -e "${BLUE}[6/7] Tekton タスク / パイプラインをデプロイ中...${RESET}"
     oc new-project "${CICD_NAMESPACE}" 2>/dev/null \
         || echo -e "${YELLOW}  Namespace ${CICD_NAMESPACE} は既に存在します${RESET}"
+
+    # pipeline SA によるイメージビルド (別 namespace の internal registry への push) には
+    # system:image-builder ロールが必要 (2026-07-21 sandbox39 で確認済み)
+    oc adm policy add-role-to-user system:image-builder \
+        "system:serviceaccount:${CICD_NAMESPACE}:pipeline" \
+        -n "${AI_AGENT_NAMESPACE}" >/dev/null 2>&1 \
+        && echo -e "${GREEN}  → pipeline SA に image-builder ロールを付与しました${RESET}" \
+        || echo -e "${YELLOW}  ⚠ image-builder ロール付与に失敗 (既に付与済みの可能性)${RESET}"
+
+    # 各パイプラインの tag-dev タスク (oc tag でコミットSHAタグを :dev へ付け替える) は
+    # imagestreams の get/update が必要だが、system:image-builder には create しか
+    # 含まれておらず不十分 (2026-07-24 sandbox242 の新規クラスタで
+    # "cannot get resource imagestreams" により失敗するのを確認済み)。
+    # edit ロールを追加で付与する。
+    oc adm policy add-role-to-user edit \
+        "system:serviceaccount:${CICD_NAMESPACE}:pipeline" \
+        -n "${AI_AGENT_NAMESPACE}" >/dev/null 2>&1 \
+        && echo -e "${GREEN}  → pipeline SA に edit ロールを付与しました (tag-dev 用)${RESET}" \
+        || echo -e "${YELLOW}  ⚠ edit ロール付与に失敗 (既に付与済みの可能性)${RESET}"
+
+    # internal registry への push 用 docker-registry Secret
+    # (TriggerTemplate の workspace が参照する固定名: internal-registry-credentials)
+    if ! oc get secret internal-registry-credentials -n "${CICD_NAMESPACE}" &>/dev/null; then
+        local PIPELINE_SA_TOKEN
+        PIPELINE_SA_TOKEN=$(oc create token pipeline -n "${CICD_NAMESPACE}" --duration=24h 2>/dev/null || echo "")
+        if [ -n "${PIPELINE_SA_TOKEN}" ]; then
+            oc create secret docker-registry internal-registry-credentials \
+                -n "${CICD_NAMESPACE}" \
+                --docker-server="image-registry.openshift-image-registry.svc:5000" \
+                --docker-username=pipeline \
+                --docker-password="${PIPELINE_SA_TOKEN}" \
+                --docker-email=unused@example.com >/dev/null 2>&1 \
+                && echo -e "${GREEN}  → internal-registry-credentials Secret を作成しました${RESET}"
+        else
+            echo -e "${YELLOW}  ⚠ pipeline SA トークン取得に失敗、internal-registry-credentials 未作成${RESET}"
+        fi
+    else
+        echo -e "${GREEN}  → internal-registry-credentials Secret は既に存在します${RESET}"
+    fi
+
+    # business-api-build-pipeline の Maven キャッシュ用 PVC
+    if ! oc get pvc maven-cache-pvc -n "${CICD_NAMESPACE}" &>/dev/null; then
+        oc apply -f - <<EOF >/dev/null
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maven-cache-pvc
+  namespace: ${CICD_NAMESPACE}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+EOF
+        echo -e "${GREEN}  → maven-cache-pvc を作成しました${RESET}"
+    else
+        echo -e "${GREEN}  → maven-cache-pvc は既に存在します${RESET}"
+    fi
 
     oc apply -f "${PLATFORM_DIR}/deployment/tekton/tasks/" -n "${CICD_NAMESPACE}"
     oc apply -f "${PLATFORM_DIR}/deployment/tekton/pipelines/" -n "${CICD_NAMESPACE}"
@@ -912,6 +1191,8 @@ cleanup() {
 case "$1" in
     setup)         setup               ;;
     vllm)          vllm                ;;
+    keycloak)      provision_keycloak  ;;
+    mm2-tokens)    mm2_tokens          ;;
     deploy)        deploy "dev"        ;;
     deploy-prod)   deploy_prod         ;;
     deploy-latest) deploy_latest_image ;;
