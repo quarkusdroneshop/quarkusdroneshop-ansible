@@ -14,11 +14,15 @@
 #                7. OpenMetadata の検索インデックスを再構築
 #                8. GitHub の quarkusdroneshop-reward リポジトリを削除
 #                   (存在する場合のみ。存在しなければスキップする)
+#                9. その他サービス(web/counter/inventory/qdca10/qdca10pro/
+#                   homeoffice-ui/homeofficebackend)の不要なPipelineRun削除
+#                   (reward固有ではないが、CI/CD環境の定期清掃としてまとめて
+#                   実行できるよう組み込んでいる。対象Pipeline自体は残す)
 #
 # Author: Noriaki Mushino
 # Date Created: 2026-07-26
 # Last Modified: 2026-07-26
-# Version: 1.3
+# Version: 1.4
 #
 # Usage:
 #   ./reset-reward.sh                 # 対話確認の上、全ステップを実行
@@ -87,6 +91,12 @@ AIAGENT_NAMESPACE="ai-agent-platform"
 BSITE_TOPIC="rewards"
 ASITE_MIRROR_TOPIC="shop-bsite.rewards"
 CSITE_MIRROR_TOPIC="shop-bsite.rewards"
+
+# reward固有ではないが、CI/CDの定期清掃としてまとめて実行する
+# 不要PipelineRun削除の対象(サイトごとのアプリ名)
+ASITE_CLEANUP_APPS=(web counter)
+BSITE_CLEANUP_APPS=(inventory qdca10 qdca10pro)
+CSITE_CLEANUP_APPS=(homeoffice-ui homeofficebackend)
 
 DRY_RUN=false
 ASSUME_YES=false
@@ -168,6 +178,8 @@ echo "  - Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' (namespace: 
 echo "  - Cサイト: ミラートピック '${CSITE_MIRROR_TOPIC}' (namespace: ${DEMO_NAMESPACE})"
 echo "  - OpenMetadata: 検索インデックスの再構築(SearchIndexingApplication)"
 echo "  - GitHub: ${GITHUB_REPO} リポジトリ(存在する場合のみ)"
+echo "  - その他サービスの不要なPipelineRun: ${ASITE_CLEANUP_APPS[*]} (Aサイト) /"
+echo "    ${BSITE_CLEANUP_APPS[*]} (Bサイト) / ${CSITE_CLEANUP_APPS[*]} (Cサイト)"
 echo
 echo "接続できないクラスタがあれば、その場で admin ユーザー名/パスワードの入力を求めます。"
 echo
@@ -184,7 +196,7 @@ fi
 # 1. OpenMetadata: reward 関連トピックのメタデータ削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[1/8] OpenMetadata: reward関連トピックのメタデータを削除中...${RESET}"
+echo -e "${BLUE}[1/9] OpenMetadata: reward関連トピックのメタデータを削除中...${RESET}"
 
 if ! ensure_login "Hubクラスタ" "$HUB_API_SERVER" HUB_CONTEXT; then
   echo -e "${RED}OpenMetadata削除・reindexをスキップします。${RESET}"
@@ -233,7 +245,7 @@ fi
 # 2. RHDH: reward コンポーネントの削除(手動手順の案内のみ)
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[2/8] RHDH: reward コンポーネントの削除${RESET}"
+echo -e "${BLUE}[2/9] RHDH: reward コンポーネントの削除${RESET}"
 echo -e "${YELLOW}このスクリプトからはRHDHカタログAPIへの認証が確立できていないため、"
 echo -e "以下を手動で実施してください:${RESET}"
 echo "  1. RHDH の Catalog 画面で 'quarkusdroneshop-reward' コンポーネントを開く"
@@ -243,7 +255,7 @@ echo "  2. 右上メニューから 'Unregister entity' を実行する"
 # 3+4. Bサイト: Kafkaトピック / Pipeline関連リソースの削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[3/8] Bサイト: KafkaTopic '${BSITE_TOPIC}' を削除中...${RESET}"
+echo -e "${BLUE}[3/9] Bサイト: KafkaTopic '${BSITE_TOPIC}' を削除中...${RESET}"
 
 if ! ensure_login "Bサイト" "$BSITE_API_SERVER" BSITE_CONTEXT; then
   echo -e "${RED}スキップします。${RESET}"
@@ -253,7 +265,7 @@ else
 fi
 
 echo
-echo -e "${BLUE}[4/8] Bサイト: reward の Pipeline/PipelineRun/BuildConfig等を削除中...${RESET}"
+echo -e "${BLUE}[4/9] Bサイト: reward の Pipeline/PipelineRun/BuildConfig等を削除中...${RESET}"
 
 if ! oc --context="$BSITE_CONTEXT" whoami --request-timeout=10s &>/dev/null; then
   echo -e "${RED}Bサイトに接続できません。アプリリソースの削除をスキップします。${RESET}"
@@ -284,7 +296,7 @@ fi
 # 5. Aサイト: ミラートピックの削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[5/8] Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' を削除中...${RESET}"
+echo -e "${BLUE}[5/9] Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' を削除中...${RESET}"
 
 if ! ensure_login "Aサイト" "$ASITE_API_SERVER" ASITE_CONTEXT; then
   echo -e "${RED}スキップします。${RESET}"
@@ -300,7 +312,7 @@ fi
 # 6. Cサイト: ミラートピックの削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[6/8] Cサイト: ミラートピック '${CSITE_MIRROR_TOPIC}' を削除中...${RESET}"
+echo -e "${BLUE}[6/9] Cサイト: ミラートピック '${CSITE_MIRROR_TOPIC}' を削除中...${RESET}"
 
 if ! ensure_login "Cサイト" "$CSITE_API_SERVER" CSITE_CONTEXT; then
   echo -e "${RED}スキップします。${RESET}"
@@ -313,7 +325,7 @@ fi
 # 7. OpenMetadata: 検索インデックスの再構築
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[7/8] OpenMetadata: 検索インデックスを再構築中...${RESET}"
+echo -e "${BLUE}[7/9] OpenMetadata: 検索インデックスを再構築中...${RESET}"
 
 if [ -n "${OM_TOKEN:-}" ]; then
   if [ "$DRY_RUN" = true ]; then
@@ -330,7 +342,7 @@ fi
 # 8. GitHub: quarkusdroneshop-reward リポジトリの削除(存在する場合のみ)
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[8/8] GitHub: ${GITHUB_REPO} リポジトリを削除中...${RESET}"
+echo -e "${BLUE}[8/9] GitHub: ${GITHUB_REPO} リポジトリを削除中...${RESET}"
 
 if ! command -v gh &>/dev/null; then
   echo -e "${YELLOW}gh (GitHub CLI) が見つからないため、このステップをスキップします。${RESET}"
@@ -340,6 +352,41 @@ elif ! gh repo view "$GITHUB_REPO" &>/dev/null; then
   echo -e "${YELLOW}リポジトリ ${GITHUB_REPO} は存在しないため、スキップします。${RESET}"
 else
   run gh repo delete "$GITHUB_REPO" --yes
+fi
+
+# -----------------------------------------------------------------------------
+# 9. その他サービスの不要なPipelineRun削除(reward固有ではない定期清掃)
+# -----------------------------------------------------------------------------
+echo
+echo -e "${BLUE}[9/9] その他サービスの不要なPipelineRunを削除中...${RESET}"
+
+cleanup_pipelineruns() {
+  local site_label="$1" ctx="$2"
+  shift 2
+  local apps=("$@")
+  for app in "${apps[@]}"; do
+    run oc --context="$ctx" delete pipelinerun \
+      -l "app.kubernetes.io/instance=quarkusdroneshop-${app}" \
+      -n "$CICD_NAMESPACE" --ignore-not-found --request-timeout=30s
+  done
+}
+
+if ! oc --context="$ASITE_CONTEXT" whoami --request-timeout=10s &>/dev/null; then
+  echo -e "${RED}Aサイトに接続できないため、${ASITE_CLEANUP_APPS[*]} のPipelineRun削除をスキップします。${RESET}"
+else
+  cleanup_pipelineruns "Aサイト" "$ASITE_CONTEXT" "${ASITE_CLEANUP_APPS[@]}"
+fi
+
+if ! oc --context="$BSITE_CONTEXT" whoami --request-timeout=10s &>/dev/null; then
+  echo -e "${RED}Bサイトに接続できないため、${BSITE_CLEANUP_APPS[*]} のPipelineRun削除をスキップします。${RESET}"
+else
+  cleanup_pipelineruns "Bサイト" "$BSITE_CONTEXT" "${BSITE_CLEANUP_APPS[@]}"
+fi
+
+if ! oc --context="$CSITE_CONTEXT" whoami --request-timeout=10s &>/dev/null; then
+  echo -e "${RED}Cサイトに接続できないため、${CSITE_CLEANUP_APPS[*]} のPipelineRun削除をスキップします。${RESET}"
+else
+  cleanup_pipelineruns "Cサイト" "$CSITE_CONTEXT" "${CSITE_CLEANUP_APPS[@]}"
 fi
 
 echo
