@@ -378,6 +378,30 @@ EOF
         -o jsonpath='{.data.token}' | base64 -d
 }
 
+# キャッシュ済み context が見つからなかった場合のフォールバック。
+# ユーザー名/パスワードでその場で oc login し、SA/トークンを自動発行して
+# 標準出力に返す。処理後は必ず元の context に戻す(現在の接続クラスターを
+# 変えたままにしない)。
+_mm2_login_and_provision() {
+    local server="$1" user="$2" pass="$3"
+    local orig_ctx new_ctx token
+    orig_ctx="$(oc config current-context 2>/dev/null || true)"
+
+    if ! oc login "$server" -u "$user" -p "$pass" --insecure-skip-tls-verify=true >/dev/null 2>&1; then
+        echo -e "${RED}  ログインに失敗しました (${server})${RESET}" >&2
+        [ -n "$orig_ctx" ] && oc config use-context "$orig_ctx" >/dev/null 2>&1
+        return 1
+    fi
+
+    new_ctx="$(oc config current-context)"
+    oc project "$_mm2_site_namespace" >/dev/null 2>&1 || true
+    token="$(_mm2_provision_sa_token "$new_ctx")"
+
+    [ -n "$orig_ctx" ] && oc config use-context "$orig_ctx" >/dev/null 2>&1
+
+    [ -n "$token" ] && echo "$token"
+}
+
 mm2_tokens() {
     _sync_repo
 
@@ -406,13 +430,20 @@ mm2_tokens() {
         fi
 
         if [ -z "$token" ]; then
-            read -rsp "[${site}] トークン (${_mm2_site_namespace} namespace の kafkatopics/kafkamirrormaker2s 操作権限を持つSAのもの): " token
+            local site_user site_pass
+            read -rp "[${site}] ユーザー名: " site_user
+            read -rsp "[${site}] パスワード: " site_pass
             echo ""
+            if [ -n "$site_user" ] && [ -n "$site_pass" ]; then
+                echo -e "${BLUE}[${site}] ${server} にログインしてSA/トークンを発行中...${RESET}"
+                token="$(_mm2_login_and_provision "$server" "$site_user" "$site_pass" || true)"
+            fi
         fi
         if [ -z "$token" ]; then
-            echo -e "${RED}[${site}] トークンが未入力のためスキップします${RESET}" >&2
+            echo -e "${RED}[${site}] トークンを取得できなかったためスキップします${RESET}" >&2
             continue
         fi
+        echo -e "${GREEN}[${site}] トークン取得完了${RESET}"
 
         export "${server_var}=${server}"
         export "${token_var}=${token}"
