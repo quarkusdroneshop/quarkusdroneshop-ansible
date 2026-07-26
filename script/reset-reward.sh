@@ -11,10 +11,13 @@
 #                4. Bサイトの reward Pipeline/PipelineRun/BuildConfig等を削除
 #                5. Aサイトの shop-bsite.rewards ミラートピックを削除
 #                6. OpenMetadata の検索インデックスを再構築
+#                7. GitHub の quarkusdroneshop-reward リポジトリを削除
+#                   (存在する場合のみ。存在しなければスキップする)
 #
 # Author: Noriaki Mushino
 # Date Created: 2026-07-26
-# Version: 1.0
+# Last Modified: 2026-07-26
+# Version: 1.2
 #
 # Usage:
 #   ./reset-reward.sh                 # 対話確認の上、全ステップを実行
@@ -22,19 +25,26 @@
 #   ./reset-reward.sh --dry-run       # 実行コマンドを表示するだけで何もしない
 #
 # Prerequisites:
-#   - OpenShift CLI (oc) がインストール済みで、以下すべてのクラスタに
-#     対する context が `oc config get-contexts` に存在すること:
-#       - Bサイト (quarkusdroneshop-demo / quarkusdroneshop-cicd namespace)
-#       - Aサイト (quarkusdroneshop-demo namespace)
-#       - Hubクラスタ (ai-agent-platform namespace: OpenMetadataのbotトークン取得用)
+#   - OpenShift CLI (oc) がインストール済みであること
 #   - curl がインストール済み
 #
+#   各サイトの oc context (下記デフォルト値) に既にログイン済みでなくてもよい。
+#   未接続の場合、このスクリプトが admin ユーザー名 + パスワード入力を促し、
+#   その場で `oc login` を試みる(パスワードスキップ = 空Enterでその
+#   サイトの処理だけスキップして続行する)。
+#
 # 環境変数(すべて既定値あり。異なるsandbox環境で使う場合は上書きすること):
-#   BSITE_DEMO_CONTEXT   (既定: quarkusdroneshop-demo/api-ocp-659hh-sandbox2372-opentlc-com:6443/admin)
-#   BSITE_CICD_CONTEXT   (既定: quarkusdroneshop-cicd/api-ocp-659hh-sandbox2372-opentlc-com:6443/admin)
-#   ASITE_DEMO_CONTEXT   (既定: quarkusdroneshop-demo/api-ocp-zgjl6-sandbox780-opentlc-com:6443/admin)
-#   HUB_AIAGENT_CONTEXT  (既定: ai-agent-platform/api-ocp-t6gss-sandbox1120-opentlc-com:6443/admin)
+#   BSITE_CONTEXT        (既定: quarkusdroneshop-demo/api-ocp-659hh-sandbox2372-opentlc-com:6443/admin)
+#   BSITE_API_SERVER     (既定: https://api.ocp.659hh.sandbox2372.opentlc.com:6443)
+#   ASITE_CONTEXT        (既定: quarkusdroneshop-demo/api-ocp-zgjl6-sandbox780-opentlc-com:6443/admin)
+#   ASITE_API_SERVER     (既定: https://api.ocp.zgjl6.sandbox780.opentlc.com:6443)
+#   HUB_CONTEXT          (既定: ai-agent-platform/api-ocp-t6gss-sandbox1120-opentlc-com:6443/admin)
+#   HUB_API_SERVER       (既定: https://api.ocp.t6gss.sandbox1120.opentlc.com:6443)
 #   OM_HOST              (既定: http://openmetadata-openmetadata.apps.ocp.t6gss.sandbox1120.opentlc.com)
+#   GITHUB_REPO          (既定: quarkusdroneshop/quarkusdroneshop-reward)
+#
+# GitHubリポジトリ削除には gh CLI (認証済み、対象リポジトリへの delete 権限が
+# あること)が必要。gh が無い、または未認証の場合はこのステップのみスキップする。
 #
 # RHDHカタログについて:
 #   RHDH の Backstage カタログAPI (DELETE /api/catalog/entities/by-uid/{uid}) は
@@ -55,16 +65,20 @@ BLUE="\033[34m"
 YELLOW="\033[33m"
 RESET="\033[0m"
 
-BSITE_DEMO_CONTEXT="${BSITE_DEMO_CONTEXT:-quarkusdroneshop-demo/api-ocp-659hh-sandbox2372-opentlc-com:6443/admin}"
-BSITE_CICD_CONTEXT="${BSITE_CICD_CONTEXT:-quarkusdroneshop-cicd/api-ocp-659hh-sandbox2372-opentlc-com:6443/admin}"
-ASITE_DEMO_CONTEXT="${ASITE_DEMO_CONTEXT:-quarkusdroneshop-demo/api-ocp-zgjl6-sandbox780-opentlc-com:6443/admin}"
-HUB_AIAGENT_CONTEXT="${HUB_AIAGENT_CONTEXT:-ai-agent-platform/api-ocp-t6gss-sandbox1120-opentlc-com:6443/admin}"
+BSITE_CONTEXT="${BSITE_CONTEXT:-quarkusdroneshop-demo/api-ocp-659hh-sandbox2372-opentlc-com:6443/admin}"
+BSITE_API_SERVER="${BSITE_API_SERVER:-https://api.ocp.659hh.sandbox2372.opentlc.com:6443}"
+ASITE_CONTEXT="${ASITE_CONTEXT:-quarkusdroneshop-demo/api-ocp-zgjl6-sandbox780-opentlc-com:6443/admin}"
+ASITE_API_SERVER="${ASITE_API_SERVER:-https://api.ocp.zgjl6.sandbox780.opentlc.com:6443}"
+HUB_CONTEXT="${HUB_CONTEXT:-ai-agent-platform/api-ocp-t6gss-sandbox1120-opentlc-com:6443/admin}"
+HUB_API_SERVER="${HUB_API_SERVER:-https://api.ocp.t6gss.sandbox1120.opentlc.com:6443}"
 OM_HOST="${OM_HOST:-http://openmetadata-openmetadata.apps.ocp.t6gss.sandbox1120.opentlc.com}"
+GITHUB_REPO="${GITHUB_REPO:-quarkusdroneshop/quarkusdroneshop-reward}"
 
 APP_NAME="reward"
 INSTANCE_LABEL="app.kubernetes.io/instance=quarkusdroneshop-${APP_NAME}"
 DEMO_NAMESPACE="quarkusdroneshop-demo"
 CICD_NAMESPACE="quarkusdroneshop-cicd"
+AIAGENT_NAMESPACE="ai-agent-platform"
 BSITE_TOPIC="rewards"
 ASITE_MIRROR_TOPIC="shop-bsite.rewards"
 
@@ -86,6 +100,52 @@ run() {
   "$@"
 }
 
+# 接続できない場合に admin ユーザー名 + パスワードの入力を促し、その場で
+# oc login を試みる。成功したら $2 で渡された変数名にログイン後の
+# context名を書き戻す(以降の oc --context=... はこの新しいcontextを使う)。
+# 戻り値: 0=接続可能(既存 or ログイン成功) / 1=接続不可(スキップされた)
+ensure_login() {
+  local label="$1" api_server="$2" ctx_var_name="$3"
+  local current_ctx="${!ctx_var_name}"
+
+  if oc --context="$current_ctx" whoami --request-timeout=10s &>/dev/null; then
+    return 0
+  fi
+
+  echo -e "${YELLOW}${label} (${current_ctx}) に接続できません。${RESET}"
+
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${BLUE}(dry-run のためログインは試行しません)${RESET}"
+    return 1
+  fi
+
+  read -rp "  ${label} にログインします。ユーザー名 [admin]: " LOGIN_USER
+  LOGIN_USER="${LOGIN_USER:-admin}"
+  read -rsp "  ${label} (${LOGIN_USER}) パスワード (スキップする場合は空でEnter): " LOGIN_PASSWORD
+  echo
+  if [ -z "$LOGIN_PASSWORD" ]; then
+    echo -e "${YELLOW}${label} をスキップしました。${RESET}"
+    return 1
+  fi
+
+  local login_log
+  login_log="$(mktemp)"
+  if oc login "$api_server" -u "$LOGIN_USER" -p "$LOGIN_PASSWORD" \
+      --insecure-skip-tls-verify=true &>"$login_log"; then
+    local new_ctx
+    new_ctx="$(oc config current-context)"
+    printf -v "$ctx_var_name" '%s' "$new_ctx"
+    echo -e "${GREEN}${label} へのログインに成功しました(context: ${new_ctx})${RESET}"
+    rm -f "$login_log"
+    return 0
+  else
+    echo -e "${RED}${label} へのログインに失敗しました:${RESET}"
+    cat "$login_log" >&2
+    rm -f "$login_log"
+    return 1
+  fi
+}
+
 command -v oc &>/dev/null || { echo -e "${RED}エラー: oc (OpenShift CLI) が必要です${RESET}" >&2; exit 1; }
 command -v curl &>/dev/null || { echo -e "${RED}エラー: curl が必要です${RESET}" >&2; exit 1; }
 
@@ -100,6 +160,9 @@ echo "  - Bサイト: KafkaTopic '${BSITE_TOPIC}' (namespace: ${DEMO_NAMESPACE})
 echo "  - Bサイト: reward の Pipeline/PipelineRun/BuildConfig等 (namespace: ${DEMO_NAMESPACE}, ${CICD_NAMESPACE})"
 echo "  - Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' (namespace: ${DEMO_NAMESPACE})"
 echo "  - OpenMetadata: 検索インデックスの再構築(SearchIndexingApplication)"
+echo "  - GitHub: ${GITHUB_REPO} リポジトリ(存在する場合のみ)"
+echo
+echo "接続できないクラスタがあれば、その場で admin ユーザー名/パスワードの入力を求めます。"
 echo
 
 if [ "$ASSUME_YES" != true ] && [ "$DRY_RUN" != true ]; then
@@ -114,15 +177,15 @@ fi
 # 1. OpenMetadata: reward 関連トピックのメタデータ削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[1/6] OpenMetadata: reward関連トピックのメタデータを削除中...${RESET}"
+echo -e "${BLUE}[1/7] OpenMetadata: reward関連トピックのメタデータを削除中...${RESET}"
 
-if ! oc --context="$HUB_AIAGENT_CONTEXT" whoami --request-timeout=15s &>/dev/null; then
-  echo -e "${RED}Hubクラスタ(${HUB_AIAGENT_CONTEXT})に接続できません。OpenMetadata削除・reindexをスキップします。${RESET}"
+if ! ensure_login "Hubクラスタ" "$HUB_API_SERVER" HUB_CONTEXT; then
+  echo -e "${RED}OpenMetadata削除・reindexをスキップします。${RESET}"
 else
   # AI Agent Platform が使っている OpenMetadata の長期有効なbotトークンを流用する
   # (個人ユーザーのブラウザセッショントークンは短時間で失効するため使わない)
-  OM_TOKEN=$(oc --context="$HUB_AIAGENT_CONTEXT" get secret openmetadata-secret \
-    -n ai-agent-platform -o jsonpath='{.data.jwt-token}' 2>/dev/null | base64 -d)
+  OM_TOKEN=$(oc --context="$HUB_CONTEXT" get secret openmetadata-secret \
+    -n "$AIAGENT_NAMESPACE" -o jsonpath='{.data.jwt-token}' 2>/dev/null | base64 -d)
 
   if [ -z "$OM_TOKEN" ]; then
     echo -e "${RED}OpenMetadataのbotトークンが取得できませんでした。OpenMetadata削除・reindexをスキップします。${RESET}"
@@ -163,7 +226,7 @@ fi
 # 2. RHDH: reward コンポーネントの削除(手動手順の案内のみ)
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[2/6] RHDH: reward コンポーネントの削除${RESET}"
+echo -e "${BLUE}[2/7] RHDH: reward コンポーネントの削除${RESET}"
 echo -e "${YELLOW}このスクリプトからはRHDHカタログAPIへの認証が確立できていないため、"
 echo -e "以下を手動で実施してください:${RESET}"
 echo "  1. RHDH の Catalog 画面で 'quarkusdroneshop-reward' コンポーネントを開く"
@@ -173,42 +236,39 @@ echo "  2. 右上メニューから 'Unregister entity' を実行する"
 # 3+4. Bサイト: Kafkaトピック / Pipeline関連リソースの削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[3/6] Bサイト: KafkaTopic '${BSITE_TOPIC}' を削除中...${RESET}"
+echo -e "${BLUE}[3/7] Bサイト: KafkaTopic '${BSITE_TOPIC}' を削除中...${RESET}"
 
-if ! oc --context="$BSITE_DEMO_CONTEXT" whoami --request-timeout=15s &>/dev/null; then
-  echo -e "${RED}Bサイト(${BSITE_DEMO_CONTEXT})に接続できません。スキップします。${RESET}"
+if ! ensure_login "Bサイト" "$BSITE_API_SERVER" BSITE_CONTEXT; then
+  echo -e "${RED}スキップします。${RESET}"
 else
-  run oc --context="$BSITE_DEMO_CONTEXT" delete kafkatopic "$BSITE_TOPIC" \
+  run oc --context="$BSITE_CONTEXT" delete kafkatopic "$BSITE_TOPIC" \
     -n "$DEMO_NAMESPACE" --ignore-not-found --request-timeout=30s
 fi
 
 echo
-echo -e "${BLUE}[4/6] Bサイト: reward の Pipeline/PipelineRun/BuildConfig等を削除中...${RESET}"
+echo -e "${BLUE}[4/7] Bサイト: reward の Pipeline/PipelineRun/BuildConfig等を削除中...${RESET}"
 
-if ! oc --context="$BSITE_DEMO_CONTEXT" whoami --request-timeout=15s &>/dev/null; then
-  echo -e "${RED}Bサイト(${BSITE_DEMO_CONTEXT})に接続できません。アプリリソースの削除をスキップします。${RESET}"
+if ! oc --context="$BSITE_CONTEXT" whoami --request-timeout=10s &>/dev/null; then
+  echo -e "${RED}Bサイトに接続できません。アプリリソースの削除をスキップします。${RESET}"
 else
   # Deployment/Service/Route/BuildConfig/ImageStream 等、reward アプリの
   # 全リソースを app.kubernetes.io/instance ラベルで一括削除する
-  run oc --context="$BSITE_DEMO_CONTEXT" delete all,bc,is,pvc \
+  run oc --context="$BSITE_CONTEXT" delete all,bc,is,pvc \
     -l "$INSTANCE_LABEL" -n "$DEMO_NAMESPACE" --ignore-not-found --request-timeout=30s
-  run oc --context="$BSITE_DEMO_CONTEXT" delete route "$APP_NAME" \
+  run oc --context="$BSITE_CONTEXT" delete route "$APP_NAME" \
     -n "$DEMO_NAMESPACE" --ignore-not-found --request-timeout=30s
-fi
 
-if ! oc --context="$BSITE_CICD_CONTEXT" whoami --request-timeout=15s &>/dev/null; then
-  echo -e "${RED}BサイトCICD(${BSITE_CICD_CONTEXT})に接続できません。Pipeline削除をスキップします。${RESET}"
-else
-  run oc --context="$BSITE_CICD_CONTEXT" delete pipeline,pipelinerun \
+  # Pipeline/PipelineRun は同じクラスタの quarkusdroneshop-cicd namespace にある
+  run oc --context="$BSITE_CONTEXT" delete pipeline,pipelinerun \
     -l "$INSTANCE_LABEL" -n "$CICD_NAMESPACE" --ignore-not-found --request-timeout=30s
   # 名前が直接分かっているものは念のため個別にも指定して削除する(ラベル漏れ対策)
-  run oc --context="$BSITE_CICD_CONTEXT" delete pipeline \
+  run oc --context="$BSITE_CONTEXT" delete pipeline \
     "build-and-push-quarkusdroneshop-${APP_NAME}" \
     -n "$CICD_NAMESPACE" --ignore-not-found --request-timeout=30s
-  run oc --context="$BSITE_CICD_CONTEXT" delete pipelinerun \
+  run oc --context="$BSITE_CONTEXT" delete pipelinerun \
     "build-and-push-quarkusdroneshop-${APP_NAME}" \
     -n "$CICD_NAMESPACE" --ignore-not-found --request-timeout=30s
-  run oc --context="$BSITE_CICD_CONTEXT" delete pvc \
+  run oc --context="$BSITE_CONTEXT" delete pvc \
     "quarkusdroneshop-${APP_NAME}-shared-workspace-pvc" \
     -n "$CICD_NAMESPACE" --ignore-not-found --request-timeout=30s
 fi
@@ -217,12 +277,12 @@ fi
 # 5. Aサイト: ミラートピックの削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[5/6] Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' を削除中...${RESET}"
+echo -e "${BLUE}[5/7] Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' を削除中...${RESET}"
 
-if ! oc --context="$ASITE_DEMO_CONTEXT" whoami --request-timeout=15s &>/dev/null; then
-  echo -e "${RED}Aサイト(${ASITE_DEMO_CONTEXT})に接続できません。スキップします。${RESET}"
+if ! ensure_login "Aサイト" "$ASITE_API_SERVER" ASITE_CONTEXT; then
+  echo -e "${RED}スキップします。${RESET}"
 else
-  run oc --context="$ASITE_DEMO_CONTEXT" delete kafkatopic "$ASITE_MIRROR_TOPIC" \
+  run oc --context="$ASITE_CONTEXT" delete kafkatopic "$ASITE_MIRROR_TOPIC" \
     -n "$DEMO_NAMESPACE" --ignore-not-found --request-timeout=30s
   echo -e "${YELLOW}注意: MirrorMaker2 の topicsPattern に '${BSITE_TOPIC}' が含まれたままだと"
   echo -e "再度自動でミラーされる可能性があります。恒久的に止めたい場合は"
@@ -233,7 +293,7 @@ fi
 # 6. OpenMetadata: 検索インデックスの再構築
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[6/6] OpenMetadata: 検索インデックスを再構築中...${RESET}"
+echo -e "${BLUE}[6/7] OpenMetadata: 検索インデックスを再構築中...${RESET}"
 
 if [ -n "${OM_TOKEN:-}" ]; then
   if [ "$DRY_RUN" = true ]; then
@@ -244,6 +304,22 @@ if [ -n "${OM_TOKEN:-}" ]; then
   fi
 else
   echo -e "${YELLOW}OpenMetadataのトークンが取得できなかったため、reindexをスキップしました。${RESET}"
+fi
+
+# -----------------------------------------------------------------------------
+# 7. GitHub: quarkusdroneshop-reward リポジトリの削除(存在する場合のみ)
+# -----------------------------------------------------------------------------
+echo
+echo -e "${BLUE}[7/7] GitHub: ${GITHUB_REPO} リポジトリを削除中...${RESET}"
+
+if ! command -v gh &>/dev/null; then
+  echo -e "${YELLOW}gh (GitHub CLI) が見つからないため、このステップをスキップします。${RESET}"
+elif ! gh auth status &>/dev/null; then
+  echo -e "${YELLOW}gh が未認証のため、このステップをスキップします(gh auth login を実行してください)。${RESET}"
+elif ! gh repo view "$GITHUB_REPO" &>/dev/null; then
+  echo -e "${YELLOW}リポジトリ ${GITHUB_REPO} は存在しないため、スキップします。${RESET}"
+else
+  run gh repo delete "$GITHUB_REPO" --yes
 fi
 
 echo
