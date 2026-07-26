@@ -305,6 +305,122 @@ curl --request POST http://${ENDPOINT}/order \
 
 ---
 
+## GitHub トークンの設定 (`regithubtoken`)
+
+RHDH の GitHub Integration (カタログの GitHub Org Provider / Scaffolder の GitHub Publish) が使う `GITHUB_TOKEN` は、
+`secrets-rhdh.yaml` には**意図的に定義されていません**(このファイルを `oc apply` するたびに固定値へ巻き戻り、
+GitHub API が 401 Unauthorized になる事故が過去にあったため)。
+
+新規クラスタへのデプロイ後、および `secrets-rhdh` Secret を作り直した後は、必ず以下を実行してトークンを設定してください。
+
+```bash
+# 1. 手元の gh CLI トークンを使う場合
+export GITHUB_TOKEN=$(gh auth token)
+./script/developer-hub.sh regithubtoken
+
+# 2. 対話的に入力する場合 (環境変数を設定しなければ入力プロンプトが出ます)
+./script/developer-hub.sh regithubtoken
+```
+
+`regithubtoken` は `secrets-rhdh` Secret への直接 `oc patch`(YAMLファイルの apply ではない)でトークンを設定し、
+`backstage-developer-hub` Deployment を自動的にロールアウト再起動します。
+
+**未設定のまま放置すると起きること:**
+- GitHub API が未認証扱いになり、レート制限が 5000 回/時間 → 60 回/時間に低下する
+- カタログの GitHub Org Provider (`quarkusdroneshop` org の定期クロール、既定 30 分間隔) がレート制限で失敗し続け、
+  カタログエンティティの `catalog-info.yaml` の場所などが**古いまま更新されなくなる**
+  (例: 「Unable to read url, no matching files found for .../src/main/resources/catalog-info.yaml」のような、
+  実際には存在しないパスを指すエラーがカタログ画面に表示され続ける)
+- Scaffolder の `publish:github` アクション (GitHubへのPush) が
+  `No token available for host: github.com` で失敗する
+
+設定後、`oc exec` でPod内から `curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/rate_limit` を
+叩けば、認証済みレート制限 (`"limit": 5000`) になっているか確認できます。
+
+---
+
+## RHDH データベースの復元 (`developerhub-export/`)
+
+`../developerhub-export/` に `pg_dumpall` によるフルバックアップがあります。詳細な取得・復元コマンドは
+[`developerhub-export/README.md`](../developerhub-export/README.md) を参照してください。**新規クラスタや
+再デプロイ後にこのダンプをインポートする際は、以下のチェック・手順を必ず踏んでください。**
+
+### 1. インポート前のダンプファイルチェック
+
+複数のダンプファイルがある場合、`.tmp` サフィックスのファイルや、取得中に中断されたものが混在していることが
+あります。**必ず末尾が正常に終端しているか確認してから使うファイルを選ぶこと。**
+
+```bash
+tail -c 500 backstage_psql_dump_<timestamp>.sql
+# 正常なファイルは以下で終わっている:
+#   -- PostgreSQL database dump complete
+#   -- PostgreSQL database cluster dump complete
+```
+
+途中で切れている(バイナリデータの途中で終わっている等)ファイルは不完全なダンプなので使用しないこと。
+
+### 2. 復元先が「空」であることを確認する
+
+`deploy` 実行直後の新規クラスタでは、Backstage 自身が起動時に空のスキーマ/テーブルを既に作成済みです。
+この状態にそのまま `pg_dumpall` の出力を流し込むと、`CREATE TABLE` が "already exists" で全て失敗し、
+さらに外部キー制約違反で実データ (`final_entities` 等) が 0 件のまま復元が"見かけ上成功"してしまいます
+(`psql` はデフォルトでエラーを無視して次の文へ進み続けるため、終了コードは 0 になり気づきにくい)。
+
+**復元前に必ず対象データベース群を削除して空にすること:**
+
+```bash
+# 1. Backstage を停止 (DBへの接続・マイグレーションを止める)
+oc scale deployment/backstage-developer-hub -n quarkusdroneshop-rhdh --replicas=0
+
+# 2. 既存の backstage_plugin_* データベースを列挙して削除
+oc exec -i backstage-psql-developer-hub-0 -n quarkusdroneshop-rhdh -- \
+  bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$PGUSER" -h 127.0.0.1 -tAc \
+    "SELECT datname FROM pg_database WHERE datname LIKE '"'"'backstage_plugin_%'"'"';"'
+
+for db in <上記で列挙されたDB名から backstage_plugin_ を除いた部分を並べる>; do
+  oc exec -i backstage-psql-developer-hub-0 -n quarkusdroneshop-rhdh -- \
+    bash -c "PGPASSWORD=\"\$POSTGRES_PASSWORD\" psql -U \"\$PGUSER\" -h 127.0.0.1 -c \"DROP DATABASE IF EXISTS \\\"backstage_plugin_${db}\\\" WITH (FORCE);\""
+done
+
+# 3. developerhub-export/README.md の手順でダンプを流し込む
+```
+
+### 3. 復元後は必ずデータ件数を検証する
+
+エラーが出ていなくても実データが入っていないことがあるため、必ず件数を確認する。
+
+```bash
+oc exec -i backstage-psql-developer-hub-0 -n quarkusdroneshop-rhdh -- \
+  bash -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$PGUSER" -h 127.0.0.1 -d backstage_plugin_catalog -tAc "SELECT count(*) FROM final_entities;"'
+# 0 件なら復元失敗 (手順2をやり直す)
+```
+
+### 4. `postgres` ロールのパスワードを復元する
+
+`pg_dumpall` の出力には `ALTER ROLE postgres ... PASSWORD ...` が含まれており、**復元すると `postgres` ロールの
+実パスワードがダンプ取得元(古いクラスタ)の値に上書きされる。** そのままだと `backstage-backend` が
+`password authentication failed for user "postgres"` でクラッシュループする。
+
+復元直後に、今のクラスタの Pod が実際に持っている `POSTGRES_PASSWORD` へ必ず戻すこと:
+
+```bash
+oc exec -i backstage-psql-developer-hub-0 -n quarkusdroneshop-rhdh -- \
+  bash -c 'psql -U "$PGUSER" -h 127.0.0.1 -c "ALTER ROLE postgres WITH PASSWORD '"'"'${POSTGRES_PASSWORD}'"'"';"'
+```
+
+### 5. Backstage を再起動して確認
+
+```bash
+oc scale deployment/backstage-developer-hub -n quarkusdroneshop-rhdh --replicas=1
+oc rollout status deployment/backstage-developer-hub -n quarkusdroneshop-rhdh --timeout=300s
+```
+
+再起動後、上記「GitHub トークンの設定」も必ず確認すること。カタログの GitHub Org Provider が
+GITHUB_TOKEN 未設定/レート制限で再クロールできないと、復元した古いダンプに含まれる**古いカタログ情報
+(存在しないファイルパス等)がいつまでも更新されない**ため、復元後の初回確認では特にセットで確認する。
+
+---
+
 ## トラブルシューティング
 
 ### Operator バージョン不一致でインストールが失敗する

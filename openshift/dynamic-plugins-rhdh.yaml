@@ -129,7 +129,7 @@ data:
       # (存在しないtgzを参照したままRHDHを起動させない)。
       - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-kafka-topic-request-scaffolder-actions-dynamic-0.1.0.tgz'
         disabled: false
-        integrity: 'sha512-ETpmEb8oSVhuk/WECiX0pyklD0DSBZk7gZJDhqFsMF3u2LpQuU1KWViV7IYfn5c+ionBosYcbeB6sw1GyyfpFA=='
+        integrity: 'sha512-8UX5fptZejIQy9Lxp4knj8YUiEt723q35r5glXjHtDpIgMD/KVm5cYVEJGK21uiiayoK+Z94/Tv5i5HoeRp2Fg=='
 
       # Skupper ネットワークコンソール プラグイン（Skupper Network Observer を iframe 埋め込み）
       # NOTE: integrity は script/developer-hub.sh update-plugin で実ビルド後に自動更新される。
@@ -137,7 +137,7 @@ data:
       # (存在しないtgzを参照したままRHDHを起動させない)。
       - package: 'http://plugin-proxy-server.quarkusdroneshop-rhdh.svc.cluster.local:8080/internal-plugin-skupper-console-dynamic-0.1.0.tgz'
         disabled: true
-        integrity: 'sha512-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+        integrity: 'sha512-'
         pluginConfig:
           dynamicPlugins:
             frontend:

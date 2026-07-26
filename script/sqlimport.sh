@@ -277,8 +277,9 @@ import_openmetadata() {
     echo -e "${YELLOW}  [3/7] OpenMetadataを起動し、マイグレーションで正規スキーマ(177テーブル)を作成${RESET}"
     echo -e "${YELLOW}  [4/7] 再度停止${RESET}"
     echo -e "${YELLOW}  [5/7] ダンプを流し込み(--force、内部テーブルのcharset不一致を自動修復)${RESET}"
-    echo -e "${YELLOW}  [6/7] OpenMetadataを再開${RESET}"
-    echo -e "${YELLOW}  [7/7] Search Indexing を再実行してOpenSearchのExplore/リネージ表示を復旧${RESET}"
+    echo -e "${YELLOW}  [6/8] OpenMetadataを再開${RESET}"
+    echo -e "${YELLOW}  [7/8] Search Indexing を再実行してOpenSearchのExplore/リネージ表示を復旧${RESET}"
+    echo -e "${YELLOW}  [8/8] データカタログ埋め込み用プロキシ(om-embed-proxy)とom-proxy-openmetadataルートを作成/更新${RESET}"
     echo -e "${RED}  ※ 現在のOpenMetadataのデータは完全に失われます。${RESET}"
     confirm_or_abort "namespace '${OPENMETADATA_NAMESPACE}' の openmetadata_db を完全リセットしてインポートします。よろしいですか？"
 
@@ -332,7 +333,7 @@ import_openmetadata() {
     oc scale deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --replicas=1
     oc rollout status deployment/"$OPENMETADATA_DEPLOYMENT" -n "$OPENMETADATA_NAMESPACE" --timeout=300s
 
-    echo -e "${BLUE}[7/7] Search Indexing を再実行中 (Explore/リネージ表示の復旧)...${RESET}"
+    echo -e "${BLUE}[7/8] Search Indexing を再実行中 (Explore/リネージ表示の復旧)...${RESET}"
     local om_host token
     om_host="$(oc get route openmetadata -n "$OPENMETADATA_NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null)"
     if [ -z "$om_host" ]; then
@@ -351,7 +352,139 @@ import_openmetadata() {
         fi
     fi
 
+    echo -e "${BLUE}[8/8] データカタログ埋め込み用プロキシ/ルートを作成中...${RESET}"
+    setup_om_embed_proxy "$om_host"
+
     echo -e "${GREEN}OpenMetadata (MySQL) のインポートが完了しました。${RESET}"
+}
+
+# RHDHの「データカタログ」タブはOpenMetadataの画面を素のままiframe表示すると
+# 左サイドメニュー/ヘッダーが二重に出て見苦しいため、間にCSS注入用の
+# 軽量nginxリバースプロキシ(om-embed-proxy)を挟み、`om-proxy-openmetadata`
+# という名前のRoute経由でアクセスさせる。内部プラグイン側は
+# `https://om-proxy-openmetadata.<openmetadataルートと同じクラスタドメイン>`
+# を決め打ちで参照するため、ルート名とホスト命名規則は変更しないこと。
+setup_om_embed_proxy() {
+    local om_host="$1"
+    if [ -z "$om_host" ]; then
+        echo -e "${YELLOW}  → openmetadata route が見つからないため、om-embed-proxy のセットアップをスキップします${RESET}"
+        return
+    fi
+
+    local proxy_host
+    proxy_host="$(echo "$om_host" | sed -E 's/^openmetadata-openmetadata\./om-proxy-openmetadata./')"
+    if [ "$proxy_host" = "$om_host" ]; then
+        echo -e "${YELLOW}  → openmetadata route のホスト名が想定形式(openmetadata-openmetadata.*)と異なるため、${RESET}"
+        echo -e "${YELLOW}    om-embed-proxy のセットアップをスキップします (host: ${om_host})${RESET}"
+        return
+    fi
+
+    cat <<EOF | oc apply -f - >/dev/null
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: om-embed-proxy-nginx-conf
+  namespace: ${OPENMETADATA_NAMESPACE}
+data:
+  default.conf: |
+    server {
+        listen 8080;
+
+        location / {
+            proxy_pass http://${OPENMETADATA_DEPLOYMENT}.${OPENMETADATA_NAMESPACE}.svc.cluster.local:8585;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_set_header Accept-Encoding "";
+
+            proxy_hide_header Content-Security-Policy;
+            proxy_hide_header X-Frame-Options;
+
+            sub_filter_types text/html;
+            sub_filter_once on;
+            sub_filter '</head>' '<style>.app-container > aside.ant-layout-sider{display:none !important;} .app-container > section.ant-layout > header.ant-layout-header:not(.pricing-banner){display:none !important;}</style></head>';
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: om-embed-proxy
+  namespace: ${OPENMETADATA_NAMESPACE}
+  labels:
+    app: om-embed-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: om-embed-proxy
+  template:
+    metadata:
+      labels:
+        app: om-embed-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: docker.io/nginxinc/nginx-unprivileged:alpine
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+      volumes:
+        - name: conf
+          configMap:
+            name: om-embed-proxy-nginx-conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: om-embed-proxy
+  namespace: ${OPENMETADATA_NAMESPACE}
+spec:
+  selector:
+    app: om-embed-proxy
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: om-proxy-openmetadata
+  namespace: ${OPENMETADATA_NAMESPACE}
+  labels:
+    app.kubernetes.io/instance: openmetadata
+    app.kubernetes.io/name: openmetadata
+spec:
+  host: ${proxy_host}
+  port:
+    targetPort: http
+  to:
+    kind: Service
+    name: om-embed-proxy
+    weight: 100
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+EOF
+
+    echo -e "${BLUE}  → om-embed-proxy Podの起動を待機中...${RESET}"
+    local i
+    for i in $(seq 1 30); do
+        if oc get pods -n "$OPENMETADATA_NAMESPACE" -l app=om-embed-proxy \
+            -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q true; then
+            break
+        fi
+        sleep 3
+    done
+
+    local code
+    code="$(curl -sk -o /dev/null -w '%{http_code}' "https://${proxy_host}/my-data" || true)"
+    echo -e "${GREEN}  → https://${proxy_host}/my-data -> HTTP ${code}${RESET}"
 }
 
 import_developerhub() {

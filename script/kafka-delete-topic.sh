@@ -11,8 +11,12 @@
 #   - OpenShift CLI (oc) is installed and configured
 #   - User is logged into OpenShift
 #
+# Usage:
+#   ./kafka-delete-topic.sh              # 対象ドメインのすべてのTopicを削除 (従来動作)
+#   ./kafka-delete-topic.sh <topic-name>  # 指定した1つのTopicのみ削除
+#
 # =============================================================================
-# 注意: ログイン後、対象ドメインのすべてのTopicを消します。
+# 注意: 引数を指定しない場合、対象ドメインのすべてのTopicを消します。
 
 RED="\033[31m"
 GREEN="\033[32m"
@@ -42,6 +46,17 @@ echo "このシェルは不要なTopicを消します"
 echo "###################################"
 echo
 echo -e "${BLUE}Target Kafka Pod: $KAFKA_POD${RESET}"
+
+TARGET_TOPIC="$1"
+
+if [ -n "$TARGET_TOPIC" ]; then
+    echo -e "${YELLOW}指定したTopicのみ削除します: ${TARGET_TOPIC}${RESET}"
+    oc exec -n "$NAMESPACE" -it "$KAFKA_POD" -- bash -c "
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVER --delete --topic '$TARGET_TOPIC'
+    "
+    echo -e "${GREEN}完了しました。${RESET}"
+    exit 0
+fi
 
 # Kafka Pod 内でトピックリストを取得し、該当するものだけ削除する
 oc exec -n "$NAMESPACE" -it "$KAFKA_POD" -- bash -c "
