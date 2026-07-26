@@ -22,7 +22,7 @@
 # Author: Noriaki Mushino
 # Date Created: 2026-07-26
 # Last Modified: 2026-07-26
-# Version: 1.4
+# Version: 1.5
 #
 # Usage:
 #   ./reset-reward.sh                 # 対話確認の上、全ステップを実行
@@ -82,6 +82,7 @@ HUB_CONTEXT="${HUB_CONTEXT:-ai-agent-platform/api-ocp-t6gss-sandbox1120-opentlc-
 HUB_API_SERVER="${HUB_API_SERVER:-https://api.ocp.t6gss.sandbox1120.opentlc.com:6443}"
 OM_HOST="${OM_HOST:-http://openmetadata-openmetadata.apps.ocp.t6gss.sandbox1120.opentlc.com}"
 GITHUB_REPO="${GITHUB_REPO:-quarkusdroneshop/quarkusdroneshop-reward}"
+MM2_NAME="mm2-extended"
 
 APP_NAME="reward"
 INSTANCE_LABEL="app.kubernetes.io/instance=quarkusdroneshop-${APP_NAME}"
@@ -160,6 +161,45 @@ ensure_login() {
     rm -f "$login_log"
     return 1
   fi
+}
+
+# ミラー先サイト自身の mm2-extended (対象サイトへ他サイトのトピックを
+# 継続的にミラーし続けるKafkaMirrorMaker2)は refresh.topics.interval.seconds=10
+# で数秒おきにソース側のトピック一覧を再検出するため、一時停止せずに
+# ミラートピックを削除すると、削除直後に再作成されてしまう
+# (2026-07-26 実際にshop-bsite.rewardsがAサイトで再作成される事象で発覚)。
+# ミラートピック削除の前後でそのサイト自身のmm2-extendedを一時停止/再開する。
+pause_mm2() {
+  local ctx="$1"
+  run oc --context="$ctx" annotate kafkamirrormaker2 "$MM2_NAME" -n "$DEMO_NAMESPACE" \
+    strimzi.io/pause-reconciliation="true" --overwrite --request-timeout=15s
+  if [ "$DRY_RUN" != true ]; then
+    sleep 5
+  fi
+}
+
+resume_mm2() {
+  local ctx="$1"
+  run oc --context="$ctx" annotate kafkamirrormaker2 "$MM2_NAME" -n "$DEMO_NAMESPACE" \
+    strimzi.io/pause-reconciliation="false" --overwrite --request-timeout=15s
+}
+
+# KafkaTopic CR と実ブローカー上のトピックが不整合な状態
+# (CRだけ消えてブローカーにトピック実体だけ残る)になることがあるため、
+# CR削除に加えてブローカーへ直接 kafka-topics.sh --delete も実行する
+# (存在しなければ何もしない。--ignore-not-found 相当のフォールバック)。
+delete_broker_topic() {
+  local ctx="$1" topic="$2"
+  local broker_pod
+  broker_pod="$(oc --context="$ctx" get pod -n "$DEMO_NAMESPACE" -l strimzi.io/kind=Kafka \
+    --request-timeout=15s -o name 2>/dev/null | grep -m1 -- '-brokers-' | sed 's#pod/##')"
+  if [ -z "$broker_pod" ]; then
+    echo -e "${YELLOW}Kafkaブローカーポッドが見つからないため、ブローカー直接削除をスキップします。${RESET}"
+    return 0
+  fi
+  run oc --context="$ctx" exec -n "$DEMO_NAMESPACE" "$broker_pod" --request-timeout=30s -- \
+    bash -c "/opt/kafka/bin/kafka-topics.sh --bootstrap-server shop-cluster-kafka-bootstrap:9092 --delete --topic '$topic'" \
+    2>/dev/null || true
 }
 
 command -v oc &>/dev/null || { echo -e "${RED}エラー: oc (OpenShift CLI) が必要です${RESET}" >&2; exit 1; }
@@ -262,6 +302,7 @@ if ! ensure_login "Bサイト" "$BSITE_API_SERVER" BSITE_CONTEXT; then
 else
   run oc --context="$BSITE_CONTEXT" delete kafkatopic "$BSITE_TOPIC" \
     -n "$DEMO_NAMESPACE" --ignore-not-found --request-timeout=30s
+  delete_broker_topic "$BSITE_CONTEXT" "$BSITE_TOPIC"
 fi
 
 echo
@@ -301,11 +342,15 @@ echo -e "${BLUE}[5/9] Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' 
 if ! ensure_login "Aサイト" "$ASITE_API_SERVER" ASITE_CONTEXT; then
   echo -e "${RED}スキップします。${RESET}"
 else
+  pause_mm2 "$ASITE_CONTEXT"
   run oc --context="$ASITE_CONTEXT" delete kafkatopic "$ASITE_MIRROR_TOPIC" \
     -n "$DEMO_NAMESPACE" --ignore-not-found --request-timeout=30s
-  echo -e "${YELLOW}注意: MirrorMaker2 の topicsPattern に '${BSITE_TOPIC}' が含まれたままだと"
-  echo -e "再度自動でミラーされる可能性があります。恒久的に止めたい場合は"
-  echo -e "mm2-extended の spec.mirrors[].topicsPattern から除外することを検討してください。${RESET}"
+  delete_broker_topic "$ASITE_CONTEXT" "$ASITE_MIRROR_TOPIC"
+  resume_mm2 "$ASITE_CONTEXT"
+  echo -e "${YELLOW}注意: MirrorMaker2 の topicsPattern に '${BSITE_TOPIC}' が含まれたままなので"
+  echo -e "(意図的に維持している。将来同名のトピックを再作成した際に自動ミラーされるため)、"
+  echo -e "Bサイトに '${BSITE_TOPIC}' が存在する限りは再度ミラーされます。恒久的に止めたい場合は"
+  echo -e "mm2-extended の spec.mirrors[].topicsPattern から除外してください。${RESET}"
 fi
 
 # -----------------------------------------------------------------------------
@@ -317,8 +362,11 @@ echo -e "${BLUE}[6/9] Cサイト: ミラートピック '${CSITE_MIRROR_TOPIC}' 
 if ! ensure_login "Cサイト" "$CSITE_API_SERVER" CSITE_CONTEXT; then
   echo -e "${RED}スキップします。${RESET}"
 else
+  pause_mm2 "$CSITE_CONTEXT"
   run oc --context="$CSITE_CONTEXT" delete kafkatopic "$CSITE_MIRROR_TOPIC" \
     -n "$DEMO_NAMESPACE" --ignore-not-found --request-timeout=30s
+  delete_broker_topic "$CSITE_CONTEXT" "$CSITE_MIRROR_TOPIC"
+  resume_mm2 "$CSITE_CONTEXT"
 fi
 
 # -----------------------------------------------------------------------------
