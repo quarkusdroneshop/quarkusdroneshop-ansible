@@ -10,14 +10,15 @@
 #                3. Bサイトの rewards Kafkaトピック(KafkaTopic CR)を削除
 #                4. Bサイトの reward Pipeline/PipelineRun/BuildConfig等を削除
 #                5. Aサイトの shop-bsite.rewards ミラートピックを削除
-#                6. OpenMetadata の検索インデックスを再構築
-#                7. GitHub の quarkusdroneshop-reward リポジトリを削除
+#                6. Cサイトの shop-bsite.rewards ミラートピックを削除
+#                7. OpenMetadata の検索インデックスを再構築
+#                8. GitHub の quarkusdroneshop-reward リポジトリを削除
 #                   (存在する場合のみ。存在しなければスキップする)
 #
 # Author: Noriaki Mushino
 # Date Created: 2026-07-26
 # Last Modified: 2026-07-26
-# Version: 1.2
+# Version: 1.3
 #
 # Usage:
 #   ./reset-reward.sh                 # 対話確認の上、全ステップを実行
@@ -38,6 +39,8 @@
 #   BSITE_API_SERVER     (既定: https://api.ocp.659hh.sandbox2372.opentlc.com:6443)
 #   ASITE_CONTEXT        (既定: quarkusdroneshop-demo/api-ocp-zgjl6-sandbox780-opentlc-com:6443/admin)
 #   ASITE_API_SERVER     (既定: https://api.ocp.zgjl6.sandbox780.opentlc.com:6443)
+#   CSITE_CONTEXT        (既定: quarkusdroneshop-demo/api-ocp-44gnd-sandbox850-opentlc-com:6443/admin)
+#   CSITE_API_SERVER     (既定: https://api.ocp.44gnd.sandbox850.opentlc.com:6443)
 #   HUB_CONTEXT          (既定: ai-agent-platform/api-ocp-t6gss-sandbox1120-opentlc-com:6443/admin)
 #   HUB_API_SERVER       (既定: https://api.ocp.t6gss.sandbox1120.opentlc.com:6443)
 #   OM_HOST              (既定: http://openmetadata-openmetadata.apps.ocp.t6gss.sandbox1120.opentlc.com)
@@ -69,6 +72,8 @@ BSITE_CONTEXT="${BSITE_CONTEXT:-quarkusdroneshop-demo/api-ocp-659hh-sandbox2372-
 BSITE_API_SERVER="${BSITE_API_SERVER:-https://api.ocp.659hh.sandbox2372.opentlc.com:6443}"
 ASITE_CONTEXT="${ASITE_CONTEXT:-quarkusdroneshop-demo/api-ocp-zgjl6-sandbox780-opentlc-com:6443/admin}"
 ASITE_API_SERVER="${ASITE_API_SERVER:-https://api.ocp.zgjl6.sandbox780.opentlc.com:6443}"
+CSITE_CONTEXT="${CSITE_CONTEXT:-quarkusdroneshop-demo/api-ocp-44gnd-sandbox850-opentlc-com:6443/admin}"
+CSITE_API_SERVER="${CSITE_API_SERVER:-https://api.ocp.44gnd.sandbox850.opentlc.com:6443}"
 HUB_CONTEXT="${HUB_CONTEXT:-ai-agent-platform/api-ocp-t6gss-sandbox1120-opentlc-com:6443/admin}"
 HUB_API_SERVER="${HUB_API_SERVER:-https://api.ocp.t6gss.sandbox1120.opentlc.com:6443}"
 OM_HOST="${OM_HOST:-http://openmetadata-openmetadata.apps.ocp.t6gss.sandbox1120.opentlc.com}"
@@ -81,6 +86,7 @@ CICD_NAMESPACE="quarkusdroneshop-cicd"
 AIAGENT_NAMESPACE="ai-agent-platform"
 BSITE_TOPIC="rewards"
 ASITE_MIRROR_TOPIC="shop-bsite.rewards"
+CSITE_MIRROR_TOPIC="shop-bsite.rewards"
 
 DRY_RUN=false
 ASSUME_YES=false
@@ -159,6 +165,7 @@ echo "  - RHDH: reward コンポーネントの登録(※手動手順の案内�
 echo "  - Bサイト: KafkaTopic '${BSITE_TOPIC}' (namespace: ${DEMO_NAMESPACE})"
 echo "  - Bサイト: reward の Pipeline/PipelineRun/BuildConfig等 (namespace: ${DEMO_NAMESPACE}, ${CICD_NAMESPACE})"
 echo "  - Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' (namespace: ${DEMO_NAMESPACE})"
+echo "  - Cサイト: ミラートピック '${CSITE_MIRROR_TOPIC}' (namespace: ${DEMO_NAMESPACE})"
 echo "  - OpenMetadata: 検索インデックスの再構築(SearchIndexingApplication)"
 echo "  - GitHub: ${GITHUB_REPO} リポジトリ(存在する場合のみ)"
 echo
@@ -177,7 +184,7 @@ fi
 # 1. OpenMetadata: reward 関連トピックのメタデータ削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[1/7] OpenMetadata: reward関連トピックのメタデータを削除中...${RESET}"
+echo -e "${BLUE}[1/8] OpenMetadata: reward関連トピックのメタデータを削除中...${RESET}"
 
 if ! ensure_login "Hubクラスタ" "$HUB_API_SERVER" HUB_CONTEXT; then
   echo -e "${RED}OpenMetadata削除・reindexをスキップします。${RESET}"
@@ -226,7 +233,7 @@ fi
 # 2. RHDH: reward コンポーネントの削除(手動手順の案内のみ)
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[2/7] RHDH: reward コンポーネントの削除${RESET}"
+echo -e "${BLUE}[2/8] RHDH: reward コンポーネントの削除${RESET}"
 echo -e "${YELLOW}このスクリプトからはRHDHカタログAPIへの認証が確立できていないため、"
 echo -e "以下を手動で実施してください:${RESET}"
 echo "  1. RHDH の Catalog 画面で 'quarkusdroneshop-reward' コンポーネントを開く"
@@ -236,7 +243,7 @@ echo "  2. 右上メニューから 'Unregister entity' を実行する"
 # 3+4. Bサイト: Kafkaトピック / Pipeline関連リソースの削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[3/7] Bサイト: KafkaTopic '${BSITE_TOPIC}' を削除中...${RESET}"
+echo -e "${BLUE}[3/8] Bサイト: KafkaTopic '${BSITE_TOPIC}' を削除中...${RESET}"
 
 if ! ensure_login "Bサイト" "$BSITE_API_SERVER" BSITE_CONTEXT; then
   echo -e "${RED}スキップします。${RESET}"
@@ -246,7 +253,7 @@ else
 fi
 
 echo
-echo -e "${BLUE}[4/7] Bサイト: reward の Pipeline/PipelineRun/BuildConfig等を削除中...${RESET}"
+echo -e "${BLUE}[4/8] Bサイト: reward の Pipeline/PipelineRun/BuildConfig等を削除中...${RESET}"
 
 if ! oc --context="$BSITE_CONTEXT" whoami --request-timeout=10s &>/dev/null; then
   echo -e "${RED}Bサイトに接続できません。アプリリソースの削除をスキップします。${RESET}"
@@ -277,7 +284,7 @@ fi
 # 5. Aサイト: ミラートピックの削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[5/7] Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' を削除中...${RESET}"
+echo -e "${BLUE}[5/8] Aサイト: ミラートピック '${ASITE_MIRROR_TOPIC}' を削除中...${RESET}"
 
 if ! ensure_login "Aサイト" "$ASITE_API_SERVER" ASITE_CONTEXT; then
   echo -e "${RED}スキップします。${RESET}"
@@ -290,10 +297,23 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 6. OpenMetadata: 検索インデックスの再構築
+# 6. Cサイト: ミラートピックの削除
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[6/7] OpenMetadata: 検索インデックスを再構築中...${RESET}"
+echo -e "${BLUE}[6/8] Cサイト: ミラートピック '${CSITE_MIRROR_TOPIC}' を削除中...${RESET}"
+
+if ! ensure_login "Cサイト" "$CSITE_API_SERVER" CSITE_CONTEXT; then
+  echo -e "${RED}スキップします。${RESET}"
+else
+  run oc --context="$CSITE_CONTEXT" delete kafkatopic "$CSITE_MIRROR_TOPIC" \
+    -n "$DEMO_NAMESPACE" --ignore-not-found --request-timeout=30s
+fi
+
+# -----------------------------------------------------------------------------
+# 7. OpenMetadata: 検索インデックスの再構築
+# -----------------------------------------------------------------------------
+echo
+echo -e "${BLUE}[7/8] OpenMetadata: 検索インデックスを再構築中...${RESET}"
 
 if [ -n "${OM_TOKEN:-}" ]; then
   if [ "$DRY_RUN" = true ]; then
@@ -307,10 +327,10 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 7. GitHub: quarkusdroneshop-reward リポジトリの削除(存在する場合のみ)
+# 8. GitHub: quarkusdroneshop-reward リポジトリの削除(存在する場合のみ)
 # -----------------------------------------------------------------------------
 echo
-echo -e "${BLUE}[7/7] GitHub: ${GITHUB_REPO} リポジトリを削除中...${RESET}"
+echo -e "${BLUE}[8/8] GitHub: ${GITHUB_REPO} リポジトリを削除中...${RESET}"
 
 if ! command -v gh &>/dev/null; then
   echo -e "${YELLOW}gh (GitHub CLI) が見つからないため、このステップをスキップします。${RESET}"
