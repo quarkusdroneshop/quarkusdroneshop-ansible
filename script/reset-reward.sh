@@ -127,14 +127,18 @@ else
   if [ -z "$OM_TOKEN" ]; then
     echo -e "${RED}OpenMetadataのbotトークンが取得できませんでした。OpenMetadata削除・reindexをスキップします。${RESET}"
   else
-    # "reward" を含む fullyQualifiedName を持つトピックを検索し、1件ずつ hard delete する
+    # NOTE: fullyQualifiedName に "reward" を含むかで緩く絞り込むと、無関係な
+    # "rewards-display" (Web表示専用の別トピック)まで誤って削除してしまう
+    # (実際に一度誤削除する事故があった)。トピック名(name)の完全一致でのみ
+    # 対象を絞る: 本体 "rewards" と、他サイトへのミラー "shop-<site>.rewards" のみ。
     REWARD_TOPIC_IDS=$(curl -sk -m 15 -H "Authorization: Bearer ${OM_TOKEN}" \
       "${OM_HOST}/api/v1/topics?limit=200" \
       | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
+target_names = {'${BSITE_TOPIC}', 'shop-asite.${BSITE_TOPIC}', 'shop-bsite.${BSITE_TOPIC}', 'shop-csite.${BSITE_TOPIC}'}
 for t in d.get('data', []):
-    if 'reward' in t.get('fullyQualifiedName', '').lower():
+    if t.get('name') in target_names:
         print(t['id'], t['fullyQualifiedName'])
 " 2>/dev/null)
 
