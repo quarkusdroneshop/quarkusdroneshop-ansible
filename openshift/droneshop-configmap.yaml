@@ -5,6 +5,11 @@ metadata:
   namespace: quarkusdroneshop-demo
 data:
   KAFKA_BOOTSTRAP_URLS: "shop-cluster-kafka-bootstrap:9092"
+  # counter などが orders-up (dataproduct-order-events, Avro) を購読する際の
+  # スキーマ解決に使う。このキー自体がこれまで定義されておらず、
+  # APICURIO_REGISTRY_URL が常に空文字になり、Avro デシリアライズが機能しない
+  # (counter の orders-up チャンネルのオフセットが永久に進まない) 原因だった。
+  APICURIO_REGISTRY_URL: "http://droneshop-apicurioregistry-kafkasql-service.quarkusdroneshop-demo.svc:8080"
   STREAM_URL: "http://localhost:8080/dashboard/stream"
   LOYALTY_STREAM_URL: "http://localhost:8080/dashboard/loyaltystream"
   CORS_ORIGINS: "http://localhost:8080"
