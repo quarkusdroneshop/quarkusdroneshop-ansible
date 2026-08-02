@@ -60,6 +60,40 @@
     - postgres
     - helm
 
+
+# CrunchyData PostgresCluster の instance/repo-host Pod は fsGroup: 26 を
+# 要求するが、namespace の openshift.io/sa.scc.supplemental-groups の
+# 許可レンジに 26 が含まれないと restricted-v2/v3 SCC を通せず Pod が
+# 作成できない (FailedCreate)。droneshopdb-instance / droneshopdb-repohost
+# の ServiceAccount に anyuid SCC を許可することで回避する。
+# RoleBinding の subject は名前参照のみで ServiceAccount の実体を必要と
+# しないため、PostgresCluster CR 作成直後(Pod 作成前)に投入してよい。
+- name: Allow droneshopdb ServiceAccounts to use anyuid SCC
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ project_namespace }}"
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: "droneshopdb-{{ item }}-anyuid"
+        namespace: "{{ project_namespace }}"
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: system:openshift:scc:anyuid
+      subjects:
+        - kind: ServiceAccount
+          name: "droneshopdb-{{ item }}"
+          namespace: "{{ project_namespace }}"
+  loop:
+    - instance
+    - repohost
+  when: not delete_deployment|bool
+  tags:
+    - postgres
+    - helm
+
 - name: Get a list of all pods from any namespace
   kubernetes.core.k8s_info:
     api_version: postgres-operator.crunchydata.com/v1beta1
