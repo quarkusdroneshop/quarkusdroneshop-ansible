@@ -58,12 +58,13 @@ spec:
     plugin.name: pgoutput
     slot.name: inventory_outbox_slot_v4
     publication.name: inventory_outbox_publication_v4
-    # inventory アプリは quarkus.hibernate-orm.database.generation=drop-and-create
-    # のため、再デプロイのたびに droneshop.outboxevent が DROP/CREATE され OID が
-    # 変わる。publication.autocreate.mode=filtered (対象テーブルを個別にOIDで
-    # 登録する方式) だとその時点の OID に固定されてしまい、テーブル再作成後の
-    # 変更を拾えなくなる。all_tables (FOR ALL TABLES) にしてこの問題を回避する。
-    publication.autocreate.mode: all_tables
+    # all_tables (FOR ALL TABLES) は superuser 権限が必要で、droneshopadmin は
+    # superuser ではないため "must be superuser to create FOR ALL TABLES
+    # publication" で起動に失敗する。filtered は table.include.list を
+    # CREATE PUBLICATION ... FOR TABLE <schema>.<table> (テーブル名指定、
+    # OID 固定ではない) で登録するだけなので superuser 不要で、
+    # droneshop.outboxevent が drop-and-create で再作成されても問題ない。
+    publication.autocreate.mode: filtered
     schema.include.list: droneshop
     table.include.list: droneshop.outboxevent
     tombstones.on.delete: "false"

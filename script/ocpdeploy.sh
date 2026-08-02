@@ -281,6 +281,7 @@ pipeline_deploy() {
                 # の内部在庫キャッシュが更新されず常に Out of Stock になる)。
                 if [ "$opt" = "inventory" ]; then
                     dataproducts_debezium_setup
+                    inventory_restock_all_items
                 fi
                 ;;
             "all")
@@ -291,6 +292,7 @@ pipeline_deploy() {
                     kustomize build "quarkusdroneshop-$d" | oc apply -f -
                     if [ "$d" = "inventory" ]; then
                         dataproducts_debezium_setup
+                        inventory_restock_all_items
                     fi
                 done
                 ;;
@@ -1395,6 +1397,44 @@ print(content.replace('__DRONESHOPDB_ADMIN_PASSWORD__', pw))
     connector_name="$(grep -A2 '^kind: KafkaConnector' "$REPO_ROOT/openshift/dataproducts/inventory-outbox-connect.yaml" | grep 'name:' | awk '{print $2}')"
     echo -e "${GREEN}dataproducts debezium 完了 (Kafka Connect: dataproducts-connect / コネクタ: ${connector_name})${RESET}"
     echo -e "${YELLOW}  ※ 状態確認: oc get kafkaconnector -n ${NAMESPACE}${RESET}"
+}
+
+# ---------------------------------------------------------------------------
+# inventory サービスの REST API (/inventory/restock) を全品目分呼び出し、
+# 在庫を一律 100 にする。
+#
+# inventory アプリ自身の初期在庫投入 (quarkus.hibernate-orm.database.generation=
+# drop-and-create による直接 INSERT) は Debezium Outbox を経由しないため、
+# qdca10/qdca10pro 側の内部在庫キャッシュ (dataproduct-component-stock-quantity
+# 経由) には反映されない。RESTOCK_COMPLETED_EVENT を outboxevent 経由で最低
+# 1回発行しないと qdca10/qdca10pro は常に Out of Stock 扱いになるため、
+# inventory パイプライン投入のたびにこの関数で明示的に補充する。
+# ---------------------------------------------------------------------------
+inventory_restock_all_items() {
+    echo -e "${BLUE}inventory サービスの起動を待っています...${RESET}"
+    if ! oc rollout status deployment/inventory -n "$NAMESPACE" --timeout=300s; then
+        echo -e "${YELLOW}inventory Deployment の準備を確認できませんでした。restock をスキップします。${RESET}"
+        return 0
+    fi
+
+    local inv_host
+    inv_host="$(oc get route inventory -n "$NAMESPACE" -o jsonpath='{.spec.host}' 2>/dev/null)"
+    if [ -z "$inv_host" ]; then
+        echo -e "${YELLOW}inventory の Route が見つかりません。restock をスキップします。${RESET}"
+        return 0
+    fi
+
+    echo -e "${BLUE}全品目を在庫100に補充中 (https://${inv_host})...${RESET}"
+    local item
+    for item in QDC_A101 QDC_A102 QDC_A103 QDC_A104_AC QDC_A104_AT \
+                QDC_A105_Pro01 QDC_A105_Pro02 QDC_A105_Pro03 QDC_A105_Pro04; do
+        curl -sk -X POST "https://${inv_host}/inventory/restock" \
+            -H 'Content-Type: application/json' \
+            -d "{\"item\":\"${item}\",\"quantity\":100}" \
+            --retry 5 --retry-delay 5 --retry-connrefused \
+            -o /dev/null -w "  ${item}: HTTP %{http_code}\n"
+    done
+    echo -e "${GREEN}inventory restock 完了${RESET}"
 }
 
 dataproducts_cleanup() {
