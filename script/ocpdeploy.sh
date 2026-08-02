@@ -275,6 +275,13 @@ pipeline_deploy() {
                 oc delete pipelinerun "build-and-push-quarkusdroneshop-$opt" \
                     -n "$CICD_NAMESPACE" --ignore-not-found=true 2>/dev/null || true
                 kustomize build "quarkusdroneshop-$opt" | oc apply -f -
+                # inventory の Debezium Outbox (droneshop.outboxevent → inventory-out)
+                # は専用の Kafka Connect 基盤が別途必要なため、inventory パイプライン
+                # 投入時に合わせてセットアップする (未セットアップだと qdca10/qdca10pro
+                # の内部在庫キャッシュが更新されず常に Out of Stock になる)。
+                if [ "$opt" = "inventory" ]; then
+                    dataproducts_debezium_setup
+                fi
                 ;;
             "all")
                 for d in qdca10 qdca10pro counter web inventory reword homeofficebackend homeoffice-ui customermocker; do
@@ -282,6 +289,9 @@ pipeline_deploy() {
                     oc delete pipelinerun "build-and-push-quarkusdroneshop-$d" \
                         -n "$CICD_NAMESPACE" --ignore-not-found=true 2>/dev/null || true
                     kustomize build "quarkusdroneshop-$d" | oc apply -f -
+                    if [ "$d" = "inventory" ]; then
+                        dataproducts_debezium_setup
+                    fi
                 done
                 ;;
             "cancel")
@@ -891,20 +901,18 @@ dataproducts_trino_setup() {
 # 明示的にリストしておく。
 DATAPRODUCTS_ASITE_ORDER=(
     "dataproduct-order-events"
-    "dataproduct-inventory-event"
 )
 DATAPRODUCTS_BSITE_ORDER=(
-    "dataproduct-order-events"
     "dataproduct-assembly-line-qdca10"
     "dataproduct-assembly-line-qdca10pro"
+    "dataproduct-assembly-lead-time-qdca10"
+    "dataproduct-assembly-lead-time-qdca10pro"
     "dataproduct-customer-360"
     "dataproduct-inventory-event"
+    "dataproduct-inventory-analytics"
 )
 DATAPRODUCTS_CSITE_ORDER=(
     "dataproduct-real-time-sales-trends"
-    "dataproduct-inventory-analytics"
-    "dataproduct-assembly-lead-time-qdca10"
-    "dataproduct-assembly-lead-time-qdca10pro"
 )
 
 # datamesh-dataproducts/*/flink/*.sql を dataproducts-flink Session Cluster に
@@ -1340,16 +1348,32 @@ EOF
 dataproducts_debezium_setup() {
     oc project "$NAMESPACE"
 
+    # inventory パイプラインの再実行のたびに呼ばれても再構築しないよう、
+    # 既にコネクタが存在する場合はスキップする (再作成したい場合は先に
+    # 'oc delete kafkaconnector/kafkaconnect dataproducts-connect ...' すること)。
+    if oc get kafkaconnector inventory-outbox-connector-v4 -n "$NAMESPACE" &>/dev/null; then
+        echo -e "${YELLOW}Debezium Kafka Connect は既にセットアップ済みのためスキップします${RESET}"
+        return 0
+    fi
+
+    if ! oc get secret droneshopdb-pguser-droneshopadmin -n "$NAMESPACE" &>/dev/null; then
+        echo -e "${RED}Secret 'droneshopdb-pguser-droneshopadmin' がありません。先に droneshopdb (PostgresCluster) をデプロイしてください。${RESET}" >&2
+        return 1
+    fi
+
+    # droneshopadmin ロールはデフォルトで REPLICATION 権限を持たず、これが
+    # ないと Debezium の論理レプリケーションスロット作成が
+    # "permission denied to start WAL sender" で失敗する。
+    echo -e "${BLUE}droneshopadmin ロールに REPLICATION 権限を付与中...${RESET}"
+    local pg_pod
+    pg_pod="$(oc get pods -n "$NAMESPACE" -l postgres-operator.crunchydata.com/role=master -o jsonpath='{.items[0].metadata.name}')"
+    oc exec -n "$NAMESPACE" "$pg_pod" -c database -- psql -U postgres -c "ALTER ROLE droneshopadmin WITH REPLICATION;"
+
     echo -e "${BLUE}Debezium コネクタ用 Kafka Connect イメージ (dataproducts-connect) をビルド中...${RESET}"
     if ! oc get bc dataproducts-connect -n "$NAMESPACE" &>/dev/null; then
         oc new-build --binary --strategy=docker --name=dataproducts-connect -n "$NAMESPACE"
     fi
     oc start-build dataproducts-connect --from-dir="${DATAPRODUCTS_DIR}/kafka-connect" --follow -n "$NAMESPACE"
-
-    if ! oc get secret droneshopdb-pguser-droneshopadmin -n "$NAMESPACE" &>/dev/null; then
-        echo -e "${RED}Secret 'droneshopdb-pguser-droneshopadmin' がありません。先に droneshopdb (PostgresCluster) をデプロイしてください。${RESET}" >&2
-        exit 1
-    fi
 
     echo -e "${BLUE}KafkaConnect / KafkaConnector (inventory outbox) を適用中...${RESET}"
     local dbpw
