@@ -43,7 +43,12 @@ spec:
     - source:
         alias: "shop-asite"
         bootstrapServers: "external-shop-cluster-kafka-asite:9094"
-      topicsPattern: "^(dataproduct.*|qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
+      # dataproduct-order-events は他の dataproduct.* トピックと同じ
+      # コネクタ/タスクにまとめて載せると (原因不明だが) パーティション0しか
+      # discovery されず同期が事実上停止する既知の問題があるため、ここでは
+      # 除外し、専用の隔離コネクタ (kafka-mm2-c-site-order-events.yaml) で
+      # 個別にミラーする。
+      topicsPattern: "^(dataproduct(?!-order-events$).*|qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
         enabled: true

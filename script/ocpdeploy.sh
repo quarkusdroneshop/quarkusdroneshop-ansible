@@ -498,6 +498,9 @@ skupper_deploy() {
         oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-csite.yaml" -n "$NAMESPACE"
         _patch_kafka_advertised_host
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-c-site.yaml" -n "$NAMESPACE"
+        # dataproduct-order-events 専用の隔離ミラー (kafka-mm2-c-site.yaml
+        # 側コメント参照: 同一コネクタでまとめると discovery が停止する既知の問題への対処)
+        oc apply -f "$REPO_ROOT/openshift/kafka-mm2-c-site-order-events.yaml" -n "$NAMESPACE"
 
     elif [ "$SITE_CONFREM" = "DH" ]; then
         # DHサイトは quarkusdroneshop-rhdh namespace に構築する

@@ -1,0 +1,85 @@
+# dataproduct-order-events (asite産、shop-asite.dataproduct-order-events として
+# csite にミラーされ homeoffice-backend の orders-created/orders-updated が
+# 購読する) 専用の隔離 KafkaMirrorMaker2。
+#
+# 【経緯】kafka-mm2-c-site.yaml の mm2-extended で他の dataproduct.* トピックと
+# まとめて (同一コネクタ・タスクプールで) ミラーすると、原因不明だが
+# dataproduct-order-events だけソース側10パーティション中パーティション0しか
+# discovery されず、同期が実質停止する現象が複数回・複数の Sandbox 環境で
+# 再現した (コネクタ/タスクの再起動、KafkaMirrorMaker2 CR の完全な削除・再作成、
+# ターゲット側トピックの削除・パーティション再拡張のいずれでも解消しなかった)。
+# 専用の独立した Connect クラスタ (別の config/offset/status ストレージトピック、
+# 別 groupId) に切り出したところ即座に全10パーティションが discovery され、
+# 問題が解消した。kafka-mm2-c-site.yaml 側の topicsPattern からは
+# dataproduct-order-events を除外済み (このコネクタとの二重ミラーを防ぐため)。
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaMirrorMaker2
+metadata:
+  name: mm2-order-events-fix
+  namespace: quarkusdroneshop-demo
+spec:
+  version: 4.1.0
+  replicas: 1
+  enableRestApi: true
+  ports:
+    - name: rest-api
+      port: 8083
+      protocol: TCP
+      targetPort: 8083
+  selector:
+    strimzi.io/name: mm2-order-events-fix-mirrormaker2
+  mirrors:
+    - groupsPattern: ".*"
+      topicsPattern: "^dataproduct-order-events$"
+      source:
+        alias: shop-asite
+        bootstrapServers: external-shop-cluster-kafka-asite:9094
+      sourceConnector:
+        tasksMax: 3
+        config:
+          auto.create.topics.enable: true
+          bootstrap.servers: external-shop-cluster-kafka-asite:9094
+          client.dns.lookup: use_all_dns_ips
+          config.storage.topic: mirrormaker2-oe-configs
+          offset.storage.topic: mirrormaker2-oe-offsets
+          status.storage.topic: mirrormaker2-oe-status
+          consumer.fetch.max.wait.ms: "10"
+          consumer.fetch.min.bytes: "1"
+          consumer.max.poll.records: "500"
+          consumer.metadata.fetch.timeout.ms: 60000
+          consumer.request.timeout.ms: 60000
+          emit.checkpoints.enabled: true
+          emit.heartbeats.enabled: true
+          offset-syncs.topic.replication.factor: 1
+          producer.batch.size: "16384"
+          producer.linger.ms: "0"
+          producer.request.timeout.ms: 60000
+          refresh.groups.enabled: true
+          refresh.topics.enabled: true
+          refresh.topics.interval.seconds: 10
+          replication.policy.class: org.apache.kafka.connect.mirror.DefaultReplicationPolicy
+          replication.policy.separator: "."
+          sasl.jaas.config: "${SASL_JAAS_CONFIG}"
+          sasl.mechanism: SCRAM-SHA-512
+          security.protocol: SASL_PLAINTEXT
+          sync.group.offsets.enabled: true
+          sync.topic.acls.enabled: false
+  target:
+    alias: shop-csite
+    bootstrapServers: shop-cluster-kafka-bootstrap:9092
+    groupId: mirrormaker2-oe-cluster
+    configStorageTopic: mirrormaker2-oe-configs
+    offsetStorageTopic: mirrormaker2-oe-offsets
+    statusStorageTopic: mirrormaker2-oe-status
+  template:
+    connectContainer:
+      env:
+        - name: KAFKA_CONNECT_REST_ADVERTISED_HOST_NAME
+          value: mm2-order-events-fix-mirrormaker2
+        - name: KAFKA_CONNECT_REST_PORT
+          value: "8083"
+        - name: SASL_JAAS_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: quarkusdroneshop-user
+              key: sasl.jaas.config
