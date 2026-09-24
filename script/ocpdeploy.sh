@@ -428,21 +428,32 @@ _patch_kafka_advertised_host() {
         return 0
     fi
 
+    # type: loadbalancer では bootstrap 用と各ブローカー用で別々の Service
+    # (shop-cluster-shop-cluster-brokers-N) が作られ、それぞれ異なる ELB
+    # ホスト名を持つ。以前は bootstrap の ELB ホスト名を全ブローカーの
+    # advertisedHost に流用していたため、MirrorMaker2 等が実際のパーティション
+    # リーダーへ再接続する際に誤った(bootstrap用の)ホストへ接続を試みて
+    # フェッチが常にタイムアウトし、クロスサイトのミラーリングが機能しない
+    # 不具合があった。各ブローカー自身の ELB ホスト名を個別に取得して設定する。
     echo -e "${BLUE}  Load Balancer のホスト名を待機中...${RESET}"
-    local elb_host=""
+    local broker_host_0="" broker_host_1="" broker_host_2=""
     for i in $(seq 1 60); do
-        elb_host=$(oc get svc shop-cluster-kafka-external-bootstrap -n "$NAMESPACE" \
+        broker_host_0=$(oc get svc shop-cluster-shop-cluster-brokers-0 -n "$NAMESPACE" \
             -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-        if [ -n "$elb_host" ]; then
+        broker_host_1=$(oc get svc shop-cluster-shop-cluster-brokers-1 -n "$NAMESPACE" \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+        broker_host_2=$(oc get svc shop-cluster-shop-cluster-brokers-2 -n "$NAMESPACE" \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+        if [ -n "$broker_host_0" ] && [ -n "$broker_host_1" ] && [ -n "$broker_host_2" ]; then
             break
         fi
         sleep 5
     done
-    if [ -z "$elb_host" ]; then
+    if [ -z "$broker_host_0" ] || [ -z "$broker_host_1" ] || [ -z "$broker_host_2" ]; then
         echo -e "${RED}  Load Balancer のホスト名取得に失敗しました。advertisedHost は手動で確認してください。${RESET}"
         return 1
     fi
-    echo -e "${GREEN}  Load Balancer ホスト名: ${elb_host}${RESET}"
+    echo -e "${GREEN}  Load Balancer ホスト名: broker0=${broker_host_0} broker1=${broker_host_1} broker2=${broker_host_2}${RESET}"
     oc patch kafka shop-cluster -n "$NAMESPACE" --type merge -p "$(cat <<PATCH
 {
   "spec": {
@@ -455,9 +466,9 @@ _patch_kafka_advertised_host() {
           "configuration": {
             "bootstrap": {},
             "brokers": [
-              {"broker": 0, "advertisedHost": "${elb_host}", "advertisedPort": 9094},
-              {"broker": 1, "advertisedHost": "${elb_host}", "advertisedPort": 9094},
-              {"broker": 2, "advertisedHost": "${elb_host}", "advertisedPort": 9094}
+              {"broker": 0, "advertisedHost": "${broker_host_0}", "advertisedPort": 9094},
+              {"broker": 1, "advertisedHost": "${broker_host_1}", "advertisedPort": 9094},
+              {"broker": 2, "advertisedHost": "${broker_host_2}", "advertisedPort": 9094}
             ]
           }
         }
