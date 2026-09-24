@@ -28,8 +28,11 @@ spec:
                secretKeyRef:
                  name: droneshopdb-pguser-droneshopadmin
                  key: password
-           # Retry ボタンから qdca10-in / qdca10pro-in (asite) へ直接 publish するための
-           # asite Kafka 外部リスナー (PLAINTEXT)。ELB ホスト名は asite 再作成時に
-           # script/update-elb-hosts.sh 相当の手順で更新が必要。
+           # Retry ボタンから dataproduct-order-events (asite, ORDER_PLACED イベントとして
+           # 再送) へ直接 publish するための asite Kafka 外部リスナー (PLAINTEXT)。
+           # 【2026-08-04】以前は ELB ホスト名を直書きしていたが Sandbox 再構築のたびに
+           # 変わり壊れるため、Skupper が csite/asite/bsite 間に常設している安定した
+           # Service 名 (external-shop-cluster-kafka-<site>) を使う。Producer の疎通
+           # のみが必要な用途 (単発 publish) では動作確認済み。
            - name: ASITE_KAFKA_EXTERNAL_BOOTSTRAP_URLS
-             value: "ae42096ad3a18451a915ac60a245d477-1996748417.us-east-2.elb.amazonaws.com:9094"
+             value: "external-shop-cluster-kafka-asite:9094"

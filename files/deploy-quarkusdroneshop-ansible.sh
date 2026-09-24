@@ -84,6 +84,11 @@ function configure-ansible-and-playbooks(){
   checkpipmodules
   echo "${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-shop.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD}"
   ${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-shop.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD} -e 'ansible_python_interpreter=/usr/bin/python3' ${DEBUG}
+  local playbook_rc=$?
+  if [ ${playbook_rc} -ne 0 ]; then
+    echo "Ansible playbook failed (exit code ${playbook_rc}). Stopping." >&2
+    exit ${playbook_rc}
+  fi
 }
 
 function destory_drone_shop(){
@@ -95,6 +100,11 @@ function destory_drone_shop(){
 
   echo "${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-shop.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD}"
   ${USE_SUDO} ansible-playbook  /tmp/deploy-quarkus-shop.yml -t $(cat /tmp/tags) --extra-vars delete_deployment=${DESTROY} ${DEVMOD} -e 'ansible_python_interpreter=/usr/bin/python3'  ${DEBUG}
+  local playbook_rc=$?
+  if [ ${playbook_rc} -ne 0 ]; then
+    echo "Ansible playbook failed (exit code ${playbook_rc}). Stopping." >&2
+    exit ${playbook_rc}
+  fi
 }
 
 function checkpipmodules(){

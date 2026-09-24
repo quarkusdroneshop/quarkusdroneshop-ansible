@@ -47,13 +47,15 @@ spec:
       org.apache.kafka.connect.mirror.OffsetSyncStore: "DEBUG"
   mirrors:
     - source:
-        # NOTE: Skupper 経由の "external-shop-cluster-kafka-asite:9094" は
-        # asite→bsite 方向で断続的に失敗する (詳細未解明、過去のトラブルシュートで確認済み)。
-        # ブローカー/コネクタ再起動のたびに Strimzi の reconcile でこの CR の値に
-        # 巻き戻されるため、以前 REST API で直接PATCHしていた回避策 (直接 AWS NLB 接続) を
-        # CR 自体に反映し、再起動後も残るようにする。
+        # 【2026-08-04 再検証】以前 "external-shop-cluster-kafka-asite:9094" (Skupper)
+        # が asite→bsite 方向で断続的に失敗するとして AWS ELB 直書きに切り替えていたが、
+        # ELB ホスト名は Sandbox 再構築のたびに変わり壊れる (実際に何度も発生)。
+        # 再検証したところ Skupper 経由でも 10 パーティション全てに正しくタスクが
+        # 割り当てられ、テストメッセージのミラーリングも正常に確認できたため、
+        # 安定した Skupper Service 名に戻す。もし今後同種の断続的失敗が再発した場合は
+        # このコメントの直前の値 (ELB 直書き) に戻すこと。
         alias: "shop-asite"
-        bootstrapServers: "a56be94c05e244cc9bda5cc0e1ed57ff-711747142.us-east-2.elb.amazonaws.com:9094"
+        bootstrapServers: "external-shop-cluster-kafka-asite:9094"
       topicsPattern: "^(dataproduct.*|qdca10-in|qdca10pro-in|orders.*|web.*|inventory.*|eighty-six.*|rewards|loyalty-updates.*)$"
       groupsPattern: ".*"
       sourceConnector:
@@ -66,7 +68,7 @@ spec:
         # ソース側トピックのパーティション数(10)に合わせて並列化する。
         tasksMax: 10
         config:
-          bootstrap.servers: "a56be94c05e244cc9bda5cc0e1ed57ff-711747142.us-east-2.elb.amazonaws.com:9094"
+          bootstrap.servers: "external-shop-cluster-kafka-asite:9094"
           replication.policy.class: "org.apache.kafka.connect.mirror.DefaultReplicationPolicy"
           replication.policy.separator: "."
           consumer.fetch.min.bytes: "1"

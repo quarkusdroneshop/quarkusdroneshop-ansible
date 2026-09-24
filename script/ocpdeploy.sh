@@ -100,7 +100,7 @@ case "$1" in
         ;;
     dataproducts)
         case "$2" in
-            setup|deploy|schemas|lakekeeper|debezium|cleanup) ;;
+            setup|deploy|schemas|lakekeeper|debezium|cleanup|sync-cross-site) ;;
             *)
                 echo -e "${RED}無効なサブコマンド: dataproducts $2${RESET}"
                 usage; exit 1
@@ -169,6 +169,11 @@ ocp_setup() {
     # Podman イメージの作成と Operator のインストール（ビルドコンテキストはリポジトリルート）
     podman build --no-cache -t "$NAMESPACE" "$REPO_ROOT"
     podman run --platform linux/amd64 -it --env-file="$REPO_ROOT/$ENV_FILE" "$NAMESPACE"
+    local podman_rc=$?
+    if [ "$podman_rc" -ne 0 ]; then
+        echo -e "${RED}Ansible デプロイ(deploy-quarkusdroneshop-ansible.sh)が失敗しました(exit code ${podman_rc})。処理を中断します。${RESET}"
+        return "$podman_rc"
+    fi
 
     # PostgreSQLCluster へ権限の追加
     oc adm policy add-scc-to-user anyuid -z droneshopdb-instance -n "$NAMESPACE"
@@ -247,12 +252,6 @@ pipeline_deploy() {
     fi
 
     if oc get project "$CICD_NAMESPACE" > /dev/null 2>&1; then
-        read -p "Operator のインストールを先に実行してください。実行を続けますか？ (y/N): " answer
-        if [[ "$answer" =~ ^[Nn]$ ]]; then
-            echo -e "${RED}処理を中断します。${RESET}"
-            exit 1
-        fi
-    else
         oc new-project $CICD_NAMESPACE
     fi
 
@@ -263,14 +262,14 @@ pipeline_deploy() {
 
     OPTIONS=(
         "qdca10" "qdca10pro" "counter" "web" "inventory"
-        "reword" "homeofficebackend" "homeoffice-ui" "customermocker"
+        "homeofficebackend" "homeoffice-ui" "customermocker"
         "all" "cancel"
     )
     PS3="実行したい Pipeline を選択してください（番号）: "
 
     select opt in "${OPTIONS[@]}"; do
         case $opt in
-            "qdca10"|"qdca10pro"|"counter"|"web"|"inventory"|"reword"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
+            "qdca10"|"qdca10pro"|"counter"|"web"|"inventory"|"homeofficebackend"|"homeoffice-ui"|"customermocker")
                 echo "実行中: $opt"
                 oc delete pipelinerun "build-and-push-quarkusdroneshop-$opt" \
                     -n "$CICD_NAMESPACE" --ignore-not-found=true 2>/dev/null || true
@@ -366,6 +365,21 @@ skupper_operator_setup() {
     echo -e "${GREEN}  → Skupper CRD 準備完了${RESET}"
 }
 
+# クラスタにクラウドプロバイダー連携(AWS/GCP/Azure等)が無いベアメタル/オンプレ系
+# OpenShiftでは LoadBalancer 種別の Service が永久に <pending> のままになり
+# 外部アドレスが払い出されない。infrastructures.config.openshift.io の
+# status.platform でクラウド連携の有無を判定し、無い場合は Strimzi の
+# route リスナー(OpenShift Router 経由、クラスタ固有の固定ドメインを使うため
+# advertisedHost の動的取得が不要)にフォールバックする。
+_supports_cloud_loadbalancer() {
+    local platform
+    platform=$(oc get infrastructure cluster -o jsonpath='{.status.platform}' 2>/dev/null)
+    case "$platform" in
+        AWS|GCP|Azure|IBMCloud|AlibabaCloud) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Kafka の external(loadbalancer) リスナーの advertisedHost は、AWS ELB が
 # 再作成されるたびにホスト名が変わる(ELBを削除・再作成すると新しいランダムな
 # ホスト名が割り当てられる)ため、YAMLファイルに静的に書いた値はすぐに陳腐化し、
@@ -373,7 +387,47 @@ skupper_operator_setup() {
 # UnknownHostException で接続できなくなる。
 # droneshop-cluster-kafka-bootstrap-listeners-*site.yaml を適用した直後に
 # 実際にプロビジョニングされたLBのホスト名を取得し、Kafka CRへ上書きパッチする。
+# クラウド連携が無いクラスタでは route リスナーに切り替える(advertisedHostは
+# Strimziが自動でRouteのホスト名を設定するため上書き不要)。
+# droneshop-cluster-kafka-bootstrap-listeners-*site.yaml は external リスナーの
+# type を loadbalancer 固定で宣言している。クラウド連携が無いクラスタでそのまま
+# apply すると、直後に _patch_kafka_advertised_host が route 方式へ上書きパッチする
+# ことになり、同一リスナーに対して loadbalancer→route と2回分のリコンサイル
+# (証明書再生成+全ブローカーのローリング再起動)が連続で走ってしまい、待ち時間が
+# 倍になってタイムアウトの誤検知を招く。そのため適用前に type を route へ
+# 書き換えてから適用し、1回のリコンサイルで済ませる。
+_apply_kafka_bootstrap_listeners() {
+    local yaml_file="$1"
+    if _supports_cloud_loadbalancer; then
+        oc apply -f "$yaml_file" -n "$NAMESPACE"
+    else
+        sed 's/type: loadbalancer/type: route/' "$yaml_file" | oc apply -n "$NAMESPACE" -f -
+    fi
+}
+
 _patch_kafka_advertised_host() {
+    if ! _supports_cloud_loadbalancer; then
+        echo -e "${BLUE}  Route の準備を待機中...${RESET}"
+        # リスナー型変更は証明書再生成+全ブローカーのローリング再起動を伴うため、
+        # Strimziの再調整完了(=Route作成)に150秒を超えて10分近くかかることがある。
+        # 短いタイムアウトだと実際には成功しているのに失敗と誤検知するため120回×5秒とする。
+        local route_host=""
+        for i in $(seq 1 120); do
+            route_host=$(oc get route shop-cluster-kafka-bootstrap -n "$NAMESPACE" \
+                -o jsonpath='{.spec.host}' 2>/dev/null)
+            if [ -n "$route_host" ]; then
+                break
+            fi
+            sleep 5
+        done
+        if [ -z "$route_host" ]; then
+            echo -e "${RED}  Route のホスト名取得に失敗しました。手動で確認してください。${RESET}"
+            return 1
+        fi
+        echo -e "${GREEN}  Route ホスト名: ${route_host} (advertisedHostはStrimziが自動設定します)${RESET}"
+        return 0
+    fi
+
     echo -e "${BLUE}  Load Balancer のホスト名を待機中...${RESET}"
     local elb_host=""
     for i in $(seq 1 60); do
@@ -415,6 +469,53 @@ PATCH
 )"
 }
 
+# skupper site create/update は非同期で、Site リソースが Ready になる前に
+# 戻ってくる。Ready を待たずに `skupper token issue/redeem` を実行すると
+# "there is no active skupper site in this namespace" で静かに失敗し、
+# クロスサイトの Link が一切張られないまま後続処理が進んでしまう。
+# そのため site create/update 直後は必ずこの関数で Ready を待つ。
+_wait_skupper_site_ready() {
+    local ns="${1:-$NAMESPACE}"
+    echo -e "${BLUE}  Skupper site の Ready を待機中...${RESET}"
+    local status=""
+    for i in $(seq 1 60); do
+        status=$(oc get sites.skupper.io -n "$ns" -o jsonpath='{.items[0].status.status}' 2>/dev/null)
+        if [ "$status" = "Ready" ]; then
+            echo -e "${GREEN}  → Skupper site Ready${RESET}"
+            return 0
+        fi
+        sleep 5
+    done
+    echo -e "${RED}  Skupper site が Ready になりませんでした(現在の状態: ${status:-unknown})。token issue/redeem が失敗する可能性があります。${RESET}"
+    return 1
+}
+
+# `skupper site update --enable-link-access` は RouterAccess(skupper-router) を
+# 自動生成するが、accessType 未指定時はデフォルトで LoadBalancer 方式の Service を
+# 作る。クラウド連携が無いクラスタではこれも Kafka の external リスナーと同様に
+# 外部アドレスが永久に <pending> のままになり、Site が Ready にならない。
+# そのため RouterAccess 生成直後に accessType を route へパッチする。
+_patch_skupper_router_access_type() {
+    if _supports_cloud_loadbalancer; then
+        return 0
+    fi
+    local ns="${1:-$NAMESPACE}"
+    echo -e "${YELLOW}  クラウドプロバイダー連携が無いクラスタのため、Skupper RouterAccess を route 方式に切り替えます...${RESET}"
+    local found=""
+    for i in $(seq 1 30); do
+        if oc get routeraccess.skupper.io skupper-router -n "$ns" &>/dev/null; then
+            found=1
+            break
+        fi
+        sleep 2
+    done
+    if [ -z "$found" ]; then
+        echo -e "${RED}  RouterAccess(skupper-router) が見つかりませんでした。手動で確認してください。${RESET}"
+        return 1
+    fi
+    oc patch routeraccess.skupper.io skupper-router -n "$ns" --type merge -p '{"spec":{"accessType":"route"}}'
+}
+
 skupper_deploy() {
     skupper_operator_setup
 
@@ -423,6 +524,8 @@ skupper_deploy() {
     if [ "$SITE_CONFREM" = "A" ]; then
         skupper site create skupper-asite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
+        _patch_skupper_router_access_type "$NAMESPACE"
+        _wait_skupper_site_ready "$NAMESPACE"
         skupper site status
         skupper token issue "$REPO_ROOT/skupper-token-a.yaml" -r 3 -e 1h -n "$NAMESPACE"
 
@@ -441,7 +544,7 @@ skupper_deploy() {
         skupper listener create external-shop-cluster-postgres-asite --host external-shop-cluster-postgres-asite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-asite 5432 --selector postgres-operator.crunchydata.com/cluster=droneshopdb -n "$NAMESPACE"
         skupper connector create external-shop-cluster-apicurio 8080 --selector app=droneshop-apicurioregistry-kafkasql -n "$NAMESPACE"
-        oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-asite.yaml" -n "$NAMESPACE"
+        _apply_kafka_bootstrap_listeners "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-asite.yaml"
         _patch_kafka_advertised_host
         # NOTE: kafka-mm2-*-site.yaml のファイル名は「ミラーの向き」を表す
         # (デプロイ先クラスタ名ではない)。asiteクラスタには
@@ -451,6 +554,8 @@ skupper_deploy() {
     elif [ "$SITE_CONFREM" = "B" ]; then
         skupper site create skupper-bsite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
+        _patch_skupper_router_access_type "$NAMESPACE"
+        _wait_skupper_site_ready "$NAMESPACE"
         skupper site status
         skupper token issue "$REPO_ROOT/skupper-token-b.yaml" -r 3 -e 1h -n "$NAMESPACE"
 
@@ -468,7 +573,7 @@ skupper_deploy() {
         skupper listener create external-shop-cluster-kafka-csite 9094 -n "$NAMESPACE"
         skupper listener create external-shop-cluster-postgres-bsite --host external-shop-cluster-postgres-bsite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-bsite 5432 --selector postgres-operator.crunchydata.com/cluster=droneshopdb -n "$NAMESPACE"
-        oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-bsite.yaml" -n "$NAMESPACE"
+        _apply_kafka_bootstrap_listeners "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-bsite.yaml"
         _patch_kafka_advertised_host
         # NOTE: kafka-mm2-*-site.yaml のファイル名は「ミラーの向き」を表す
         # (デプロイ先クラスタ名ではない)。bsiteクラスタには
@@ -478,6 +583,8 @@ skupper_deploy() {
     elif [ "$SITE_CONFREM" = "C" ]; then
         skupper site create skupper-csite -n "$NAMESPACE"
         skupper site update --enable-link-access -n "$NAMESPACE"
+        _patch_skupper_router_access_type "$NAMESPACE"
+        _wait_skupper_site_ready "$NAMESPACE"
         skupper site status
         skupper token issue "$REPO_ROOT/skupper-token-c.yaml" -r 3 -e 1h -n "$NAMESPACE"
 
@@ -495,7 +602,7 @@ skupper_deploy() {
         skupper listener create external-shop-cluster-kafka-bsite 9094 -n "$NAMESPACE"
         skupper listener create external-shop-cluster-postgres-csite --host external-shop-cluster-postgres-csite 5432 -n "$NAMESPACE"
         skupper connector create external-shop-cluster-postgres-csite 5432 --selector postgres-operator.crunchydata.com/cluster=droneshopdb -n "$NAMESPACE"
-        oc apply -f "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-csite.yaml" -n "$NAMESPACE"
+        _apply_kafka_bootstrap_listeners "$REPO_ROOT/openshift/droneshop-cluster-kafka-bootstrap-listeners-csite.yaml"
         _patch_kafka_advertised_host
         oc apply -f "$REPO_ROOT/openshift/kafka-mm2-c-site.yaml" -n "$NAMESPACE"
         # dataproduct-order-events 専用の隔離ミラー (kafka-mm2-c-site.yaml
@@ -511,6 +618,8 @@ skupper_deploy() {
         fi
         skupper site create skupper-rhdh -n "$RHDH_NAMESPACE"
         skupper site update --enable-link-access -n "$RHDH_NAMESPACE"
+        _patch_skupper_router_access_type "$RHDH_NAMESPACE"
+        _wait_skupper_site_ready "$RHDH_NAMESPACE"
         skupper site status -n "$RHDH_NAMESPACE"
         skupper token issue "$REPO_ROOT/skupper-token-rhdh.yaml" -r 3 -e 1h -n "$RHDH_NAMESPACE"
 
@@ -899,7 +1008,7 @@ dataproducts_trino_setup() {
 # それに依存するプロダクトを後段で投入する)。
 # dataproduct-order-events は asite (一次発行元) と bsite (意図的に独立稼働、
 # 2026-07-22 に明示的に追加) の両方に投入する。
-# dataproduct-inventory-event は asite/bsite 双方で独立稼働させる
+# dataproduct-inventory-event は bsite で独立稼働させる
 # (2026-07-22 の site 再配置決定)。
 # dataproduct-assembly-line-qdca10 / qdca10pro は Flink ジョブを持たない
 # (schema-only, スキーマ登録のみ実施される) が、bsite の投入対象として
@@ -908,16 +1017,16 @@ DATAPRODUCTS_ASITE_ORDER=(
     "dataproduct-order-events"
 )
 DATAPRODUCTS_BSITE_ORDER=(
+    "dataproduct-customer-360"
     "dataproduct-assembly-line-qdca10"
     "dataproduct-assembly-line-qdca10pro"
-    "dataproduct-assembly-lead-time-qdca10"
-    "dataproduct-assembly-lead-time-qdca10pro"
-    "dataproduct-customer-360"
     "dataproduct-inventory-event"
     "dataproduct-inventory-analytics"
 )
 DATAPRODUCTS_CSITE_ORDER=(
     "dataproduct-real-time-sales-trends"
+    "dataproduct-assembly-lead-time-qdca10"
+    "dataproduct-assembly-lead-time-qdca10pro"
 )
 
 # datamesh-dataproducts/*/flink/*.sql を dataproducts-flink Session Cluster に
@@ -977,10 +1086,24 @@ dataproducts_submit_flink_jobs() {
     # デシリアライズが壊れる (ArrayIndexOutOfBoundsException 等)。そのため
     # order-events 由来のレコードをデシリアライズする際は、実際にそのレコードを
     # シリアライズした asite の Registry URL を明示的に使う必要がある。
+    # NOTE: 以前はここに特定 Sandbox のURLがハードコードされており、Sandbox が
+    # 再構築されるたびに古い (死んだ) URL のままデシリアライズが失敗する事故が
+    # 繰り返し発生した。asite の Registry URL は Sandbox ごとに毎回変わるため、
+    # ASITE_APICURIO_REGISTRY_URL 環境変数で明示指定するか、未指定なら対話的に
+    # 尋ねる (homeoffice-backend の同名env varと合わせておくこと)。
     local order_events_registry_url
     case "${DATAPRODUCTS_SITE:-csite}" in
         asite) order_events_registry_url="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.APICURIO_REGISTRY_URL}' | base64 -d)" ;;
-        *)     order_events_registry_url="http://droneshop-apicurioregistry-kafkasql.quarkusdroneshop-demo.router-default.apps.ocp.zgjl6.sandbox780.opentlc.com" ;;
+        *)
+            order_events_registry_url="${ASITE_APICURIO_REGISTRY_URL:-}"
+            if [ -z "$order_events_registry_url" ]; then
+                read -p "asite の Apicurio Registry URL を入力してください (例: http://droneshop-apicurioregistry-kafkasql.quarkusdroneshop-demo.router-default.apps.ocp.<domain>): " order_events_registry_url
+            fi
+            if [ -z "$order_events_registry_url" ]; then
+                echo -e "${RED}asite の Apicurio Registry URL が未指定です。処理を中断します。${RESET}" >&2
+                exit 1
+            fi
+            ;;
     esac
 
     # dataproduct-inventory-events (component-stock-events) は 2026-07-22 の
@@ -992,11 +1115,9 @@ dataproducts_submit_flink_jobs() {
         asite) inventory_events_topic="dataproduct-inventory-events" ;;
         *)     inventory_events_topic="shop-asite.dataproduct-inventory-events" ;;
     esac
-    local inventory_events_registry_url
-    case "${DATAPRODUCTS_SITE:-csite}" in
-        asite) inventory_events_registry_url="$(oc get secret dataproducts-flink-auth -n "$NAMESPACE" -o jsonpath='{.data.APICURIO_REGISTRY_URL}' | base64 -d)" ;;
-        *)     inventory_events_registry_url="http://droneshop-apicurioregistry-kafkasql.quarkusdroneshop-demo.router-default.apps.ocp.zgjl6.sandbox780.opentlc.com" ;;
-    esac
+    # order_events_registry_url と同様、asite の Registry URL は Sandbox ごとに
+    # 変わるためハードコードしない (同じ値を使い回す)。
+    local inventory_events_registry_url="$order_events_registry_url"
 
     echo -e "${BLUE}Flink Session Cluster (${flink_deployment}) の Rest Service を待機中...${RESET}"
     until oc get flinkdeployment "${flink_deployment}" -n "$NAMESPACE" \
@@ -1098,6 +1219,86 @@ dataproducts_submit_flink_jobs() {
     echo -e "${GREEN}ジョブの投入完了${RESET}"
 }
 
+# 【2026-08-03 追加】このワークショップは csite/asite/bsite の複数クラスタに
+# またがっており、Sandbox が再構築されるたびに「他サイトを指す URL」
+# (ASITE_APICURIO_REGISTRY_URL, ASITE_KAFKA_EXTERNAL_BOOTSTRAP_URLS,
+# 各サービスのローカル APICURIO_REGISTRY_URL) が Deployment に反映されないまま
+# 古い値/欠落した状態で放置され、同種の障害 (スキーマ解決失敗によるデシリアライズ
+# エラー・在庫が全品目 null になり続ける等) が繰り返し発生していた。本関数は
+# 現在ログイン中のクラスタで動いているサービスの当該環境変数を、その時点の
+# 実際の値に一括で同期する (べき等。値が既に一致していれば無変更)。
+# 実行例:
+#   oc login <csite>; ./ocpdeploy.sh dataproducts sync-cross-site
+#   oc login <bsite>; ./ocpdeploy.sh dataproducts sync-cross-site
+dataproducts_sync_cross_site_env() {
+    oc project "$NAMESPACE"
+
+    local local_apicurio_route
+    local_apicurio_route=$(oc get route droneshop-apicurioregistry-kafkasql-ingress -n "$NAMESPACE" \
+        -o jsonpath='{.spec.host}' 2>/dev/null || true)
+    local local_apicurio_url="http://droneshop-apicurioregistry-kafkasql-service:8080"
+
+    # --- 同一クラスタ内の各サービスの APICURIO_REGISTRY_URL ---
+    # (droneshop-config ConfigMap を参照している Deployment は自動で追従するが、
+    #  過去にリテラル値で決め打ちされた/env自体が欠落した Deployment が残っている
+    #  ことがあるため、主要サービスへ明示的に同期する)
+    local svc
+    for svc in inventory qdca10 qdca10pro counter web; do
+        if oc get deployment "$svc" -n "$NAMESPACE" &>/dev/null; then
+            local current
+            current=$(oc get deployment "$svc" -n "$NAMESPACE" \
+                -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="APICURIO_REGISTRY_URL")].value}' 2>/dev/null || true)
+            if [ "$current" != "$local_apicurio_url" ]; then
+                echo -e "${BLUE}${svc}: APICURIO_REGISTRY_URL を ${local_apicurio_url} に同期${RESET}"
+                oc set env deployment/"$svc" -n "$NAMESPACE" APICURIO_REGISTRY_URL="$local_apicurio_url"
+            else
+                echo -e "${GREEN}${svc}: APICURIO_REGISTRY_URL は既に同期済み${RESET}"
+            fi
+        fi
+    done
+
+    # --- homeoffice-backend: asite 側の Registry / 外部 Kafka リスナー ---
+    # (Retry ボタンで dataproduct-order-events へ本物の ORDER_PLACED イベントを
+    #  asite へ直接 publish するために必要。値は Sandbox 再構築のたびに変わる)
+    if oc get deployment homeoffice-backend -n "$NAMESPACE" &>/dev/null; then
+        local asite_registry_url="${ASITE_APICURIO_REGISTRY_URL:-}"
+        if [ -z "$asite_registry_url" ]; then
+            read -rp "$(echo -e "${YELLOW}asite の Apicurio Registry URL を入力してください (未変更ならEnterでスキップ): ${RESET}")" asite_registry_url
+        fi
+        local asite_kafka_bootstrap="${ASITE_KAFKA_EXTERNAL_BOOTSTRAP_URLS:-}"
+        if [ -z "$asite_kafka_bootstrap" ]; then
+            read -rp "$(echo -e "${YELLOW}asite の Kafka 外部リスナー (host:port) を入力してください (未変更ならEnterでスキップ): ${RESET}")" asite_kafka_bootstrap
+        fi
+
+        local set_args=()
+        [ -n "$asite_registry_url" ] && set_args+=("ASITE_APICURIO_REGISTRY_URL=${asite_registry_url}")
+        [ -n "$asite_kafka_bootstrap" ] && set_args+=("ASITE_KAFKA_EXTERNAL_BOOTSTRAP_URLS=${asite_kafka_bootstrap}")
+
+        if [ ${#set_args[@]} -gt 0 ]; then
+            echo -e "${BLUE}homeoffice-backend: asite 向けクロスサイト設定を同期${RESET}"
+            oc set env deployment/homeoffice-backend -n "$NAMESPACE" "${set_args[@]}"
+        else
+            echo -e "${YELLOW}homeoffice-backend: 値が未指定のためスキップしました (ASITE_APICURIO_REGISTRY_URL / ASITE_KAFKA_EXTERNAL_BOOTSTRAP_URLS を環境変数で渡すか対話入力してください)${RESET}"
+        fi
+    fi
+
+    # --- web: bsite (customer-360 の一次発行元) の Registry URL ---
+    if oc get deployment web -n "$NAMESPACE" &>/dev/null; then
+        local bsite_registry_url="${BSITE_APICURIO_REGISTRY_URL:-}"
+        if [ -z "$bsite_registry_url" ]; then
+            read -rp "$(echo -e "${YELLOW}bsite の Apicurio Registry URL を入力してください (未変更ならEnterでスキップ): ${RESET}")" bsite_registry_url
+        fi
+        if [ -n "$bsite_registry_url" ]; then
+            echo -e "${BLUE}web: BSITE_APICURIO_REGISTRY_URL を同期${RESET}"
+            oc set env deployment/web -n "$NAMESPACE" BSITE_APICURIO_REGISTRY_URL="$bsite_registry_url"
+        else
+            echo -e "${YELLOW}web: BSITE_APICURIO_REGISTRY_URL が未指定のためスキップしました${RESET}"
+        fi
+    fi
+
+    echo -e "${GREEN}dataproducts sync-cross-site 完了${RESET}"
+}
+
 dataproducts_deploy() {
     oc project "$NAMESPACE"
 
@@ -1178,7 +1379,11 @@ dataproducts_deploy() {
     # 引数で対象プロダクトを絞り込める (例: dataproducts deploy dataproduct-customer-360)。
     # 未指定時は DATAPRODUCTS_DEFAULT_ORDER の全プロダクトを投入する。
     dataproducts_submit_flink_jobs "${args[@]}"
-    echo -e "${GREEN}dataproducts deploy 完了 (Flink Session Cluster / Lakekeeper / スキーマ登録 / ジョブ投入)${RESET}"
+
+    echo -e "${BLUE}クロスサイト設定 (APICURIO_REGISTRY_URL / asite 外部リスナー) を同期中...${RESET}"
+    dataproducts_sync_cross_site_env
+
+    echo -e "${GREEN}dataproducts deploy 完了 (Flink Session Cluster / Lakekeeper / スキーマ登録 / ジョブ投入 / クロスサイト設定同期)${RESET}"
 }
 
 # Flink の value.format=avro-confluent は Apicurio の ccompat (Confluent互換)
@@ -1488,6 +1693,7 @@ case "$1" in
             lakekeeper) dataproducts_lakekeeper_setup ;;
             debezium) dataproducts_debezium_setup ;;
             cleanup) dataproducts_cleanup ;;
+            sync-cross-site) dataproducts_sync_cross_site_env ;;
         esac
         ;;
 

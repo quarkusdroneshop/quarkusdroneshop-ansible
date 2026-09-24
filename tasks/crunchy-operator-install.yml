@@ -39,22 +39,39 @@
   when: not delete_deployment|bool
 
 # CSV が Succeeded になっても PostgresCluster CRD が API discovery に
-# 反映されるまでわずかにラグがあるため、CRD 自体の登録も待つ
-- name: Wait for PostgresCluster CRD to be registered
-  shell: "{{ oc_location }} get crd postgresclusters.postgres-operator.crunchydata.com"
+# 反映されるまでわずかにラグがある。
+# `oc get crd <name>` の成功は CRD オブジェクトが etcd に存在することしか
+# 保証せず、APIサーバーが REST エンドポイントとして提供開始(Established)
+# したことは保証しない。kubernetes.core.k8s モジュールはタスクごとに discovery
+# をやり直すため、Established 前に次タスクへ進むと
+# "Failed to find exact match for ... PostgresCluster" で失敗する。
+# そのため status.conditions の Established=True を明示的に待つ。
+- name: Wait for PostgresCluster CRD to be Established
+  shell: >-
+    {{ oc_location }} get crd postgresclusters.postgres-operator.crunchydata.com
+    -o jsonpath='{.status.conditions[?(@.type=="Established")].status}'
   register: r_pgo_crd
   changed_when: false
   retries: 20
   delay: 15
-  until: r_pgo_crd.rc == 0
+  until: r_pgo_crd.stdout == "True"
   when: not delete_deployment|bool
 
+# `oc get crd ... Established` の確認が通っても、kubernetes.core.k8s モジュールは
+# Kubernetes Python クライアント自身が保持する API discovery キャッシュを使うため、
+# 複数レプリカの kube-apiserver 間でこのキャッシュの反映にラグが生じ、
+# "Failed to find exact match for ... PostgresCluster" で失敗することがある。
+# 5回×10秒(50秒)では足りない場合があるため、30回×10秒(5分)まで許容する。
 - name: Create Crunchy Postgres database instance
   kubernetes.core.k8s:
     state: present
     namespace: "{{ project_namespace }}"
     apply: true
     definition: "{{ lookup('template', 'crunchy-postgres.yml.j2') }}"
+  register: r_pgo_create
+  retries: 30
+  delay: 10
+  until: r_pgo_create is succeeded
   when: not delete_deployment|bool
   tags:
     - postgres
