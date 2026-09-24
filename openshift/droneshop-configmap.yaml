@@ -10,6 +10,13 @@ data:
   # APICURIO_REGISTRY_URL が常に空文字になり、Avro デシリアライズが機能しない
   # (counter の orders-up チャンネルのオフセットが永久に進まない) 原因だった。
   APICURIO_REGISTRY_URL: "http://droneshop-apicurioregistry-kafkasql-service.quarkusdroneshop-demo.svc:8080"
+  # web の customer-360 チャンネルが読む dataproduct-customer-360 は、真のマルチクラスタ
+  # 構成では bsite の Flink ジョブが生成したものが MirrorMaker2 経由でミラーされる。
+  # このキー自体がこれまで定義されておらず、web Pod が起動時に
+  # "Missing registry base url, set apicurio.registry.url" でクラッシュしていた
+  # (APICURIO_REGISTRY_URL と同じ「キー未定義→空文字化」のパターン)。
+  # 単一クラスタ構成では bsite が存在しないため、ローカルの Registry にフォールバックする。
+  BSITE_APICURIO_REGISTRY_URL: "http://droneshop-apicurioregistry-kafkasql-service.quarkusdroneshop-demo.svc:8080"
   STREAM_URL: "http://localhost:8080/dashboard/stream"
   LOYALTY_STREAM_URL: "http://localhost:8080/dashboard/loyaltystream"
   CORS_ORIGINS: "http://localhost:8080"
