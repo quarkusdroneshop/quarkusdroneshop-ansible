@@ -18,7 +18,10 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: mc
-          image: quay.io/minio/mc:latest
+          # quay.io/minio/mc は 2025年に非公開化され pull できなくなったため、
+          # 公開され続けている Bitnami の legacy ミラーを使う
+          # (minio-values.yaml の mcImage オーバーライドと同じ理由)。
+          image: docker.io/bitnamilegacy/minio-client:latest
           envFrom:
             - secretRef:
                 name: dataproducts-minio-auth

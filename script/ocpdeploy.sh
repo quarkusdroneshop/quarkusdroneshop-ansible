@@ -972,6 +972,16 @@ dataproducts_setup() {
     helm upgrade --install minio minio/minio \
         -n "$NAMESPACE" \
         -f "$REPO_ROOT/openshift/dataproducts/minio-values.yaml"
+    # minio/minio チャートは Deployment の command に
+    # "/usr/bin/docker-entrypoint.sh minio server ..." を直接埋め込んでおり、
+    # values からの上書きができない。MinIO社が公式イメージ(quay.io/minio/minio)を
+    # 非公開化したため minio-values.yaml では bitnamilegacy/minio に切り替えて
+    # いるが、Bitnami イメージにはこの entrypoint スクリプトが存在せず
+    # ("not found") 起動できない。Bitnami イメージ本来のバイナリパスへ直接
+    # 差し替える。
+    oc patch deployment dataproducts-minio -n "$NAMESPACE" --type=json -p '[
+        {"op":"replace","path":"/spec/template/spec/containers/0/command","value":["/bin/sh","-ce","/opt/bitnami/minio/bin/minio server /export -S /etc/minio/certs/ --address :9000 --console-address :9001"]}
+    ]'
     echo -e "${BLUE}  MinIO の起動を待っています...${RESET}"
     oc rollout status deployment/dataproducts-minio -n "$NAMESPACE" --timeout=180s
 

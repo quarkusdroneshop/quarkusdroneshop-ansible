@@ -8,6 +8,20 @@
 mode: standalone
 replicas: 1
 
+# MinIO社が 2025年に quay.io/docker.io 上の公式イメージ (quay.io/minio/minio) を
+# 非公開化したため、チャートのデフォルトタグ (RELEASE.*) は unauthorized で
+# pull できなくなった。公開され続けている Bitnami の legacy ミラーに切り替える
+# (bitnami/minio 自体も同時期に空になったため、後継の bitnamilegacy/minio を使う)。
+image:
+  repository: bitnamilegacy/minio
+  tag: latest
+
+# post-job (bucket/policy 初期化) が使う mc クライアントも同様に quay.io/minio/mc が
+# 非公開化されているため、bitnamilegacy 側のミラーに切り替える。
+mcImage:
+  repository: bitnamilegacy/minio-client
+  tag: latest
+
 # 既存の Service 名 (dataproducts-minio) を維持し、Iceberg REST Catalog 側の
 # CATALOG_S3_ENDPOINT 等の参照を変更せずに済むようにする。
 fullnameOverride: dataproducts-minio
