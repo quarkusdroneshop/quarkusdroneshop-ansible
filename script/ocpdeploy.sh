@@ -363,6 +363,55 @@ skupper_operator_setup() {
     echo -e "${BLUE}Skupper CRD の準備を待っています...${RESET}"
     until oc get crd sites.skupper.io &>/dev/null; do sleep 5; done
     echo -e "${GREEN}  → Skupper CRD 準備完了${RESET}"
+
+    _ensure_grant_server_cert
+}
+
+# skupper-grant-server (token issue/redeem が使う管理用エンドポイント) の
+# TLS証明書は、LoadBalancer Service (ELB) のホスト名だけで発行され、
+# 同じ SecuredAccess が所有する Route (skupper-grant-server-https) の
+# ホスト名は SAN に含まれないことがある。ELB が再作成される (ノード入れ替え等)
+# たびにこの証明書が再生成され、その際も Route のホスト名が抜け落ちるため、
+# 他サイトからの token redeem が
+# "x509: certificate is valid for <ELBホスト>, ... not <Routeホスト>"
+# で毎回失敗する不具合が繰り返し発生している (2026-09-27 時点で3サイトで再発確認)。
+# SecuredAccess を削除して skupper-controller を再起動すると、再作成時に
+# 今度は正しく Route のホスト名を含めて証明書が発行される (原因不明の
+# Operator側の一時的な取りこぼしとみられる)。冪等なので必要な時だけ実行する。
+_ensure_grant_server_cert() {
+    local route_host
+    route_host=$(oc get route skupper-grant-server-https -n openshift-operators \
+        -o jsonpath='{.spec.host}' 2>/dev/null)
+    if [ -z "$route_host" ]; then
+        # Route がまだ存在しない (Skupper Operator 導入直後等) 場合は
+        # SecuredAccess 自体もこれから作られるので何もしなくてよい。
+        return 0
+    fi
+
+    local cert_pem
+    cert_pem=$(oc get secret skupper-grant-server -n openshift-operators \
+        -o jsonpath='{.data.tls\.crt}' 2>/dev/null | base64 -d 2>/dev/null)
+    if [ -n "$cert_pem" ] && echo "$cert_pem" | openssl x509 -noout -text 2>/dev/null \
+        | grep -q "$route_host"; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}  skupper-grant-server 証明書に Route ホスト名(${route_host})が含まれていません。再生成します...${RESET}"
+    oc delete securedaccess.skupper.io skupper-grant-server -n openshift-operators 2>/dev/null || true
+    oc delete pod -l app.kubernetes.io/name=skupper-controller -n openshift-operators 2>/dev/null || true
+
+    for i in $(seq 1 20); do
+        sleep 5
+        cert_pem=$(oc get secret skupper-grant-server -n openshift-operators \
+            -o jsonpath='{.data.tls\.crt}' 2>/dev/null | base64 -d 2>/dev/null)
+        if [ -n "$cert_pem" ] && echo "$cert_pem" | openssl x509 -noout -text 2>/dev/null \
+            | grep -q "$route_host"; then
+            echo -e "${GREEN}  → skupper-grant-server 証明書を再生成しました (Route ホスト名を含む)${RESET}"
+            return 0
+        fi
+    done
+    echo -e "${RED}  skupper-grant-server 証明書の再生成を確認できませんでした。手動確認してください。${RESET}"
+    return 1
 }
 
 # クラスタにクラウドプロバイダー連携(AWS/GCP/Azure等)が無いベアメタル/オンプレ系
