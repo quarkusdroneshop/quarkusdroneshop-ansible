@@ -1294,7 +1294,7 @@ dataproducts_sync_cross_site_env() {
     if oc get deployment homeoffice-backend -n "$NAMESPACE" &>/dev/null; then
         local asite_registry_url="${ASITE_APICURIO_REGISTRY_URL:-}"
         if [ -z "$asite_registry_url" ]; then
-            read -rp "$(echo -e "${YELLOW}asite の Apicurio Registry URL を入力してください (未変更ならEnterでスキップ): ${RESET}")" asite_registry_url
+            read -rp "$(echo -e "${YELLOW}asite の Apicurio Registry URL を入力してください (例: http://droneshop-apicurioregistry-kafkasql.quarkusdroneshop-demo.router-default.apps.ocp.<domain>、未変更ならEnterでスキップ): ${RESET}")" asite_registry_url
         fi
         local asite_kafka_bootstrap="${ASITE_KAFKA_EXTERNAL_BOOTSTRAP_URLS:-}"
         if [ -z "$asite_kafka_bootstrap" ]; then
