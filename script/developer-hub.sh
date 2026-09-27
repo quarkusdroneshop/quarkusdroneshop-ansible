@@ -908,6 +908,20 @@ _set_github_token() {
     local _token="$1"
     local _restart="${2:-restart}"
 
+    # ターミナルの貼り付け処理の不具合等で read が同じトークンを複数回
+    # 連結して受け取ってしまうことがあり (例: "ghp_xxxghp_xxxghp_xxx")、
+    # 気付かずそのまま Secret に反映すると 401 Unauthorized の原因調査に
+    # 時間を溶かすことになる。GitHub PAT の形式・長さを軽く検証して弾く。
+    if ! [[ "$_token" =~ ^(ghp|gho|ghu|ghs|ghr|github_pat)_[A-Za-z0-9_]{20,}$ ]]; then
+        echo -e "${RED}ERROR: 入力されたトークンの形式が不正です (ghp_.../github_pat_... 等の形式ではありません)。${RESET}" >&2
+        echo -e "${RED}       貼り付け時に文字列が重複していないか確認してください。${RESET}" >&2
+        return 1
+    fi
+    if [ "${#_token}" -gt 255 ]; then
+        echo -e "${RED}ERROR: トークンが異常に長いです (${#_token}文字)。貼り付け時に重複している可能性があります。${RESET}" >&2
+        return 1
+    fi
+
     echo -e "${BLUE}Secret (GITHUB_TOKEN) を更新中...${RESET}"
     oc patch secret secrets-rhdh \
         -n "$RHDH_NAMESPACE" \
