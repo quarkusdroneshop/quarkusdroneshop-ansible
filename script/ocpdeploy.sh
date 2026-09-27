@@ -969,8 +969,18 @@ dataproducts_setup() {
     # restricted-v2 デフォレンジと衝突する。専用 SA (minio-sa, チャートが
     # 生成) に anyuid SCC を付与する必要がある。
     oc adm policy add-scc-to-user anyuid -z minio-sa -n "$NAMESPACE" 2>/dev/null || true
+    # --no-hooks: チャートの post-install フック (dataproducts-minio-post-job,
+    # bucket/policy作成用のmcクライアントJob) は、MinIO本体 (Deployment) が
+    # 実際に起動して応答できるようになるまで成功できない。しかし
+    # `helm upgrade --install` はデフォルトでこのフックの完了を待って
+    # ブロックするため、直後に行う command 修正パッチ (下記) が実行される前に
+    # デッドロックしてしまう (フックがコマンド不備でクラッシュし続ける
+    # MinIO への接続を永久に待つ)。bucket 作成は後続の
+    # dataproducts-minio-init-bucket Job で別途行っているため、このフックは
+    # 不要であり --no-hooks でスキップする。
     helm upgrade --install minio minio/minio \
         -n "$NAMESPACE" \
+        --no-hooks \
         -f "$REPO_ROOT/openshift/dataproducts/minio-values.yaml"
     # minio/minio チャートは Deployment の command に
     # "/usr/bin/docker-entrypoint.sh minio server ..." を直接埋め込んでおり、
